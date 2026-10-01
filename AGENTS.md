@@ -1,5 +1,7 @@
 # Development standards
 
+- Use Bun for development tooling, but keep the project engine agnostic so it also runs with plain Node.js and npm.
+
 - When a suitable library already exists for a task, install and use it instead of reimplementing that functionality. Prefer a focused dependency and use its documented API.
 
 - Refactor recoverable failures to return [results-ts](https://github.com/madkarmaa/results-ts) `Result` values directly throughout browser, API, BMP, and Google Photos code. Use `Ok`/`Err` and explicit propagation, rather than wrapping exception-driven application code with `catchUnwind` or `catchUnwindAsync`. Use `try/catch` only at platform or third-party I/O boundaries that can throw or reject, converting those failures to `Err`.
