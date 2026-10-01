@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" theme="%phodrive.theme%">
+    <head>
+        <meta charset="utf-8" />
+        <script>
+            (() => {
+                const THEME_KEY = 'phodrive-theme';
+                let theme = document.documentElement.getAttribute('theme') ?? 'auto';
+
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved === 'light' || saved === 'dark' || saved === 'auto') theme = saved;
+                } catch {
+                    // Browser storage can be unavailable; retain the deployment theme.
+                }
+
+                document.documentElement.setAttribute('theme', theme);
+            })();
+        </script>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="text-scale" content="scale" />
+        %sveltekit.head%
+    </head>
+    <body data-sveltekit-preload-data="hover">
+        <div style="display: contents">%sveltekit.body%</div>
+    </body>
+</html>

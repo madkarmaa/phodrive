@@ -1,0 +1,16 @@
+# Send only files required to build the application.
+**
+!package.json
+!bun.lock
+!vite.config.ts
+!tsconfig.json
+!src
+!src/**
+!static
+!static/**
+!LICENSE*
+
+# Keep credentials excluded even inside an allowed source directory.
+**/.env
+**/.env.*
+**/.dev.vars

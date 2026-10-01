@@ -1,0 +1,160 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+
+@function --m3-density(--value) {
+    result: var(--value);
+}
+
+:root {
+    color-scheme: light;
+    font-family: 'Google Sans Flex', system-ui, sans-serif;
+    /* M3 Svelte's lavender seed (#b4befe), with Catppuccin Latte/Mocha surfaces.
+       https://kendell.dev/m3-svelte/theme • https://catppuccin.com/palette/ */
+    --m3c-primary: light-dark(#545c8c, #b4befe);
+    --m3c-on-primary: light-dark(#faf8ff, #181825);
+    --m3c-primary-container: light-dark(#bec6fd, #45475a);
+    --m3c-on-primary-container: light-dark(#373f6d, #cdd6f4);
+    --m3c-primary-container-subtle: light-dark(#d3d8ff, #313244);
+    --m3c-on-primary-container-subtle: light-dark(#414978, #b4befe);
+    --m3c-on-on-primary: var(--m3c-primary);
+    --m3c-inverse-primary: light-dark(#b4befe, #545c8c);
+    --m3c-secondary: light-dark(#5b5e72, #cba6f7);
+    --m3c-on-secondary: light-dark(#faf8ff, #181825);
+    --m3c-secondary-container: light-dark(#dfe1f9, #45475a);
+    --m3c-on-secondary-container: light-dark(#4e5065, #cdd6f4);
+    --m3c-secondary-container-subtle: light-dark(#d7d8f1, #313244);
+    --m3c-on-secondary-container-subtle: light-dark(#494b5f, #cba6f7);
+    --m3c-tertiary: light-dark(#176b61, #94e2d5);
+    --m3c-on-tertiary: light-dark(#ffffff, #181825);
+    --m3c-tertiary-container: light-dark(#b7eee2, #313244);
+    --m3c-on-tertiary-container: light-dark(#134e46, #94e2d5);
+    --m3c-tertiary-container-subtle: var(--m3c-tertiary-container);
+    --m3c-on-tertiary-container-subtle: var(--m3c-on-tertiary-container);
+    --m3c-surface: light-dark(#e6e9ef, #181825);
+    --m3c-surface-container-lowest: light-dark(#ffffff, #11111b);
+    --m3c-surface-container-low: light-dark(#eff1f5, #1e1e2e);
+    --m3c-surface-container: light-dark(#dce0e8, #313244);
+    --m3c-surface-container-high: light-dark(#ccd0da, #45475a);
+    --m3c-surface-container-highest: light-dark(#bcc0cc, #585b70);
+    --m3c-on-surface: light-dark(#4c4f69, #cdd6f4);
+    --m3c-on-surface-container: var(--m3c-on-surface);
+    --m3c-on-surface-variant: light-dark(#5c5f77, #bac2de);
+    --m3c-inverse-surface: light-dark(#313244, #eff1f5);
+    --m3c-inverse-on-surface: light-dark(#cdd6f4, #4c4f69);
+    --m3c-outline: light-dark(#6c6f85, #9399b2);
+    --m3c-outline-variant: light-dark(#bcc0cc, #45475a);
+    --m3c-error: light-dark(#a8364b, #f38ba8);
+    --m3c-on-error: light-dark(#fff7f7, #181825);
+    --m3c-error-container: light-dark(#ffced2, #5f001c);
+    --m3c-on-error-container: light-dark(#8f2339, #f38ba8);
+    --m3c-error-container-subtle: var(--m3c-error-container);
+    --m3c-on-error-container-subtle: var(--m3c-on-error-container);
+    --m3c-shadow: #000;
+    --m3c-scrim: #000;
+
+    --app-panel: var(--m3c-surface-container-low);
+    --app-text: var(--m3c-on-surface);
+    --app-subtle: var(--m3c-on-surface-variant);
+    --app-muted: light-dark(#6c6f85, #a6adc8);
+    --app-search: var(--m3c-surface-container);
+    --app-menu: var(--m3c-surface-container);
+    --app-card: var(--m3c-surface-container);
+    --app-preview: var(--m3c-surface-container-low);
+    --app-hover: var(--m3c-surface-container-high);
+    --app-selected: var(--m3c-primary-container);
+    --app-selected-text: var(--m3c-on-primary-container);
+    --app-border: var(--m3c-outline-variant);
+    --app-primary: var(--m3c-primary);
+    --app-avatar: var(--m3c-primary);
+    --app-avatar-text: var(--m3c-on-primary);
+    --app-success: light-dark(#146c2e, #a6e3a1);
+    --app-feedback: var(--m3c-primary-container-subtle);
+}
+
+:root[theme='light'] {
+    color-scheme: light;
+}
+
+:root[theme='dark'] {
+    color-scheme: dark;
+}
+
+:root[theme='auto'] {
+    color-scheme: light dark;
+}
+
+body {
+    background: var(--m3c-surface);
+    color: var(--m3c-on-surface);
+}
+
+/* Tailwind utilities use the same theme tokens as Material 3 components. */
+@theme inline {
+    --color-surface: var(--m3c-surface);
+    --color-panel: var(--app-panel);
+    --color-text: var(--app-text);
+    --color-subtle: var(--app-subtle);
+    --color-muted: var(--app-muted);
+    --color-search: var(--app-search);
+    --color-menu: var(--app-menu);
+    --color-card: var(--app-card);
+    --color-preview: var(--app-preview);
+    --color-hover: var(--app-hover);
+    --color-selected: var(--app-selected);
+    --color-selected-text: var(--app-selected-text);
+    --color-border: var(--app-border);
+    --color-primary: var(--app-primary);
+    --color-avatar: var(--app-avatar);
+    --color-avatar-text: var(--app-avatar-text);
+    --color-success: var(--app-success);
+    --color-feedback: var(--app-feedback);
+    --color-error: var(--m3c-error);
+    --color-outline: var(--m3c-outline);
+}
+
+@layer components {
+    .icon-button {
+        @apply grid size-10 cursor-pointer place-items-center rounded-full border-0 bg-transparent transition-colors hover:bg-hover;
+    }
+
+    .icon-button svg {
+        @apply size-5.5;
+    }
+
+    .account-row {
+        @apply flex min-h-14.5 w-full cursor-pointer items-center gap-4 border-0 border-t-2 border-menu bg-panel px-4.5 py-2.5 text-left text-sm text-text transition-colors hover:bg-hover disabled:cursor-default disabled:opacity-50;
+    }
+
+    .file-action {
+        @apply inline-flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent px-1.75 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-hover disabled:cursor-default disabled:opacity-50;
+    }
+
+    .filter-chip {
+        @apply relative box-border flex h-8 shrink-0 items-center rounded-lg border border-outline text-[13px] leading-5 text-text;
+    }
+
+    .filter-chip option {
+        @apply bg-panel text-text;
+    }
+
+    .filter-chip select {
+        @apply h-full w-full cursor-pointer rounded-[inherit] border-0 bg-transparent py-0 pr-7 text-[13px] leading-5 text-transparent;
+    }
+
+    .workspace-heading {
+        @apply flex min-h-13 items-start justify-between gap-5 max-[520px]:min-h-14.5;
+    }
+
+    .workspace-heading h1 {
+        @apply m-0 text-2xl font-normal tracking-tight max-[520px]:text-[25px];
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0s !important;
+        animation-duration: 0s !important;
+    }
+}

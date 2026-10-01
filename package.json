@@ -1,0 +1,58 @@
+{
+    "name": "phodrive",
+    "private": true,
+    "version": "0.0.1",
+    "license": "MIT",
+    "description": "Files worth a thousand pixels.",
+    "author": "madkarmaa",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/madkarmaa/phodrive"
+    },
+    "type": "module",
+    "scripts": {
+        "dev": "vite dev --host 127.0.0.1",
+        "build": "vite build",
+        "preview": "vite preview",
+        "start": "HOST=127.0.0.1 PORT=3000 ORIGIN=http://127.0.0.1:3000 BODY_SIZE_LIMIT=Infinity node build",
+        "test": "vitest run",
+        "prepare": "svelte-kit sync || echo ''",
+        "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+        "lint": "prettier --check .",
+        "format": "prettier --write ."
+    },
+    "devDependencies": {
+        "@iconify-json/material-symbols": "^1.2.93",
+        "@sveltejs/adapter-node": "^5.5.7",
+        "@sveltejs/kit": "^2.70.3",
+        "@sveltejs/vite-plugin-svelte": "^7.3.1",
+        "@tailwindcss/forms": "^0.5.11",
+        "@tailwindcss/vite": "^4.3.3",
+        "@types/node": "^26.6.3",
+        "@types/varint": "^6.0.3",
+        "prettier": "^3.9.9",
+        "prettier-plugin-svelte": "^4.1.1",
+        "prettier-plugin-tailwindcss": "^0.8.1",
+        "svelte": "^5.57.1",
+        "svelte-check": "^4.7.6",
+        "tailwindcss": "^4.3.3",
+        "typescript": "^6.0.3",
+        "unplugin-icons": "^24.0.0",
+        "vite": "^8.3.1",
+        "vitest": "^5.0.3"
+    },
+    "dependencies": {
+        "@fontsource-variable/google-sans-flex": "^5.3.1",
+        "@noble/hashes": "^2.4.0",
+        "eventsource-parser": "^4.1.1",
+        "m3-svelte": "^7.2.1",
+        "p-limit": "^7.3.3",
+        "results-ts": "^4.2.6",
+        "runed": "^0.37.1",
+        "undici": "^8.11.2",
+        "varint": "^6.0.0",
+        "vite-plugin-functions-mixins": "^0.4.1",
+        "zod": "^4.6.5"
+    }
+}

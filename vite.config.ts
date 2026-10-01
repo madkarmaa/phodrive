@@ -1,0 +1,38 @@
+import tailwindcss from '@tailwindcss/vite';
+import adapter from '@sveltejs/adapter-node';
+import { sveltekit } from '@sveltejs/kit/vite';
+import Icons from 'unplugin-icons/vite';
+import { defaultClientConditions, defaultServerConditions } from 'vite';
+import { defineConfig } from 'vitest/config';
+import { functionsMixins } from 'vite-plugin-functions-mixins';
+
+export default defineConfig({
+    test: { include: ['tests/**/*.test.ts'] },
+    // m3-svelte exposes CSS through its `style` export condition.
+    resolve: { conditions: [...defaultClientConditions, 'style'] },
+    ssr: { resolve: { conditions: [...defaultServerConditions, 'style'] } },
+    optimizeDeps: { exclude: ['m3-svelte'] },
+    plugins: [
+        // Compile Material 3 functions and mixins before Tailwind processes CSS.
+        { ...functionsMixins({ deps: ['m3-svelte'] }), enforce: 'pre' },
+        tailwindcss(),
+        sveltekit({
+            experimental: { remoteFunctions: true },
+            alias: {
+                $components: 'src/lib/components',
+                $browser: 'src/lib/browser',
+                $server: 'src/lib/server',
+                $assets: 'src/lib/assets',
+                $package: 'package.json'
+            },
+            compilerOptions: {
+                experimental: { async: true },
+                // Force runes mode for the project, except for libraries. Can be removed in svelte 6.
+                runes: ({ filename }) =>
+                    filename.split(/[/\\]/).includes('node_modules') ? undefined : true
+            },
+            adapter: adapter()
+        }),
+        Icons({ compiler: 'svelte' })
+    ]
+});
