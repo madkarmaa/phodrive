@@ -3,14 +3,16 @@ import { createHash } from 'node:crypto';
 import { Ok } from 'results-ts';
 import { groupChunks, type UploadedChunk } from '$lib/file-groups';
 import { UploadEventType, UploadStatus, type UploadEvent } from '$lib/models';
-import { uploadFiles } from '$server/uploads';
+import { planUpload, uploadFiles } from '$server/uploads';
 import { receiveUpload } from '$server/upload-input';
 import { removeTemporaryDirectory } from '$server/temporary-files';
-import { uploadBmp } from '$server/photos';
-import { decodeSplitBmp, encodeSplitBmp } from '$server/bmp';
+import { downloadBmp, uploadBmp } from '$server/photos';
+import { decodeSplitBmp, encodeSplitBmp, MAX_CHUNK_PAYLOAD_BYTES } from '$server/bmp';
 import { fileIdentity } from '$server/chunks';
+import { downloadFile } from '$server/files';
+import { FileActionKind, type FileRequest } from '$lib/models';
 
-vi.mock('$server/photos', () => ({ uploadBmp: vi.fn() }));
+vi.mock('$server/photos', () => ({ uploadBmp: vi.fn(), downloadBmp: vi.fn() }));
 
 const directories: string[] = [];
 const PAYLOAD = Buffer.from([1, 2, 3, 4]);
@@ -97,12 +99,50 @@ test('distinct identities keep identical content under different names as separa
 
 test('same-name retries keep identity stable while different names get independent identities', () => {
     const fileHash = createHash('sha256').update(PAYLOAD).digest('hex');
+    const file = { name: 'first.bin', path: '/unused', size: PAYLOAD.length, fileHash };
+    const retry = planUpload({ ...file }).unwrap();
+    const initial = planUpload(file).unwrap();
 
-    expect(fileIdentity('first.bin', fileHash)).toBe(fileIdentity('first.bin', fileHash));
-    expect(fileIdentity('first.bin', fileHash)).not.toBe(fileIdentity('second.bin', fileHash));
-    expect(fileIdentity('empty-first.bin', EMPTY_HASH)).not.toBe(
-        fileIdentity('empty-second.bin', EMPTY_HASH)
+    expect(retry.headers[0].fileId).toBe(initial.headers[0].fileId);
+    expect(planUpload({ ...file, name: 'second.bin' }).unwrap().headers[0].fileId).not.toBe(
+        initial.headers[0].fileId
     );
+    expect(
+        planUpload({ ...file, name: 'empty-first.bin', size: 0, fileHash: EMPTY_HASH }).unwrap()
+            .headers[0].fileId
+    ).not.toBe(
+        planUpload({ ...file, name: 'empty-second.bin', size: 0, fileHash: EMPTY_HASH }).unwrap()
+            .headers[0].fileId
+    );
+});
+
+test('split upload plans use different stable identities for same-content filenames on every chunk', () => {
+    const fileHash = createHash('sha256').update(PAYLOAD).digest('hex');
+    const first = planUpload({
+        name: 'first.bin',
+        path: '/unused',
+        size: MAX_CHUNK_PAYLOAD_BYTES + 1,
+        fileHash
+    }).unwrap();
+    const firstRetry = planUpload({
+        name: 'first.bin',
+        path: '/unused',
+        size: MAX_CHUNK_PAYLOAD_BYTES + 1,
+        fileHash
+    }).unwrap();
+    const second = planUpload({
+        name: 'second.bin',
+        path: '/unused',
+        size: MAX_CHUNK_PAYLOAD_BYTES + 1,
+        fileHash
+    }).unwrap();
+
+    expect(first.headers).toHaveLength(2);
+    expect(new Set(first.headers.map((header) => header.fileId)).size).toBe(1);
+    expect(firstRetry.headers.map((header) => header.fileId)).toEqual(
+        first.headers.map((header) => header.fileId)
+    );
+    expect(second.headers.every((header) => header.fileId !== first.headers[0].fileId)).toBe(true);
 });
 
 test('versioned split BMPs round-trip file identity and legacy BMPs remain readable', () => {
@@ -158,4 +198,36 @@ test('legacy aliases without file identity retain the previous content-hash grou
     expect(legacyFile.fileId).toBeUndefined();
     expect(legacyFile.name).toBe('second.bin');
     expect(legacyFile.chunks).toHaveLength(1);
+});
+
+test('download rejects a mismatched file identity before fetching any BMP bytes', async () => {
+    const fileHash = createHash('sha256').update(PAYLOAD).digest('hex');
+    const requestedFileId = fileIdentity('first.bin', fileHash);
+    const input: FileRequest = {
+        action: FileActionKind.Download,
+        email: 'synthetic@example.com',
+        token: 'aas_et/synthetic-token',
+        name: 'first.bin',
+        fileHash,
+        fileId: requestedFileId,
+        workers: 1,
+        chunks: [
+            {
+                fileHash,
+                fileId: fileIdentity('second.bin', fileHash),
+                chunkIndex: 0,
+                isLast: true,
+                originalName: 'first.bin',
+                size: PAYLOAD.length,
+                at: 1,
+                mediaKey: 'synthetic-media-key',
+                sha1: '0'.repeat(40)
+            }
+        ]
+    };
+
+    const result = await downloadFile(input);
+
+    expect(result.isErr()).toBe(true);
+    expect(downloadBmp).not.toHaveBeenCalled();
 });
