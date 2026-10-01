@@ -630,7 +630,8 @@ function probeLibraryItem(
                     fileHash: header.fileHash,
                     chunkIndex: header.chunkIndex,
                     isLast: header.flags === 1,
-                    originalName: header.fileName
+                    originalName: header.fileName,
+                    size: header.payloadSize
                 }),
                 Err: () => null
             })

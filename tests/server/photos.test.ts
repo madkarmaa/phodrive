@@ -296,7 +296,7 @@ test('library finds renamed BMP chunks from their headers and ignores ordinary p
             fileHash,
             chunkIndex: 0,
             isLast: false,
-            size: first.length,
+            size: 2,
             at: 42,
             mediaKey: 'renamed-first',
             sha1: fingerprint(first).toString('hex')
@@ -315,7 +315,7 @@ test('library finds renamed BMP chunks from their headers and ignores ordinary p
             fileHash,
             chunkIndex: 1,
             isLast: true,
-            size: last.length,
+            size: 1,
             at: 42,
             mediaKey: 'renamed-last',
             sha1: fingerprint(last).toString('hex')
