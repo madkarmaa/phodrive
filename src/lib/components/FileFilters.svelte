@@ -1,6 +1,6 @@
 <script lang="ts">
     import FilterChip from '$components/FilterChip.svelte';
-    import { DEFAULT_FILE_SORT, type FileSort } from '$lib/models';
+    import { DEFAULT_FILE_SORT, FileSort } from '$lib/models';
     import IconType from '~icons/material-symbols/category-outline';
     import IconModified from '~icons/material-symbols/schedule';
     import IconSort from '~icons/material-symbols/sort';
@@ -34,10 +34,10 @@
     ];
 
     const SORT_OPTIONS: readonly { value: FileSort; label: string }[] = [
-        { value: 'name-asc', label: 'Name A–Z' },
-        { value: 'name-desc', label: 'Name Z–A' },
-        { value: 'modified-desc', label: 'Newest first' },
-        { value: 'modified-asc', label: 'Oldest first' }
+        { value: FileSort.NameAscending, label: 'Name A–Z' },
+        { value: FileSort.NameDescending, label: 'Name Z–A' },
+        { value: FileSort.ModifiedDescending, label: 'Newest first' },
+        { value: FileSort.ModifiedAscending, label: 'Oldest first' }
     ];
 </script>
 

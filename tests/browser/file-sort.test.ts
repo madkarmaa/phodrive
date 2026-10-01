@@ -1,3 +1,4 @@
+import { FileSort } from '$lib/models';
 import { expect, test } from 'vitest';
 import { sortFiles, type FileGroup } from '$lib/file-groups';
 
@@ -17,13 +18,25 @@ test('sort choices order names and dates consistently without changing the origi
     const files = [file('zebra.zip', 10), file('alpha.zip', 30), file('beta.zip', 10)];
     const names = (items: FileGroup[]) => items.map((item) => item.name);
 
-    expect(names(sortFiles(files, 'name-asc'))).toEqual(['alpha.zip', 'beta.zip', 'zebra.zip']);
-    expect(names(sortFiles(files, 'name-desc'))).toEqual(['zebra.zip', 'beta.zip', 'alpha.zip']);
-    expect(names(sortFiles(files, 'modified-desc'))).toEqual([
+    expect(names(sortFiles(files, FileSort.NameAscending))).toEqual([
         'alpha.zip',
         'beta.zip',
         'zebra.zip'
     ]);
-    expect(names(sortFiles(files, 'modified-asc'))).toEqual(['beta.zip', 'zebra.zip', 'alpha.zip']);
+    expect(names(sortFiles(files, FileSort.NameDescending))).toEqual([
+        'zebra.zip',
+        'beta.zip',
+        'alpha.zip'
+    ]);
+    expect(names(sortFiles(files, FileSort.ModifiedDescending))).toEqual([
+        'alpha.zip',
+        'beta.zip',
+        'zebra.zip'
+    ]);
+    expect(names(sortFiles(files, FileSort.ModifiedAscending))).toEqual([
+        'beta.zip',
+        'zebra.zip',
+        'alpha.zip'
+    ]);
     expect(names(files)).toEqual(['zebra.zip', 'alpha.zip', 'beta.zip']);
 });

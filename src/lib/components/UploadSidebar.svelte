@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { AppView } from '$lib/models';
     import IconAdd from '~icons/material-symbols/add';
     import IconHome from '~icons/material-symbols/home-outline';
     import IconSettings from '~icons/material-symbols/settings-outline';
@@ -6,8 +7,8 @@
     interface Props {
         connected: boolean;
         disabled: boolean;
-        view: 'files' | 'settings';
-        onnavigate: (view: 'files' | 'settings') => void;
+        view: AppView;
+        onnavigate: (view: AppView) => void;
         onupload: (files: File[]) => void;
         onconnect: () => void;
     }
@@ -50,26 +51,26 @@
         <button
             class={[
                 'flex h-10 w-full cursor-pointer items-center gap-4 rounded-[22px] border-0 pr-4.5 pl-6 text-left text-sm font-semibold transition-colors max-[800px]:w-auto max-[800px]:px-3.25 max-[520px]:gap-2 max-[520px]:text-[13px]',
-                view === 'files'
+                view === AppView.Files
                     ? 'bg-selected text-selected-text'
                     : 'bg-transparent text-subtle hover:bg-hover'
             ]}
             type="button"
-            aria-current={view === 'files' ? 'page' : undefined}
-            onclick={() => onnavigate('files')}
+            aria-current={view === AppView.Files ? 'page' : undefined}
+            onclick={() => onnavigate(AppView.Files)}
         >
             <IconHome aria-hidden="true" class="size-5 shrink-0" />My files
         </button>
         <button
             class={[
                 'flex h-10 w-full cursor-pointer items-center gap-4 rounded-[22px] border-0 pr-4.5 pl-6 text-left text-sm font-semibold transition-colors max-[800px]:w-auto max-[800px]:px-3.25 max-[520px]:gap-2 max-[520px]:text-[13px]',
-                view === 'settings'
+                view === AppView.Settings
                     ? 'bg-selected text-selected-text'
                     : 'bg-transparent text-subtle hover:bg-hover'
             ]}
             type="button"
-            aria-current={view === 'settings' ? 'page' : undefined}
-            onclick={() => onnavigate('settings')}
+            aria-current={view === AppView.Settings ? 'page' : undefined}
+            onclick={() => onnavigate(AppView.Settings)}
         >
             <IconSettings aria-hidden="true" class="size-5 shrink-0" />Settings
         </button>

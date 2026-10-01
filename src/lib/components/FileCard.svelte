@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { FileActionKind } from '$lib/models';
+
     import type { FileGroup } from '$lib/file-groups';
     import { fileType } from '$lib/file-groups';
     import LocalizedDate from '$components/LocalizedDate.svelte';
@@ -10,7 +12,7 @@
     interface Props {
         item: FileGroup;
         disabled: boolean;
-        working: 'download' | 'delete' | null;
+        working: FileActionKind | null;
         ondownload: (item: FileGroup) => void;
         ondelete: (item: FileGroup) => void;
     }
@@ -49,12 +51,13 @@
                 disabled={disabled || !item.complete}
                 onclick={() => ondownload(item)}
             >
-                <IconDownload aria-hidden="true" class="size-4" />{working === 'download'
+                <IconDownload aria-hidden="true" class="size-4" />{working ===
+                FileActionKind.Download
                     ? 'Working…'
                     : 'Download'}
             </button>
             <button class="file-action" type="button" {disabled} onclick={() => ondelete(item)}
-                ><IconDelete aria-hidden="true" class="size-4" />{working === 'delete'
+                ><IconDelete aria-hidden="true" class="size-4" />{working === FileActionKind.Delete
                     ? 'Working…'
                     : 'Delete'}</button
             >

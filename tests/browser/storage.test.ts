@@ -1,3 +1,15 @@
+import {
+    FileSort,
+    ThemeMode,
+    DEFAULT_CONCURRENT_WORKERS,
+    DEFAULT_FILE_SORT,
+    DEFAULT_REFRESH_INTERVAL_SECONDS,
+    DEFAULT_PREFERENCES_DEFAULTS,
+    FileSortSchema,
+    MAX_CONCURRENT_WORKERS,
+    MAX_REFRESH_INTERVAL_SECONDS,
+    type PreferencesDefaults
+} from '$lib/models';
 import { afterAll, afterEach, beforeEach, expect, vi, test } from 'vitest';
 import {
     ACCOUNTS_SERIALIZER,
@@ -12,16 +24,6 @@ import {
     THEME_SERIALIZER,
     THEME_KEY
 } from '$browser/storage';
-import {
-    DEFAULT_CONCURRENT_WORKERS,
-    DEFAULT_FILE_SORT,
-    DEFAULT_REFRESH_INTERVAL_SECONDS,
-    DEFAULT_PREFERENCES_DEFAULTS,
-    FileSortSchema,
-    MAX_CONCURRENT_WORKERS,
-    MAX_REFRESH_INTERVAL_SECONDS,
-    type PreferencesDefaults
-} from '$lib/models';
 
 const { storage } = vi.hoisted(() => {
     class MemoryStorage implements Storage {
@@ -65,8 +67,8 @@ afterEach(() => vi.restoreAllMocks());
 afterAll(() => vi.unstubAllGlobals());
 
 const DEPLOYMENT_DEFAULTS: PreferencesDefaults = {
-    theme: 'dark',
-    fileSort: 'name-asc',
+    theme: ThemeMode.Dark,
+    fileSort: FileSort.NameAscending,
     refreshIntervalSeconds: 120,
     concurrentWorkers: 4
 };
@@ -95,7 +97,7 @@ test('account JSON and plain-text theme serialization retain their storage forma
     const serialized = ACCOUNTS_SERIALIZER.serialize(accounts);
 
     expect(ACCOUNTS_SERIALIZER.deserialize(serialized)).toEqual(accounts);
-    for (const mode of ['light', 'dark', 'auto'] as const) {
+    for (const mode of [ThemeMode.Light, ThemeMode.Dark, ThemeMode.Auto] as const) {
         expect(THEME_SERIALIZER.serialize(mode)).toBe(mode);
         expect(THEME_SERIALIZER.deserialize(mode)).toBe(mode);
     }
@@ -162,8 +164,8 @@ test('refresh and worker preferences validate persisted boundaries and reject ma
 test('absent browser choices use deployment defaults without seeding local storage', () => {
     const preferences = new BrowserPreferences(DEPLOYMENT_DEFAULTS);
 
-    expect(preferences.theme).toBe('dark');
-    expect(preferences.fileSort).toBe('name-asc');
+    expect(preferences.theme).toBe(ThemeMode.Dark);
+    expect(preferences.fileSort).toBe(FileSort.NameAscending);
     expect(preferences.refreshIntervalSeconds).toBe(120);
     expect(preferences.concurrentWorkers).toBe(4);
 
@@ -173,7 +175,7 @@ test('absent browser choices use deployment defaults without seeding local stora
 
     const changedDeployment = new BrowserPreferences(DEFAULT_PREFERENCES_DEFAULTS);
 
-    expect(changedDeployment.theme).toBe('auto');
+    expect(changedDeployment.theme).toBe(ThemeMode.Auto);
     expect(changedDeployment.fileSort).toBe(DEFAULT_FILE_SORT);
     expect(changedDeployment.refreshIntervalSeconds).toBe(DEFAULT_REFRESH_INTERVAL_SECONDS);
     expect(changedDeployment.concurrentWorkers).toBe(DEFAULT_CONCURRENT_WORKERS);
@@ -182,20 +184,20 @@ test('absent browser choices use deployment defaults without seeding local stora
 test('explicit saved browser choices override deployment defaults, including zero refresh and auto theme', () => {
     const preferences = new BrowserPreferences(DEPLOYMENT_DEFAULTS);
 
-    expect(preferences.saveTheme('auto').isOk()).toBe(true);
-    expect(preferences.saveFileSort('modified-asc').isOk()).toBe(true);
+    expect(preferences.saveTheme(ThemeMode.Auto).isOk()).toBe(true);
+    expect(preferences.saveFileSort(FileSort.ModifiedAscending).isOk()).toBe(true);
     expect(preferences.saveRefreshInterval(0).isOk()).toBe(true);
     expect(preferences.saveConcurrentWorkers(16).isOk()).toBe(true);
 
     const reloaded = new BrowserPreferences({
-        theme: 'light',
-        fileSort: 'name-desc',
+        theme: ThemeMode.Light,
+        fileSort: FileSort.NameDescending,
         refreshIntervalSeconds: 30,
         concurrentWorkers: 2
     });
 
-    expect(reloaded.theme).toBe('auto');
-    expect(reloaded.fileSort).toBe('modified-asc');
+    expect(reloaded.theme).toBe(ThemeMode.Auto);
+    expect(reloaded.fileSort).toBe(FileSort.ModifiedAscending);
     expect(reloaded.refreshIntervalSeconds).toBe(0);
     expect(reloaded.concurrentWorkers).toBe(16);
 });
@@ -208,8 +210,8 @@ test('invalid stored choices use deployment defaults without rewriting the store
 
     const preferences = new BrowserPreferences(DEPLOYMENT_DEFAULTS);
 
-    expect(preferences.theme).toBe('dark');
-    expect(preferences.fileSort).toBe('name-asc');
+    expect(preferences.theme).toBe(ThemeMode.Dark);
+    expect(preferences.fileSort).toBe(FileSort.NameAscending);
     expect(preferences.refreshIntervalSeconds).toBe(120);
     expect(preferences.concurrentWorkers).toBe(4);
     expect(storage.getItem(THEME_KEY)).toBe('invalid');
@@ -239,8 +241,8 @@ test('invalid refresh and worker saves return errors while retaining the current
 test('reset clears only its browser override and follows current and future deployment defaults', () => {
     const preferences = new BrowserPreferences(DEPLOYMENT_DEFAULTS);
 
-    preferences.saveTheme('light').unwrap();
-    preferences.saveFileSort('name-desc').unwrap();
+    preferences.saveTheme(ThemeMode.Light).unwrap();
+    preferences.saveFileSort(FileSort.NameDescending).unwrap();
     preferences.saveRefreshInterval(0).unwrap();
     preferences.saveConcurrentWorkers(16).unwrap();
 
@@ -254,8 +256,8 @@ test('reset clears only its browser override and follows current and future depl
 
     expect(preferences.concurrentWorkers).toBe(4);
     expect(storage.getItem(CONCURRENT_WORKERS_KEY)).toBeNull();
-    expect(preferences.theme).toBe('light');
-    expect(preferences.fileSort).toBe('name-desc');
+    expect(preferences.theme).toBe(ThemeMode.Light);
+    expect(preferences.fileSort).toBe(FileSort.NameDescending);
 
     const changedDeployment = new BrowserPreferences(DEFAULT_PREFERENCES_DEFAULTS);
 

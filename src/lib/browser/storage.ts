@@ -11,9 +11,9 @@ import {
     SelectedAccountSchema,
     StoredAccountsSchema,
     ThemeSchema,
-    type FileSort,
+    FileSort,
     type PreferencesDefaults,
-    type ThemeMode
+    ThemeMode
 } from '$lib/models';
 
 export const ACCOUNTS_KEY = 'accounts';
@@ -23,9 +23,9 @@ export const FILE_SORT_KEY = 'phodrive-sort';
 export const REFRESH_INTERVAL_KEY = 'phodrive-refresh-interval';
 export const CONCURRENT_WORKERS_KEY = 'phodrive-concurrent-workers';
 export const NEXT_THEME: Record<ThemeMode, ThemeMode> = {
-    auto: 'light',
-    light: 'dark',
-    dark: 'auto'
+    [ThemeMode.Auto]: ThemeMode.Light,
+    [ThemeMode.Light]: ThemeMode.Dark,
+    [ThemeMode.Dark]: ThemeMode.Auto
 };
 
 type Accounts = Record<string, string>;

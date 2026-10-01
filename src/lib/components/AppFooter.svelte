@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { MediaQuery } from 'svelte/reactivity';
-    import type { ThemeMode } from '$lib/models';
+    import { ThemeMode } from '$lib/models';
     import { APP_NAME, APP_VERSION, APP_MOTTO, APP_REPOSITORY_URL } from '$lib/app-info';
     import darkLogo from '$assets/favicon.svg';
     import lightLogo from '$assets/favicon-light.svg';
@@ -15,7 +15,9 @@
     let mounted = $state(false);
 
     const systemDark = new MediaQuery('(prefers-color-scheme: dark)');
-    const useDarkIcon = $derived(theme === 'dark' || (theme === 'auto' && systemDark.current));
+    const useDarkIcon = $derived(
+        theme === ThemeMode.Dark || (theme === ThemeMode.Auto && systemDark.current)
+    );
     const logo = $derived(mounted && useDarkIcon ? darkLogo : lightLogo);
 
     onMount(() => {

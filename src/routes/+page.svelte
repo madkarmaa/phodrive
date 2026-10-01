@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { AppView, ConfirmKind, FileActionKind } from '$lib/models';
+
     import { onMount, untrack } from 'svelte';
     import type { PageData } from './$types';
     import { fade } from 'svelte/transition';
@@ -22,12 +24,12 @@
 
     const drive = new DriveController(untrack(() => data.preferencesDefaults));
     const actionsDisabled = $derived(drive.busy || !!drive.fileAction);
-    let view = $state<'files' | 'settings'>('files');
+    let view = $state<AppView>(AppView.Files);
 
     onMount(() => drive.initialize());
 
     function addAccount() {
-        view = 'files';
+        view = AppView.Files;
         drive.adding = true;
         drive.message = '';
     }
@@ -82,7 +84,7 @@
             onselect={(email) => drive.selectAccount(email)}
             onadd={addAccount}
             onsignout={() => {
-                drive.confirmTarget = { kind: 'account', email: drive.selectedEmail };
+                drive.confirmTarget = { kind: ConfirmKind.Account, email: drive.selectedEmail };
                 drive.confirmOpen = true;
             }}
         />
@@ -103,7 +105,7 @@
     <main
         class="mr-4 mb-5 flex min-w-0 flex-col rounded-[22px] bg-panel px-7 pt-6.5 pb-12 text-text max-[800px]:mx-2 max-[800px]:mb-2 max-[800px]:px-4.5 max-[800px]:pt-5.5 max-[800px]:pb-9"
     >
-        {#if drive.ready && view === 'settings'}
+        {#if drive.ready && view === AppView.Settings}
             <SettingsPanel
                 refreshIntervalSeconds={drive.refreshIntervalSeconds}
                 concurrentWorkers={drive.concurrentWorkers}
@@ -162,10 +164,10 @@
                     disabled={actionsDisabled || drive.libraryLoading}
                     action={drive.fileAction}
                     ondownload={(item) => {
-                        void drive.actOnFile(item, 'download');
+                        void drive.actOnFile(item, FileActionKind.Download);
                     }}
                     ondelete={(item) => {
-                        drive.confirmTarget = { kind: 'file', item };
+                        drive.confirmTarget = { kind: ConfirmKind.File, item };
                         drive.confirmOpen = true;
                     }}
                     onmore={() => {
