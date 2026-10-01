@@ -15,6 +15,7 @@
     import FileFilters from '$components/FileFilters.svelte';
     import FileGrid from '$components/FileGrid.svelte';
     import SettingsPanel from '$components/SettingsPanel.svelte';
+    import ErrorFeedback from '$components/ErrorFeedback.svelte';
 
     interface Props {
         data: PageData;
@@ -25,6 +26,7 @@
     const drive = new DriveController(untrack(() => data.preferencesDefaults));
     const actionsDisabled = $derived(drive.busy || !!drive.fileAction);
     let view = $state<AppView>(AppView.Files);
+    let accountButton = $state<HTMLElement>();
 
     onMount(() => drive.initialize());
 
@@ -63,32 +65,24 @@
             void drive.refreshFiles();
         }}
         ontheme={(mode) => drive.chooseTheme(mode)}
-        onmenu={() => (drive.accountMenuOpen = !drive.accountMenuOpen)}
+        bind:accountButton
     />
 
-    {#if drive.themeError}
-        <p
-            role="alert"
-            class="fixed top-16 right-18 z-20 max-w-60 rounded-[10px] border border-border bg-panel px-3.5 py-2.5 text-xs text-error max-[800px]:top-18"
-        >
-            {drive.themeError}
-        </p>
-    {/if}
+    <ErrorFeedback bind:message={drive.themeError} />
 
-    {#if drive.accountMenuOpen}
-        <AccountMenu
-            emails={Object.keys(drive.accounts)}
-            selected={drive.selectedEmail}
-            disabled={actionsDisabled}
-            onclose={() => (drive.accountMenuOpen = false)}
-            onselect={(email) => drive.selectAccount(email)}
-            onadd={addAccount}
-            onsignout={() => {
-                drive.confirmTarget = { kind: ConfirmKind.Account, email: drive.selectedEmail };
-                drive.confirmOpen = true;
-            }}
-        />
-    {/if}
+    <AccountMenu
+        bind:open={drive.accountMenuOpen}
+        anchor={accountButton}
+        emails={Object.keys(drive.accounts)}
+        selected={drive.selectedEmail}
+        disabled={actionsDisabled}
+        onselect={(email) => drive.selectAccount(email)}
+        onadd={addAccount}
+        onsignout={() => {
+            drive.confirmTarget = { kind: ConfirmKind.Account, email: drive.selectedEmail };
+            drive.confirmOpen = true;
+        }}
+    />
 
     <UploadSidebar
         connected={!!drive.selectedEmail}

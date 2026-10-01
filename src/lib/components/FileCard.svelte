@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { Button, Card } from 'noph-ui';
     import { FileActionKind } from '$lib/models';
 
     import type { FileGroup } from '$lib/file-groups';
@@ -20,7 +21,7 @@
     let { item, disabled, working, ondownload, ondelete }: Props = $props();
 </script>
 
-<article class="min-w-0 overflow-hidden rounded-[14px] bg-card transition-shadow hover:shadow-md">
+<Card type="text" variant="filled" class="file-card">
     <div class="flex h-12 min-w-0 items-center gap-3.5 px-5">
         <IconDescription aria-hidden="true" class="size-5.5 shrink-0 text-primary" />
         <h3 class="min-w-0 truncate text-[15px] font-medium" title={item.name}>{item.name}</h3>
@@ -45,22 +46,42 @@
             {/if}
         </span>
         <div class="flex items-center">
-            <button
-                class="file-action"
-                type="button"
+            <Button
+                variant="text"
+                size="xs"
                 disabled={disabled || !item.complete}
                 onclick={() => ondownload(item)}
             >
-                <IconDownload aria-hidden="true" class="size-4" />{working ===
-                FileActionKind.Download
-                    ? 'Working…'
-                    : 'Download'}
-            </button>
-            <button class="file-action" type="button" {disabled} onclick={() => ondelete(item)}
-                ><IconDelete aria-hidden="true" class="size-4" />{working === FileActionKind.Delete
-                    ? 'Working…'
-                    : 'Delete'}</button
-            >
+                {#snippet start()}<IconDownload aria-hidden="true" />{/snippet}
+                {working === FileActionKind.Download ? 'Working…' : 'Download'}
+            </Button>
+            <Button variant="text" size="xs" {disabled} onclick={() => ondelete(item)}>
+                {#snippet start()}<IconDelete aria-hidden="true" />{/snippet}
+                {working === FileActionKind.Delete ? 'Working…' : 'Delete'}
+            </Button>
         </div>
     </div>
-</article>
+</Card>
+
+<style>
+    :global(:root .file-card.np-card-container) {
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        --np-filled-card-container-color: var(--app-card);
+        --np-filled-card-container-shape: 14px;
+    }
+
+    :global(:root .file-card.np-card-container .np-card-content) {
+        margin: 0;
+        gap: 0;
+        min-width: 0;
+        width: 100%;
+    }
+    :global(:root .file-card.np-card-container .np-button) {
+        font-size: 12px;
+        --np-button-padding: 7px;
+        --np-button-gap: 4px;
+        --np-button-icon-size: 16px;
+    }
+</style>

@@ -1,132 +1,152 @@
 <script lang="ts">
-    import { fly } from 'svelte/transition';
-    import { onMount } from 'svelte';
-    import { onClickOutside } from 'runed';
-    import { prefersReducedMotion } from 'svelte/motion';
+    import { IconButton, Item, Menu, MenuItem } from 'noph-ui';
     import Avatar from '$components/Avatar.svelte';
     import IconAdd from '~icons/material-symbols/add';
     import IconClose from '~icons/material-symbols/close';
     import IconLogout from '~icons/material-symbols/logout';
 
     interface Props {
+        open?: boolean;
+        anchor?: HTMLElement;
         emails: string[];
         selected: string;
         disabled: boolean;
-        onclose: () => void;
         onselect: (email: string) => void;
         onadd: () => void;
         onsignout: () => void;
     }
 
-    let { emails, selected, disabled, onclose, onselect, onadd, onsignout }: Props = $props();
-
+    let {
+        open = $bindable(false),
+        anchor,
+        emails,
+        selected,
+        disabled,
+        onselect,
+        onadd,
+        onsignout
+    }: Props = $props();
     let menu = $state<HTMLDivElement>();
 
     function closeMenu() {
-        if (menu?.contains(document.activeElement)) {
-            document.querySelector<HTMLButtonElement>('[aria-controls="account-menu"]')?.focus();
-        }
-
-        onclose();
+        open = false;
+        anchor?.focus();
     }
-
-    onMount(() => menu?.querySelector<HTMLButtonElement>('button')?.focus());
-
-    onClickOutside(
-        () => menu,
-        (event) => {
-            const target = event.target;
-            if (target instanceof Element && target.closest('[aria-controls="account-menu"]'))
-                return;
-
-            closeMenu();
-        }
-    );
 </script>
 
-<svelte:window
-    onkeydown={(event) => {
-        if (event.key === 'Escape') closeMenu();
-    }}
-/>
-
-<div
+<Menu
     id="account-menu"
-    bind:this={menu}
-    class="fixed inset-x-4 top-16 z-20 ml-auto box-border max-h-[calc(100dvh-5rem)] max-w-100 overflow-y-auto overscroll-contain rounded-[28px] border border-border bg-menu px-4 pt-13 pb-5 text-text shadow-lg max-[800px]:top-18"
-    role="dialog"
+    bind:open
+    bind:element={menu}
+    {anchor}
+    coverAnchor={false}
     aria-label="Accounts"
-    transition:fly={{ y: -8, duration: prefersReducedMotion.current ? 0 : 160 }}
+    class="account-menu"
+    ontoggle={(event) => {
+        if (event.newState === 'open') menu?.querySelector<HTMLButtonElement>('button')?.focus();
+    }}
 >
-    <button
-        class="icon-button absolute top-3 right-5 size-8 text-subtle"
-        type="button"
-        aria-label="Close account menu"
-        onclick={closeMenu}><IconClose aria-hidden="true" /></button
-    >
+    <IconButton class="account-close" size="xs" aria-label="Close account menu" onclick={closeMenu}>
+        <IconClose aria-hidden="true" />
+    </IconButton>
 
-    <div class="overflow-hidden rounded-[28px] bg-panel">
+    <div class="account-list overflow-hidden rounded-[28px] bg-panel">
         {#if selected}
-            <div class="flex min-h-20.5 items-center gap-4 px-4.5 py-2.5">
-                <Avatar email={selected} />
-                <div class="min-w-0">
-                    <strong class="block truncate text-base font-medium">{selected}</strong>
-                    <small class="mt-0.5 block text-xs text-muted">Current account</small>
-                </div>
-            </div>
+            <Item class="current-account" supportingText="Current account">
+                {#snippet start()}<Avatar email={selected} />{/snippet}
+                <strong class="block truncate text-base font-medium">{selected}</strong>
+            </Item>
         {/if}
 
         {#each emails.filter((email) => email !== selected) as email (email)}
-            <button
+            <MenuItem
                 class="account-row"
-                type="button"
                 {disabled}
                 onclick={() => {
                     onselect(email);
                     closeMenu();
                 }}
             >
-                <span class="mx-1.5"><Avatar {email} small /></span>
-                <span class="min-w-0 truncate">{email}</span>
-            </button>
+                {#snippet start()}<Avatar {email} small />{/snippet}
+                <span class="block min-w-0 truncate">{email}</span>
+            </MenuItem>
         {/each}
 
-        <button
+        <MenuItem
             class="account-row"
-            type="button"
             {disabled}
             onclick={() => {
                 onadd();
                 closeMenu();
             }}
         >
-            <span
-                class="mx-1.5 grid size-8 shrink-0 place-items-center rounded-full bg-search text-primary"
-                ><IconAdd class="size-5.5" aria-hidden="true" /></span
-            >
+            {#snippet start()}<IconAdd class="size-5.5 text-primary" aria-hidden="true" />{/snippet}
             Add another account
-        </button>
+        </MenuItem>
 
         {#if selected}
-            <button
+            <MenuItem
                 class="account-row"
-                type="button"
                 {disabled}
                 onclick={() => {
                     onsignout();
                     closeMenu();
                 }}
             >
-                <span
-                    class="mx-1.5 grid size-8 shrink-0 place-items-center rounded-full bg-search text-primary"
-                    ><IconLogout class="size-5.5" aria-hidden="true" /></span
-                >
+                {#snippet start()}<IconLogout
+                        class="size-5.5 text-primary"
+                        aria-hidden="true"
+                    />{/snippet}
                 Sign out
-            </button>
+            </MenuItem>
         {/if}
     </div>
 
     <p class="mx-2 mt-4 text-center text-xs text-muted">
         Only saved accounts in this browser are shown here.
     </p>
-</div>
+</Menu>
+
+<style>
+    :global(:root .account-menu.np-menu-container[popover]) {
+        position: fixed;
+        position-anchor: --account-button;
+        position-area: none;
+        position-try-fallbacks: none;
+        inset: 64px 16px auto auto;
+        margin: 0;
+        width: min(400px, calc(100vw - 32px));
+        max-height: calc(100dvh - 80px);
+        border: 1px solid var(--app-border);
+        --np-menu-container-shape: 28px;
+    }
+
+    :global(:root .account-menu.np-menu-container > .np-menu) {
+        padding: 52px 16px 20px;
+    }
+
+    :global(:root .account-close.np-icon-button) {
+        position: absolute;
+        top: 12px;
+        right: 20px;
+    }
+
+    :global(:root .account-list .np-item-text) {
+        min-width: 0;
+    }
+    :global(:root .account-list .current-account) {
+        min-height: 82px;
+        padding: 10px 18px;
+    }
+    :global(:root .account-list .account-row) {
+        min-height: 58px;
+        border-top: 2px solid var(--app-menu);
+        padding: 10px 18px;
+    }
+
+    @media (max-width: 800px) {
+        :global(:root .account-menu.np-menu-container[popover]) {
+            top: 72px;
+        }
+    }
+</style>

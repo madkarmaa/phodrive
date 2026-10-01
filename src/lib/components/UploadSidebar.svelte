@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ExtendedFab, NavigationDrawer, NavigationDrawerItem } from 'noph-ui';
     import { AppView } from '$lib/models';
     import IconAdd from '~icons/material-symbols/add';
     import IconHome from '~icons/material-symbols/home-outline';
@@ -22,14 +23,15 @@
     class="min-w-0 px-4 pt-2 pb-8 max-[800px]:flex max-[800px]:flex-wrap max-[800px]:items-center max-[800px]:gap-3 max-[800px]:pb-4"
     aria-label="Navigation and accounts"
 >
-    <button
-        class="mb-5.5 flex h-14 min-w-27.5 items-center gap-4 rounded-[18px] border border-border bg-panel px-4.5 text-[15px] font-medium text-text shadow-sm transition-shadow hover:shadow-md disabled:cursor-default disabled:opacity-50 max-[800px]:m-0 max-[800px]:h-11.5 max-[800px]:min-w-25 max-[800px]:rounded-[14px]"
-        type="button"
+    <ExtendedFab
+        class="upload-button"
+        label="Upload"
+        variant="secondary-container"
         {disabled}
         onclick={() => (connected ? picker.click() : onconnect())}
     >
-        <IconAdd aria-hidden="true" class="size-6" />Upload
-    </button>
+        {#snippet icon()}<IconAdd aria-hidden="true" class="size-6" />{/snippet}
+    </ExtendedFab>
 
     <input
         bind:this={picker}
@@ -47,32 +49,84 @@
         }}
     />
 
-    <nav class="grid gap-1 max-[800px]:flex" aria-label="Main">
-        <button
-            class={[
-                'flex h-10 w-full cursor-pointer items-center gap-4 rounded-[22px] border-0 pr-4.5 pl-6 text-left text-sm font-semibold transition-colors max-[800px]:w-auto max-[800px]:px-3.25 max-[520px]:gap-2 max-[520px]:text-[13px]',
-                view === AppView.Files
-                    ? 'bg-selected text-selected-text'
-                    : 'bg-transparent text-subtle hover:bg-hover'
-            ]}
-            type="button"
+    <NavigationDrawer class="drive-navigation" aria-label="Main">
+        <NavigationDrawerItem
+            label="My files"
+            selected={view === AppView.Files}
             aria-current={view === AppView.Files ? 'page' : undefined}
             onclick={() => onnavigate(AppView.Files)}
         >
-            <IconHome aria-hidden="true" class="size-5 shrink-0" />My files
-        </button>
-        <button
-            class={[
-                'flex h-10 w-full cursor-pointer items-center gap-4 rounded-[22px] border-0 pr-4.5 pl-6 text-left text-sm font-semibold transition-colors max-[800px]:w-auto max-[800px]:px-3.25 max-[520px]:gap-2 max-[520px]:text-[13px]',
-                view === AppView.Settings
-                    ? 'bg-selected text-selected-text'
-                    : 'bg-transparent text-subtle hover:bg-hover'
-            ]}
-            type="button"
+            {#snippet icon()}<IconHome aria-hidden="true" class="size-5 shrink-0" />{/snippet}
+        </NavigationDrawerItem>
+        <NavigationDrawerItem
+            label="Settings"
+            selected={view === AppView.Settings}
             aria-current={view === AppView.Settings ? 'page' : undefined}
             onclick={() => onnavigate(AppView.Settings)}
         >
-            <IconSettings aria-hidden="true" class="size-5 shrink-0" />Settings
-        </button>
-    </nav>
+            {#snippet icon()}<IconSettings aria-hidden="true" class="size-5 shrink-0" />{/snippet}
+        </NavigationDrawerItem>
+    </NavigationDrawer>
 </aside>
+
+<style>
+    :global(:root .upload-button.np-extended-fab) {
+        height: 56px;
+        min-width: 110px;
+        margin-bottom: 22px;
+        border: 1px solid var(--app-border);
+        --np-fab-container-color: var(--app-panel);
+        --np-fab-icon-color: var(--app-text);
+        --np-fab-shape: 18px;
+        --np-fab-elevation: var(--np-elevation-1);
+    }
+
+    :global(:root .drive-navigation.np-navigation-drawer-container) {
+        width: 100%;
+        --np-navigation-drawer-width: 100%;
+        --np-navigation-drawer-height: auto;
+        --np-navigation-drawer-padding: 0;
+        --np-navigation-drawer-background: transparent;
+        --np-color-secondary-container: var(--app-selected);
+        --np-color-on-secondary-container: var(--app-selected-text);
+    }
+
+    :global(:root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer) {
+        gap: 4px;
+    }
+    :global(:root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer-item) {
+        height: 40px;
+        width: 100%;
+        padding: 0 18px 0 24px;
+        gap: 16px;
+    }
+
+    @media (max-width: 800px) {
+        :global(:root .upload-button.np-extended-fab) {
+            height: 46px;
+            min-width: 100px;
+            margin: 0;
+        }
+        :global(:root .drive-navigation.np-navigation-drawer-container) {
+            width: auto;
+        }
+        :global(:root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer) {
+            flex-direction: row;
+        }
+        :global(:root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer-item) {
+            width: auto;
+            padding-inline: 13px;
+        }
+    }
+
+    @media (max-width: 520px) {
+        :global(:root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer-item) {
+            gap: 8px;
+        }
+        :global(
+            :root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer-item-label
+        ) {
+            font-size: 13px;
+        }
+    }
+</style>

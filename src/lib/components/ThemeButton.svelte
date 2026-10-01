@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { IconButton } from 'noph-ui';
     import { ThemeMode } from '$lib/models';
     import { NEXT_THEME } from '$browser/storage';
     import IconLightMode from '~icons/material-symbols/light-mode-outline';
@@ -13,9 +14,8 @@
     let { mode, onchange }: Props = $props();
 </script>
 
-<button
-    class="icon-button text-subtle"
-    type="button"
+<IconButton
+    size="s"
     title={'Theme: ' + mode + '. Click for ' + NEXT_THEME[mode]}
     aria-label={'Theme: ' + mode + '. Switch to ' + NEXT_THEME[mode]}
     onclick={() => onchange(NEXT_THEME[mode])}
@@ -27,4 +27,4 @@
     {:else}
         <IconDesktopWindows aria-hidden="true" />
     {/if}
-</button>
+</IconButton>

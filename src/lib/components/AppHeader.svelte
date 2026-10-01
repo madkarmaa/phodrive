@@ -1,11 +1,11 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { AppBar, IconButton, Search } from 'noph-ui';
     import { MediaQuery } from 'svelte/reactivity';
     import { ThemeMode } from '$lib/models';
     import ThemeButton from '$components/ThemeButton.svelte';
     import darkLogo from '$assets/favicon.svg';
     import lightLogo from '$assets/favicon-light.svg';
-    import IconSearch from '~icons/material-symbols/search';
     import IconRefresh from '~icons/material-symbols/refresh';
 
     interface Props {
@@ -17,11 +17,11 @@
         refreshDisabled: boolean;
         onrefresh: () => void;
         ontheme: (mode: ThemeMode) => void;
-        onmenu: () => void;
+        accountButton?: HTMLElement;
     }
 
     let {
-        search = $bindable(''),
+        search: searchTerm = $bindable(''),
         email,
         theme,
         menuOpen,
@@ -29,7 +29,7 @@
         refreshDisabled,
         onrefresh,
         ontheme,
-        onmenu
+        accountButton = $bindable()
     }: Props = $props();
 
     let mounted = $state(false);
@@ -48,54 +48,118 @@
 
 <svelte:head><link rel="icon" type="image/svg+xml" href={favicon} /></svelte:head>
 
-<header
-    class="col-span-full grid h-16 grid-cols-[256px_minmax(240px,720px)_1fr] items-center gap-4 px-6 max-[800px]:h-18 max-[800px]:grid-cols-[auto_minmax(120px,1fr)_auto] max-[800px]:gap-3 max-[800px]:px-4 max-[520px]:grid-cols-[auto_minmax(0,1fr)_auto] max-[520px]:gap-2"
->
-    <div
-        class="flex items-center gap-3 text-[22px] whitespace-nowrap text-subtle"
-        aria-label="Phodrive"
-    >
-        <img src={logo} alt="" class="size-10 max-[520px]:size-8" />
-        <span class="max-[800px]:hidden">Phodrive</span>
-    </div>
+<AppBar variant="search" class="shell-header col-span-full">
+    {#snippet leading()}
+        <div
+            class="flex items-center gap-3 text-[22px] whitespace-nowrap text-subtle"
+            aria-label="Phodrive"
+        >
+            <img src={logo} alt="" class="size-10 max-[520px]:size-8" />
+            <span class="max-[800px]:hidden">Phodrive</span>
+        </div>
+    {/snippet}
 
-    <label
-        class="flex h-12 items-center gap-4 rounded-[28px] bg-search px-5 focus-within:bg-panel focus-within:shadow-sm max-[800px]:h-11 max-[800px]:px-3.5 max-[520px]:gap-2"
-    >
-        <IconSearch aria-hidden="true" class="size-6 shrink-0 text-subtle" />
-        <input
-            type="search"
-            aria-label="Search files"
+    {#snippet search()}
+        <Search
+            class="drive-search"
+            label="Search files"
             placeholder="Search in Phodrive"
-            bind:value={search}
-            disabled={!email}
-            class="w-full min-w-0 border-0 bg-transparent p-0 text-text outline-none placeholder:text-subtle focus:ring-0 max-[800px]:text-sm max-[520px]:placeholder:text-transparent"
+            bind:value={searchTerm}
+            inputAttributes={{ disabled: !email }}
         />
-    </label>
+    {/snippet}
 
-    <div class="flex items-center gap-2 justify-self-end">
-        <button
-            class="icon-button shrink-0 text-subtle disabled:cursor-default disabled:opacity-50"
-            type="button"
+    {#snippet trailing()}
+        <IconButton
+            size="s"
             aria-label="Refresh files"
             title="Refresh files"
             disabled={refreshDisabled}
             onclick={onrefresh}
         >
             <IconRefresh aria-hidden="true" class={refreshing ? 'motion-safe:animate-spin' : ''} />
-        </button>
+        </IconButton>
         <ThemeButton mode={theme} onchange={ontheme} />
-        <button
-            class="grid size-10 cursor-pointer place-items-center rounded-full border-0 bg-avatar font-medium text-avatar-text transition-shadow hover:ring-4 hover:ring-hover"
-            type="button"
-            title={email || 'No account connected'}
+        <IconButton
+            id="account-button"
+            class="profile-button"
+            size="s"
+            variant="filled"
+            bind:element={accountButton}
+            title="Manage accounts"
             aria-label="Manage accounts"
-            aria-haspopup="dialog"
+            aria-haspopup="menu"
             aria-controls="account-menu"
             aria-expanded={menuOpen}
-            onclick={onmenu}
+            command="toggle-popover"
+            commandfor="account-menu"
         >
-            {email.slice(0, 1).toUpperCase() || 'P'}
-        </button>
-    </div>
-</header>
+            <span>{email.slice(0, 1).toUpperCase() || 'P'}</span>
+        </IconButton>
+    {/snippet}
+</AppBar>
+
+<style>
+    :global(:root .shell-header.np-app-bar) {
+        position: static;
+        height: 64px;
+        --np-app-bar-container-color: var(--np-color-surface);
+    }
+
+    :global(:root .shell-header.np-app-bar .np-app-bar-row) {
+        display: grid;
+        grid-template-columns: 256px minmax(240px, 720px) 1fr;
+        gap: 16px;
+        padding-inline: 24px;
+    }
+
+    :global(:root .shell-header.np-app-bar .np-app-bar-leading),
+    :global(:root .shell-header.np-app-bar .np-app-bar-search-field) {
+        min-width: 0;
+        width: 100%;
+        margin: 0;
+    }
+
+    :global(:root .shell-header.np-app-bar .np-app-bar-trailing) {
+        justify-self: end;
+        gap: 8px;
+    }
+
+    :global(:root .profile-button) {
+        anchor-name: --account-button;
+    }
+
+    :global(:root .drive-search.np-search) {
+        --_bar-height: 48px;
+        --np-search-container-color: var(--app-search);
+        --np-search-pane-margin: 0px;
+    }
+
+    @media (max-width: 800px) {
+        :global(:root .shell-header.np-app-bar) {
+            height: 72px;
+        }
+        :global(:root .shell-header.np-app-bar .np-app-bar-row) {
+            min-height: 72px;
+            grid-template-columns: auto minmax(120px, 1fr) auto;
+            gap: 12px;
+            padding-inline: 16px;
+        }
+        :global(:root .drive-search.np-search) {
+            --_bar-height: 44px;
+        }
+        :global(:root .drive-search.np-search .np-search-input) {
+            font-size: 14px;
+        }
+    }
+
+    @media (max-width: 520px) {
+        :global(:root .shell-header.np-app-bar .np-app-bar-row) {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 8px;
+        }
+        :global(:root .drive-search.np-search .np-search-input::placeholder) {
+            color: transparent;
+        }
+    }
+</style>

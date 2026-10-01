@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Button } from 'm3-svelte';
+    import { Button } from 'noph-ui';
     import { fade } from 'svelte/transition';
     import { flip } from 'svelte/animate';
     import { prefersReducedMotion } from 'svelte/motion';

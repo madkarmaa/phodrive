@@ -1,7 +1,7 @@
 <script lang="ts">
     import { UploadJobStatus, UploadPhase, UploadStatus } from '$lib/models';
 
-    import { CircularProgress } from 'm3-svelte';
+    import { CircularProgress, IconButton, ListItem } from 'noph-ui';
     import type { UploadJob } from '$browser/files';
     import IconDescription from '~icons/material-symbols/description';
     import IconCheckCircle from '~icons/material-symbols/check-circle';
@@ -36,44 +36,58 @@
     });
 </script>
 
-<li class="flex min-h-16 items-center gap-4 px-4 py-3" aria-label={job.name}>
-    <IconDescription aria-hidden="true" class="size-5 shrink-0 text-primary" />
-    <div class="min-w-0 flex-1">
-        <p class="truncate text-sm" title={job.name}>{job.name}</p>
+<ListItem class="upload-status-row" variant="text" aria-label={job.name}>
+    {#snippet start()}<IconDescription
+            aria-hidden="true"
+            class="size-5 shrink-0 text-primary"
+        />{/snippet}
+    <p class="truncate text-sm" title={job.name}>{job.name}</p>
+    {#snippet supportingText()}
         <p
-            class="mt-1 text-xs"
+            class="text-xs"
             class:text-error={job.status === UploadJobStatus.Error}
             class:text-muted={job.status !== UploadJobStatus.Error}
             role={job.status === UploadJobStatus.Error ? 'alert' : 'status'}
         >
             {detail}
         </p>
-    </div>
-    {#if job.status === UploadJobStatus.Active}
-        <span class="shrink-0">
+    {/snippet}
+    {#snippet end()}
+        {#if job.status === UploadJobStatus.Active}
             <CircularProgress
-                {percent}
-                size={24}
-                thickness={2.5}
+                value={percent}
+                max={100}
                 aria-label="Upload progress"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={percent}
+                style="width: 24px; height: 24px"
             />
-        </span>
-    {:else if job.status === UploadJobStatus.Error}
-        <IconError aria-hidden="true" class="size-6 shrink-0 text-error" />
-        <button
-            class="icon-button shrink-0 text-subtle disabled:cursor-default disabled:opacity-50"
-            type="button"
-            aria-label={`Retry ${job.name}`}
-            title="Retry upload"
-            disabled={retryDisabled}
-            onclick={onretry}
-        >
-            <IconRetry aria-hidden="true" />
-        </button>
-    {:else if job.status === UploadJobStatus.Complete}
-        <IconCheckCircle aria-hidden="true" class="size-6 shrink-0 text-success" />
-    {/if}
-</li>
+        {:else if job.status === UploadJobStatus.Error}
+            <IconError aria-hidden="true" class="size-6 shrink-0 text-error" />
+            <IconButton
+                size="s"
+                aria-label={`Retry ${job.name}`}
+                title={`Retry ${job.name}`}
+                disabled={retryDisabled}
+                onclick={onretry}
+            >
+                <IconRetry aria-hidden="true" />
+            </IconButton>
+        {:else if job.status === UploadJobStatus.Complete}
+            <IconCheckCircle aria-hidden="true" class="size-6 shrink-0 text-success" />
+        {/if}
+    {/snippet}
+</ListItem>
+
+<style>
+    :global(:root .upload-status-row.np-item) {
+        min-height: 64px;
+        padding: 12px 16px;
+        gap: 16px;
+    }
+    :global(:root .upload-status-row.np-item .np-item-text) {
+        min-width: 0;
+    }
+    :global(:root .upload-status-row.np-item .np-item-end) {
+        align-items: center;
+        gap: 4px;
+    }
+</style>

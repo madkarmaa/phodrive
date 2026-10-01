@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Button } from 'm3-svelte';
+    import { Button, TextField } from 'noph-ui';
     import { untrack } from 'svelte';
     import { watch } from 'runed';
     import { fade } from 'svelte/transition';
@@ -33,8 +33,8 @@
         onresetworkers
     }: Props = $props();
 
-    let refreshDraft = $state<number | undefined>(untrack(() => refreshIntervalSeconds));
-    let workersDraft = $state<number | undefined>(untrack(() => concurrentWorkers));
+    let refreshDraft = $state<string | number | null>(untrack(() => refreshIntervalSeconds));
+    let workersDraft = $state<string | number | null>(untrack(() => concurrentWorkers));
 
     watch(
         () => refreshIntervalSeconds,
@@ -81,9 +81,9 @@
             </div>
 
             <div class="flex flex-wrap items-end gap-3 max-[520px]:gap-2">
-                <label class="grid max-w-52 min-w-0 flex-1 gap-2 text-sm text-subtle">
-                    Refresh interval (seconds)
-                    <input
+                <div class="settings-field max-w-52 min-w-0 flex-1">
+                    <TextField
+                        label="Refresh interval (seconds)"
                         name="refreshInterval"
                         type="number"
                         bind:value={refreshDraft}
@@ -92,9 +92,8 @@
                         step="1"
                         required
                         aria-describedby="refresh-description"
-                        class="box-border h-10 w-full min-w-0 rounded-lg border border-outline bg-panel px-3 py-0 text-text focus:border-primary focus:ring-primary"
                     />
-                </label>
+                </div>
                 <Button type="submit" variant="tonal" aria-label="Save refresh interval"
                     >Save</Button
                 >
@@ -130,9 +129,9 @@
             </div>
 
             <div class="flex flex-wrap items-end gap-3 max-[520px]:gap-2">
-                <label class="grid max-w-52 min-w-0 flex-1 gap-2 text-sm text-subtle">
-                    Concurrent workers
-                    <input
+                <div class="settings-field max-w-52 min-w-0 flex-1">
+                    <TextField
+                        label="Concurrent workers"
                         name="workers"
                         type="number"
                         bind:value={workersDraft}
@@ -141,9 +140,8 @@
                         step="1"
                         required
                         aria-describedby="workers-description"
-                        class="box-border h-10 w-full min-w-0 rounded-lg border border-outline bg-panel px-3 py-0 text-text focus:border-primary focus:ring-primary"
                     />
-                </label>
+                </div>
                 <Button type="submit" variant="tonal" aria-label="Save concurrent workers"
                     >Save</Button
                 >
@@ -166,3 +164,13 @@
 
     <AppFooter {theme} />
 </section>
+
+<style>
+    .settings-field :global(.np-text-field) {
+        width: 100%;
+        min-width: 0;
+    }
+    .settings-field :global(.field) {
+        min-width: 0;
+    }
+</style>

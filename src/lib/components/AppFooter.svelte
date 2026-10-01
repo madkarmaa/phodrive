@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { Button, Divider } from 'noph-ui';
     import { onMount } from 'svelte';
     import { MediaQuery } from 'svelte/reactivity';
     import { ThemeMode } from '$lib/models';
@@ -25,26 +26,39 @@
     });
 </script>
 
-<footer
-    class="mt-auto flex flex-wrap items-center gap-3 border-t border-border pt-5 text-xs text-muted"
->
-    <img src={logo} alt="" class="size-9 shrink-0" />
+<footer class="mt-auto text-xs text-muted">
+    <Divider />
+    <div class="flex flex-wrap items-center gap-3 pt-5">
+        <img src={logo} alt="" class="size-9 shrink-0" />
 
-    <div class="grid gap-1">
-        <p class="flex items-center gap-2">
-            <span class="font-medium text-subtle">{APP_NAME}</span>
-            <span aria-hidden="true">·</span>
-            <span>v{APP_VERSION}</span>
-        </p>
-        <p>{APP_MOTTO}</p>
-        <a
-            href={APP_REPOSITORY_URL}
-            class="inline-flex w-fit items-center gap-1.5 text-primary underline decoration-transparent underline-offset-2 transition-colors hover:decoration-current"
-            target="_blank"
-            rel="noreferrer"
-        >
-            <IconCode aria-hidden="true" class="size-4" />
-            Source
-        </a>
+        <div class="grid gap-1">
+            <p class="flex items-center gap-2">
+                <span class="font-medium text-subtle">{APP_NAME}</span>
+                <span aria-hidden="true">·</span>
+                <span>v{APP_VERSION}</span>
+            </p>
+            <p>{APP_MOTTO}</p>
+            <Button
+                class="footer-source"
+                variant="text"
+                size="xs"
+                href={APP_REPOSITORY_URL}
+                target="_blank"
+                rel="noreferrer"
+            >
+                {#snippet start()}<IconCode aria-hidden="true" />{/snippet}
+                Source
+            </Button>
+        </div>
     </div>
 </footer>
+
+<style>
+    :global(:root .footer-source.np-button) {
+        height: auto;
+        padding: 0;
+        font: inherit;
+        --np-button-gap: 6px;
+        --np-button-icon-size: 16px;
+    }
+</style>

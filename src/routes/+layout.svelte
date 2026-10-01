@@ -1,8 +1,7 @@
 <script lang="ts">
     import type { Snippet } from 'svelte';
+    import 'noph-ui/defaultTheme';
     import './layout.css';
-    import 'm3-svelte/etc/styles.css';
-    import 'm3-svelte/etc/recommended-styles.css';
     import '@fontsource-variable/google-sans-flex/opsz.css';
 
     interface Props {
