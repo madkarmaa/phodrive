@@ -34,7 +34,6 @@ export default defineConfig({
         { ...functionsMixins({ deps: ['m3-svelte'] }), enforce: 'pre' },
         tailwindcss(),
         sveltekit({
-            experimental: { remoteFunctions: true },
             alias: {
                 $components: 'src/lib/components',
                 $browser: 'src/lib/browser',
@@ -43,7 +42,6 @@ export default defineConfig({
                 $package: 'package.json'
             },
             compilerOptions: {
-                experimental: { async: true },
                 // Force runes mode for the project, except for libraries. Can be removed in svelte 6.
                 runes: ({ filename }) =>
                     filename.split(/[/\\]/).includes('node_modules') ? undefined : true
