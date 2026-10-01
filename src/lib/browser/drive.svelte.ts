@@ -340,7 +340,9 @@ export class DriveController {
 
         this.connecting = true;
         this.message = '';
-        const verified = await validateAccount(this.newEmail, this.newToken);
+        const email = this.newEmail;
+        const inputToken = this.newToken;
+        const verified = await validateAccount(email, inputToken);
 
         this.connecting = false;
         const token = verified.match({
@@ -352,8 +354,8 @@ export class DriveController {
         });
         if (token === null) return;
 
-        const updated = { ...this.accounts, [this.newEmail]: token };
-        const saved = preferences.saveAccounts(updated, this.newEmail);
+        const updated = { ...this.accounts, [email]: token };
+        const saved = preferences.saveAccounts(updated, email);
         saved.match({
             Ok: () => {
                 this.newEmail = '';
