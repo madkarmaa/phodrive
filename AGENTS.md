@@ -33,5 +33,7 @@
 # Git standards
 
 - Use Conventional Commits.
+
 - Keep commit messages concise and spot on; do not overexplain.
+
 - Commit whenever a part of the requested work is complete. Keep each commit focused so the Git log reads like a pull request in progress.

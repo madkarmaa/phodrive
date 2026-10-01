@@ -62,10 +62,6 @@ The server binds to `127.0.0.1`. `BODY_SIZE_LIMIT=Infinity` lets the server rece
 
 Use `src/server.ts` to launch the production build. It creates the HTTP server with incoming request deadlines disabled and uses SvelteKit's generated handler. Google requests have no connection, header, body, or overall timeout so slow networks can finish transfers.
 
-The browser sends original files and account credentials to the server. The server streams files to temporary storage, calculates SHA-256, splits them into payloads of up to 64 MB, converts each payload into a reversible BMP, and sends the authenticated Google Photos requests. Files larger than Google’s 200 MB photo limit are accepted because each generated BMP stays below that limit. One server transfer pool respects the selected concurrent worker count across the entire selection. Progress and individual chunk confirmations stream back to the browser; retrying a failed file reuses chunks Google already has.
-
-Downloads are decoded, reconstructed, and verified against the original SHA-256 on the server before the original file is sent to the browser. Existing Phodrive BMP files remain readable. New uploads use a versioned BMP header with an identity derived from the original filename and SHA-256, so identical contents under different names remain separate and retries with the same name reuse their chunks. Older uploads retain their original content-based grouping; aliases already collapsed by the old format cannot be recovered automatically. Re-uploading a legacy file creates a new entry with the new format. Older app versions cannot read these new headers.
-
 > [!WARNING]
 > Do not expose this server to other machines.
 >
