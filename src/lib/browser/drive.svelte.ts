@@ -1,3 +1,14 @@
+import {
+    ConfirmKind,
+    FileActionKind,
+    UploadJobStatus,
+    DEFAULT_PREFERENCES_DEFAULTS,
+    NewAccountSchema,
+    ThemeSchema,
+    FileSort,
+    type PreferencesDefaults,
+    ThemeMode
+} from '$lib/models';
 import { watch } from 'runed';
 import {
     groupChunks,
@@ -7,14 +18,6 @@ import {
     type FileAction,
     type UploadedChunk
 } from '$lib/file-groups';
-import {
-    DEFAULT_PREFERENCES_DEFAULTS,
-    NewAccountSchema,
-    ThemeSchema,
-    type FileSort,
-    type PreferencesDefaults,
-    type ThemeMode
-} from '$lib/models';
 import { readLibraryPage, readLibrarySnapshot } from '$browser/library';
 import { useAutomaticRefresh } from '$browser/automatic-refresh.svelte';
 import { validateAccount } from '$browser/accounts';
@@ -27,7 +30,8 @@ import {
     type UploadJob
 } from '$browser/files';
 
-export type ConfirmTarget = { kind: 'account'; email: string } | { kind: 'file'; item: FileGroup };
+export type ConfirmTarget =
+    { kind: ConfirmKind.Account; email: string } | { kind: ConfirmKind.File; item: FileGroup };
 
 export class DriveController {
     private preferences = $state.raw<BrowserPreferences | null>(null);
@@ -52,7 +56,7 @@ export class DriveController {
     typeFilter = $state('');
     modifiedDays = $state('');
     accountMenuOpen = $state(false);
-    themeMode = $state<ThemeMode>('auto');
+    themeMode = $state<ThemeMode>(ThemeMode.Auto);
     themeError = $state('');
     settingsError = $state('');
     confirmOpen = $state(false);
@@ -405,21 +409,21 @@ export class DriveController {
         this.confirmOpen = false;
         this.confirmTarget = null;
         if (!target) return;
-        if (target.kind === 'account') {
+        if (target.kind === ConfirmKind.Account) {
             this.removeAccount(target.email);
             return;
         }
 
-        void this.actOnFile(target.item, 'delete');
+        void this.actOnFile(target.item, FileActionKind.Delete);
     }
 
-    async actOnFile(item: FileGroup, action: 'download' | 'delete') {
+    async actOnFile(item: FileGroup, action: FileActionKind) {
         if (this.busy || this.fileAction || this.libraryLoading) return;
 
         this.fileAction = { fileHash: item.fileHash, kind: action };
         this.galleryMessage = '';
 
-        if (action === 'delete') {
+        if (action === FileActionKind.Delete) {
             const deleted = await deleteFile(
                 item,
                 this.accounts[item.email],
@@ -485,7 +489,7 @@ export class DriveController {
 
         const job = this.uploadJobs.find((current) => current.id === id);
         const file = this.uploadSources[id];
-        if (!job || job.status !== 'error' || !file) return;
+        if (!job || job.status !== UploadJobStatus.Error || !file) return;
 
         const fresh = createUploadJobs([file])[0];
         this.uploadJobs = this.uploadJobs.map((current) =>
@@ -533,9 +537,11 @@ export class DriveController {
             Ok: () => {},
             Err: (error) => {
                 this.uploadJobs = this.uploadJobs.map((job) =>
-                    retryId !== undefined && job.id !== retryId
+                    (retryId !== undefined && job.id !== retryId) ||
+                    job.status === UploadJobStatus.Complete ||
+                    job.status === UploadJobStatus.Error
                         ? job
-                        : { ...job, status: 'error', message: error.message }
+                        : { ...job, status: UploadJobStatus.Error, message: error.message }
                 );
             }
         });

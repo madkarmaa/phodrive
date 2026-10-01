@@ -1,5 +1,5 @@
 import { Ok, type Result } from 'results-ts';
-import { MAX_PHOTOS_BMP_BYTES } from '$lib/bmp';
+import { MAX_PHOTOS_BMP_BYTES } from '$server/bmp';
 import { LIBRARY_PAGE_REQUEST } from '$server/library-requests';
 import {
     bytes,

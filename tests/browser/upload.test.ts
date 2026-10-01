@@ -1,11 +1,8 @@
+import { UploadEventType, UploadPhase, type UploadEvent } from '$lib/models';
 import { afterEach, expect, vi, test } from 'vitest';
+import { Ok } from 'results-ts';
 import { uploadRequest } from '$browser/upload';
-import type { UploadEvent } from '$lib/models';
 
-const COMPLETE: UploadEvent = {
-    type: 'complete',
-    result: { status: 'uploaded', mediaKey: 'test-media', sha1: '0'.repeat(40) }
-};
 const encoder = new TextEncoder();
 afterEach(() => vi.restoreAllMocks());
 
@@ -19,70 +16,72 @@ function serve(body: BodyInit) {
     );
 }
 
-test('progress arrives before commit and fragmented SSE frames are parsed incrementally', async () => {
+test('fragmented progress arrives while the selection remains unconfirmed', async () => {
     const stream = new TransformStream<Uint8Array, Uint8Array>();
     const writer = stream.writable.getWriter();
     const progress: number[] = [];
     let confirmed = false;
     serve(stream.readable);
 
-    const uploading = uploadRequest(new FormData(), 100, (sent) => progress.push(sent)).map(
-        (result) => {
-            confirmed = true;
-            return result;
-        }
-    );
-    // Keep the operation pending while the response stream remains open.
+    const uploading = uploadRequest(new FormData(), (event) => {
+        if (
+            event.type === UploadEventType.Progress &&
+            event.progress.phase === UploadPhase.Uploading
+        )
+            progress.push(event.progress.completed);
+        return Ok(undefined);
+    }).map(() => {
+        confirmed = true;
+    });
     const pending = Promise.resolve(uploading);
-    const partial = frame({ type: 'progress', sent: 25, total: 100 });
+    const partial = frame({
+        type: UploadEventType.Progress,
+        id: 0,
+        progress: { phase: UploadPhase.Uploading, completed: 25, total: 100, reused: 0 }
+    });
     await writer.write(partial.slice(0, 7));
     await writer.write(partial.slice(7));
     await vi.waitFor(() => expect(progress).toEqual([25]));
     expect(confirmed).toBe(false);
 
-    await writer.write(frame({ type: 'progress', sent: 100, total: 100 }));
+    await writer.write(
+        frame({
+            type: UploadEventType.Progress,
+            id: 0,
+            progress: { phase: UploadPhase.Uploading, completed: 100, total: 100, reused: 0 }
+        })
+    );
     await vi.waitFor(() => expect(progress).toEqual([25, 100]));
     expect(confirmed).toBe(false);
 
-    await writer.write(frame(COMPLETE));
+    await writer.write(frame({ type: UploadEventType.Complete }));
     const result = await pending;
-    expect(result.unwrap().status).toBe('uploaded');
+    expect(result.isOk()).toBe(true);
     expect(confirmed).toBe(true);
 });
 
-test('upload streams reject malformed, regressing, truncated, and mismatched progress', async () => {
+test('upload streams reject malformed, oversized, and truncated events', async () => {
     const invalidBodies: BodyInit[] = [
         'data: invalid-json\n\n',
-        'data: {"type":"progress","sent":101,"total":100}\n\n',
-        frame({ type: 'progress', sent: 1, total: 99 }),
-        new Blob([
-            frame({ type: 'progress', sent: 50, total: 100 }),
-            frame({ type: 'progress', sent: 25, total: 100 })
-        ]),
-        frame({ type: 'progress', sent: 100, total: 100 }),
-        frame(COMPLETE)
+        'data: {"type":"progress","id":0,"progress":{"phase":"uploading","completed":101,"total":100,"reused":0}}\n\n',
+        'data: {"type":"progress","sent":1,"total":100}\n\n',
+        `data: ${'x'.repeat(20_000)}\n\n`,
+        frame({
+            type: UploadEventType.Progress,
+            id: 0,
+            progress: { phase: UploadPhase.Uploading, completed: 100, total: 100, reused: 0 }
+        })
     ];
 
     for (const body of invalidBodies) {
         serve(body);
-        const result = await uploadRequest(new FormData(), 100, () => {});
+        const result = await uploadRequest(new FormData(), () => Ok(undefined));
         expect(result.isErr()).toBe(true);
     }
 });
 
-test('a streamed Google failure retains its safe error, and duplicate reuse sends no fictitious bytes', async () => {
-    serve(frame({ type: 'error', error: 'Upload transfer failed (HTTP 429)' }));
-    const failed = await uploadRequest(new FormData(), 100, () => {});
+test('server errors preserve their safe message', async () => {
+    serve(frame({ type: UploadEventType.Error, error: 'Upload transfer failed (HTTP 429)' }));
+    const failed = await uploadRequest(new FormData(), () => Ok(undefined));
     expect(failed.unwrapErr().message).toContain('429');
-
-    const sent: number[] = [];
-    serve(
-        frame({
-            type: 'complete',
-            result: { status: 'already exists', mediaKey: 'test-media', sha1: '0'.repeat(40) }
-        })
-    );
-    const duplicate = await uploadRequest(new FormData(), 100, (bytes) => sent.push(bytes));
-    expect(duplicate.unwrap().status).toBe('already exists');
-    expect(sent).toEqual([]);
 });

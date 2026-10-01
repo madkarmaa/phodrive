@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { UploadJobStatus, UploadPhase, UploadStatus } from '$lib/models';
+
     import { CircularProgress } from 'm3-svelte';
     import type { UploadJob } from '$browser/files';
     import IconDescription from '~icons/material-symbols/description';
@@ -16,17 +18,18 @@
 
     const progress = $derived(job.progress);
     const processed = $derived(
-        progress.completed + (progress.phase === 'uploading' ? progress.reused : 0)
+        progress.completed + (progress.phase === UploadPhase.Uploading ? progress.reused : 0)
     );
     const percent = $derived(progress.total ? Math.round((processed / progress.total) * 100) : 0);
     const detail = $derived.by(() => {
-        if (job.status === 'queued') return 'Waiting…';
-        if (job.status === 'error') return job.message;
-        if (job.status === 'complete')
-            return job.result?.status === 'already exists'
+        if (job.status === UploadJobStatus.Queued) return 'Waiting…';
+        if (job.status === UploadJobStatus.Error) return job.message;
+        if (job.status === UploadJobStatus.Complete)
+            return job.result?.status === UploadStatus.AlreadyExists
                 ? 'Already in Google Photos'
                 : 'Uploaded successfully';
-        if (progress.phase === 'hashing') return `Hashing file… ${percent}%`;
+        if (progress.phase === UploadPhase.Receiving) return 'Sending files to server…';
+        if (progress.phase === UploadPhase.Preparing) return 'Preparing file on server…';
         if (processed === progress.total) return 'Finishing upload…';
 
         return `Uploading… ${percent}%`;
@@ -39,26 +42,26 @@
         <p class="truncate text-sm" title={job.name}>{job.name}</p>
         <p
             class="mt-1 text-xs"
-            class:text-error={job.status === 'error'}
-            class:text-muted={job.status !== 'error'}
-            role={job.status === 'error' ? 'alert' : 'status'}
+            class:text-error={job.status === UploadJobStatus.Error}
+            class:text-muted={job.status !== UploadJobStatus.Error}
+            role={job.status === UploadJobStatus.Error ? 'alert' : 'status'}
         >
             {detail}
         </p>
     </div>
-    {#if job.status === 'active'}
+    {#if job.status === UploadJobStatus.Active}
         <span class="shrink-0">
             <CircularProgress
                 {percent}
                 size={24}
                 thickness={2.5}
-                aria-label={progress.phase === 'hashing' ? 'Hashing progress' : 'Upload progress'}
+                aria-label="Upload progress"
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={percent}
             />
         </span>
-    {:else if job.status === 'error'}
+    {:else if job.status === UploadJobStatus.Error}
         <IconError aria-hidden="true" class="size-6 shrink-0 text-error" />
         <button
             class="icon-button shrink-0 text-subtle disabled:cursor-default disabled:opacity-50"
@@ -70,7 +73,7 @@
         >
             <IconRetry aria-hidden="true" />
         </button>
-    {:else if job.status === 'complete'}
+    {:else if job.status === UploadJobStatus.Complete}
         <IconCheckCircle aria-hidden="true" class="size-6 shrink-0 text-success" />
     {/if}
 </li>

@@ -7,11 +7,10 @@ import {
     MAX_CHUNK_PAYLOAD_BYTES,
     MAX_PHOTOS_BMP_BYTES,
     splitBmpByteLength
-} from '$lib/bmp';
-import { chunkFileName, parseChunkFileName } from '$lib/chunks';
+} from '$server/bmp';
+import { chunkFileName, parseChunkFileName } from '$server/chunks';
 import { groupChunks } from '$lib/file-groups';
-import { hashFile } from '$lib/file-hash';
-import type { SplitHeader, RemoteBmp } from '$lib/models';
+import { type SplitHeader, type RemoteBmp } from '$lib/models';
 
 const ORIGINAL = Uint8Array.from({ length: 1031 }, (_, index) => index % 251);
 const FILE_HASH = createHash('sha256').update(ORIGINAL).digest('hex');
@@ -78,13 +77,7 @@ test('projected chunks fit the photo limit and reject damaged padding', () => {
     expect(decodeSplitBmp(bmp).isErr()).toBe(true);
 });
 
-test('file hashing reads in slices and remote chunks group into one card', async () => {
-    const file = new File([ORIGINAL], 'video.mp4');
-    const progress: number[] = [];
-    const hashed = await hashFile(file, (bytesRead) => progress.push(bytesRead));
-    expect(hashed.unwrap()).toBe(FILE_HASH);
-    expect(progress).toEqual([0, file.size]);
-
+test('remote chunks group into one card', () => {
     const makeChunk = (index: number): RemoteBmp => ({
         originalName: index === 0 ? 'video.mp4' : undefined,
         fileHash: FILE_HASH,

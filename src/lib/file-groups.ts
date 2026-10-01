@@ -1,4 +1,4 @@
-import type { FileSort, RemoteBmp } from '$lib/models';
+import { FileSort, FileActionKind, type RemoteBmp } from '$lib/models';
 
 export type UploadedChunk = RemoteBmp & { email: string };
 
@@ -62,12 +62,12 @@ export function fileType(name: string): string {
 export function sortFiles(files: readonly FileGroup[], order: FileSort): FileGroup[] {
     return files.toSorted((first, second) => {
         const byName = first.name.localeCompare(second.name);
-        if (order === 'name-desc') return -byName;
-        if (order === 'modified-desc') return second.at - first.at || byName;
-        if (order === 'modified-asc') return first.at - second.at || byName;
+        if (order === FileSort.NameDescending) return -byName;
+        if (order === FileSort.ModifiedDescending) return second.at - first.at || byName;
+        if (order === FileSort.ModifiedAscending) return first.at - second.at || byName;
 
         return byName;
     });
 }
 
-export type FileAction = { fileHash: string; kind: 'download' | 'delete' };
+export type FileAction = { fileHash: string; kind: FileActionKind };

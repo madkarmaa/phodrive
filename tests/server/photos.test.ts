@@ -1,7 +1,8 @@
+import { UploadStatus } from '$lib/models';
 import { expect, test } from 'vitest';
 import { createHash } from 'node:crypto';
 import Varint from 'varint';
-import { encodeSplitBmp } from '$lib/bmp';
+import { encodeSplitBmp } from '$server/bmp';
 import { downloadBmp, listBmps, moveToTrash, uploadBmp, validateAasAccount } from '$server/photos';
 import type { Fetcher } from '$server/fetcher';
 
@@ -94,7 +95,7 @@ test('Pixel XL flow hashes, transfers, and commits one BMP', async () => {
         fakeFetch
     );
     expect(uploaded.unwrap()).toEqual({
-        status: 'uploaded',
+        status: UploadStatus.Uploaded,
         mediaKey: 'media-key',
         sha1: sha1.toString('hex')
     });

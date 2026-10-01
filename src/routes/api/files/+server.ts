@@ -1,7 +1,7 @@
+import { FileActionKind, FileRequestSchema } from '$lib/models';
 import { json } from '@sveltejs/kit';
-import { downloadBmp, moveToTrash } from '$server/photos';
+import { downloadFile, deleteFile } from '$server/files';
 import { readJson } from '$server/request';
-import { FileRequestSchema } from '$lib/models';
 import { schemaResult } from '$lib/schema-result';
 import type { RequestHandler } from './$types';
 
@@ -13,28 +13,27 @@ export const POST: RequestHandler = async ({ request }) => {
     const input = parsed.match({ Ok: (value) => value, Err: () => null });
     if (!input) return json({ error: 'Invalid request' }, { status: 400 });
 
-    const { action, email, token, mediaKey, sha1 } = input;
-    if (action === 'download') {
-        if (typeof mediaKey !== 'string')
-            return json({ error: 'Invalid request' }, { status: 400 });
-
-        const downloaded = await downloadBmp(email, token, mediaKey, sha1);
+    if (input.action === FileActionKind.Download) {
+        const downloaded = await downloadFile(input);
         return downloaded.match({
-            Ok: (bmp) =>
-                new Response(new Uint8Array(bmp), {
-                    headers: { 'content-type': 'image/bmp', 'cache-control': 'no-store' }
-                }),
-            Err: () =>
+            Ok: (response) => response,
+            Err: (error) =>
                 json(
-                    { error: 'Download failed. Check your account and try again.' },
+                    {
+                        error: /^(Load the remaining|Downloaded chunks|Reconstructed file)/.test(
+                            error.message
+                        )
+                            ? error.message
+                            : 'Download failed. Check your account and try again.'
+                    },
                     { status: 400, headers: { 'cache-control': 'no-store' } }
                 )
         });
     }
 
-    const deleted = await moveToTrash(email, token, sha1);
+    const deleted = await deleteFile(input);
     return deleted.match({
-        Ok: () => json({ deleted: true }, { headers: { 'cache-control': 'no-store' } }),
+        Ok: (result) => json(result, { headers: { 'cache-control': 'no-store' } }),
         Err: () =>
             json(
                 { error: 'Could not move this file to Google Photos trash.' },

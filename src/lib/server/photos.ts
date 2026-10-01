@@ -1,3 +1,4 @@
+import { UploadStatus, type RemoteBmp, type UploadResponse } from '$lib/models';
 import { createHash, randomBytes } from 'node:crypto';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import pLimit from 'p-limit';
@@ -14,8 +15,7 @@ import {
     type Field
 } from '$server/protobuf';
 import { pageRequest, parseLibraryPage, type LibraryCandidate } from '$server/library-metadata';
-import { decodeSplitHeader } from '$lib/bmp';
-import type { RemoteBmp, UploadResponse } from '$lib/models';
+import { decodeSplitHeader } from '$server/bmp';
 import { photosFetch, type Fetcher } from '$server/fetcher';
 import { LIBRARY_STATE_REQUEST } from '$server/library-requests';
 
@@ -297,7 +297,7 @@ function uploadAuthenticatedBmp(
         async (foundKey) => {
             if (foundKey)
                 return Ok<UploadResponse>({
-                    status: 'already exists',
+                    status: UploadStatus.AlreadyExists,
                     mediaKey: foundKey,
                     sha1: sha1Hex
                 });
@@ -305,7 +305,11 @@ function uploadAuthenticatedBmp(
             return startUpload(bmp, sha1, commonHeaders, fetcher)
                 .andThenAsync((uploadId) => transferBmp(bmp, uploadId, commonHeaders, fetcher))
                 .andThenAsync((transfer) => commitBmp(name, sha1, transfer, rpcHeaders, fetcher))
-                .map((mediaKey) => ({ status: 'uploaded' as const, mediaKey, sha1: sha1Hex }));
+                .map((mediaKey) => ({
+                    status: UploadStatus.Uploaded as const,
+                    mediaKey,
+                    sha1: sha1Hex
+                }));
         }
     );
 }

@@ -1,3 +1,4 @@
+import { ThemeMode, UploadJobStatus, UploadStatus } from '$lib/models';
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
 import { DriveController } from '$browser/drive.svelte';
@@ -22,7 +23,7 @@ const { storage } = vi.hoisted(() => {
 
     vi.stubGlobal('window', Object.assign(new EventTarget(), { localStorage: storage }));
     vi.stubGlobal('document', {
-        documentElement: { getAttribute: () => 'auto', setAttribute: vi.fn() }
+        documentElement: { getAttribute: () => ThemeMode.Auto, setAttribute: vi.fn() }
     });
 
     return { storage };
@@ -56,12 +57,15 @@ test('retry keeps the original job ID and sends only its file, preserving other 
                 const failed = attempt === 1 && job.id > 0;
                 onJob({
                     ...job,
-                    status: failed ? 'error' : 'complete',
+                    status: failed ? UploadJobStatus.Error : UploadJobStatus.Complete,
                     message: failed ? 'Upload start failed' : '',
                     result: failed
                         ? null
                         : {
-                              status: attempt === 1 ? 'uploaded' : 'already exists',
+                              status:
+                                  attempt === 1
+                                      ? UploadStatus.Uploaded
+                                      : UploadStatus.AlreadyExists,
                               mediaKey: job.name,
                               sha1: '0'.repeat(40)
                           }
@@ -86,9 +90,9 @@ test('retry keeps the original job ID and sends only its file, preserving other 
     expect(drive.uploadJobs[2]).toMatchObject({
         id: 2,
         name: sources[2].name,
-        status: 'complete',
+        status: UploadJobStatus.Complete,
         message: '',
-        result: { status: 'already exists' }
+        result: { status: UploadStatus.AlreadyExists }
     });
 
     await drive.retryUpload(0);

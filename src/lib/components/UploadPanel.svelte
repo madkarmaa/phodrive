@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { UploadJobStatus } from '$lib/models';
+
     import { fly, slide } from 'svelte/transition';
     import { prefersReducedMotion } from 'svelte/motion';
     import type { UploadJob } from '$browser/files';
@@ -19,13 +21,17 @@
     let collapsed = $state(false);
     const orderedJobs = $derived(
         jobs.toSorted(
-            (first, second) => Number(second.status === 'error') - Number(first.status === 'error')
+            (first, second) =>
+                Number(second.status === UploadJobStatus.Error) -
+                Number(first.status === UploadJobStatus.Error)
         )
     );
     const remaining = $derived(
-        jobs.filter((job) => job.status === 'queued' || job.status === 'active').length
+        jobs.filter(
+            (job) => job.status === UploadJobStatus.Queued || job.status === UploadJobStatus.Active
+        ).length
     );
-    const failures = $derived(jobs.filter((job) => job.status === 'error').length);
+    const failures = $derived(jobs.filter((job) => job.status === UploadJobStatus.Error).length);
     const heading = $derived.by(() => {
         if (busy) return `Uploading ${remaining} ${remaining === 1 ? 'item' : 'items'}`;
         if (failures) return `${failures} ${failures === 1 ? 'upload' : 'uploads'} failed`;
