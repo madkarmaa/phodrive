@@ -230,6 +230,35 @@ test('invalid names and worker counts never read or schedule files', async () =>
     expect(requests).not.toHaveBeenCalled();
 });
 
+test('server job IDs map to the original selection after an invalid first file is skipped', async () => {
+    const invalid = new File([PAYLOAD], 'invalid\nname.bin');
+    const valid = new File([PAYLOAD], 'proof.bin');
+    const jobs = new Map<number, UploadJob>();
+    const saved: UploadedChunk[] = [];
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+        if (!(init?.body instanceof FormData)) throw new Error('Expected upload form');
+        const submitted = init.body.getAll('file');
+        expect(submitted).toHaveLength(1);
+        expect(submitted[0]).toMatchObject({ name: valid.name, size: valid.size });
+        return response([...events(0), { type: UploadEventType.Complete }]);
+    });
+
+    const result = await uploadFiles(
+        [invalid, valid],
+        'test@example.com',
+        'aas_et/test',
+        2,
+        (job) => jobs.set(job.id, job),
+        (item) => saved.push(item)
+    );
+    expect(result.isOk()).toBe(true);
+    expect(jobs.get(0)).toMatchObject({ name: invalid.name, status: UploadJobStatus.Error });
+    expect(jobs.get(1)).toMatchObject({ name: valid.name, status: UploadJobStatus.Complete });
+    expect(saved).toHaveLength(1);
+    expect(saved[0].originalName).toBe(valid.name);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
 test('download asks for one reconstructed file and preserves its original bytes', async () => {
     const group = groupChunks([{ ...chunk(), email: 'test@example.com' }])[0];
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {

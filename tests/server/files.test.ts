@@ -124,6 +124,24 @@ test('temporary output is removed on cancelled downloads and upstream failures',
     await expectCleaned();
 });
 
+test('download cleanup failure takes precedence over an upstream failure', async () => {
+    const { input } = fixture();
+    vi.mocked(downloadBmp).mockImplementation(() =>
+        Err(new Error('Download failed')).andThenAsync(async () => Ok(Buffer.alloc(0)))
+    );
+    const remove = vi
+        .spyOn(temporary, 'removeTemporaryDirectory')
+        .mockImplementation(() =>
+            Err(new Error('Could not remove temporary file storage.')).andThenAsync(async () =>
+                Ok(undefined)
+            )
+        );
+
+    const failed = await downloadFile(input);
+    expect(failed.unwrapErr().message).toBe('Could not remove temporary file storage.');
+    expect(remove).toHaveBeenCalledWith(directories[0]);
+});
+
 test('server deletion bounds workers, attempts all known chunks and preserves partial confirmation', async () => {
     const { input } = fixture();
     let active = 0;

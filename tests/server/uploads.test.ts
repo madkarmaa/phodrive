@@ -7,6 +7,7 @@ import { receiveUpload, type ReceivedUpload } from '$server/upload-input';
 import { uploadFiles, planUpload } from '$server/uploads';
 import { uploadStream } from '$server/upload-stream';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '$server/temporary-files';
+import * as temporary from '$server/temporary-files';
 import { decodeSplitBmp, MAX_CHUNK_PAYLOAD_BYTES, MAX_PHOTOS_BMP_BYTES } from '$server/bmp';
 import { uploadBmp } from '$server/photos';
 import { UploadEventType, UploadPhase, UploadStatus, type UploadEvent } from '$lib/models';
@@ -199,6 +200,71 @@ test('stream removes received bytes after completion and after response cancella
         await vi.waitFor(async () => {
             await expect(access(input.directory)).rejects.toThrow();
         });
+    }
+});
+
+test('late chunk failure keeps earlier confirmation and leaves queued chunks unread', async () => {
+    const input = await receive([
+        new File([PAYLOAD], 'large.bin'),
+        new File([PAYLOAD], 'good.bin')
+    ]);
+    const disk = await open(input.files[0].path, 'r+');
+    const size = 2 * MAX_CHUNK_PAYLOAD_BYTES + 5;
+    await disk.truncate(size);
+    await disk.close();
+    input.files[0] = { ...input.files[0], size };
+    input.workers = 1;
+    const readRange = vi.spyOn(temporary, 'readFileRange');
+    vi.mocked(uploadBmp).mockImplementation((_email, _token, name) =>
+        Ok(undefined).andThenAsync(async () => {
+            if (name.startsWith('large.bin.') && name.includes('-1-of-3.bmp'))
+                return Err(new Error('Upload transfer failed (HTTP 429)'));
+            return Ok({ status: UploadStatus.Uploaded, mediaKey: name, sha1: '0'.repeat(40) });
+        })
+    );
+
+    try {
+        const events: UploadEvent[] = [];
+        const result = await uploadFiles(input, (event) => events.push(event));
+        expect(result.isOk()).toBe(true);
+        expect(readRange.mock.calls.map(([path, start]) => ({ path, start }))).toEqual([
+            { path: input.files[0].path, start: 0 },
+            { path: input.files[0].path, start: MAX_CHUNK_PAYLOAD_BYTES },
+            { path: input.files[1].path, start: 0 }
+        ]);
+        expect(
+            events.filter((event) => event.type === UploadEventType.Chunk && event.id === 0)
+        ).toMatchObject([{ chunk: { chunkIndex: 0, isLast: false } }]);
+        expect(events.filter((event) => event.type === UploadEventType.FileError)).toMatchObject([
+            { id: 0, error: 'Upload transfer failed (HTTP 429)' }
+        ]);
+        expect(events.filter((event) => event.type === UploadEventType.FileComplete)).toMatchObject(
+            [{ id: 1 }]
+        );
+    } finally {
+        readRange.mockRestore();
+    }
+});
+
+test('upload stream reports cleanup failure instead of batch completion', async () => {
+    const input = await receive();
+    const remove = vi
+        .spyOn(temporary, 'removeTemporaryDirectory')
+        .mockImplementation(() =>
+            Err(new Error('Could not remove temporary file storage.')).andThenAsync(async () =>
+                Ok(undefined)
+            )
+        );
+
+    try {
+        const response = uploadStream(input);
+        const body = await response.text();
+        expect(body).toContain('"type":"file-complete"');
+        expect(body).toContain('"error":"Could not remove temporary file storage."');
+        expect(body).not.toContain('"type":"complete"');
+        expect(remove).toHaveBeenCalledWith(input.directory);
+    } finally {
+        remove.mockRestore();
     }
 });
 
