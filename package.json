@@ -43,6 +43,7 @@
         "vitest": "^5.0.3"
     },
     "dependencies": {
+        "@fastify/busboy": "^3.2.2",
         "@fontsource-variable/google-sans-flex": "^5.3.1",
         "@noble/hashes": "^2.4.0",
         "eventsource-parser": "^4.1.1",

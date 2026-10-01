@@ -5,6 +5,8 @@
     "": {
       "name": "phodrive",
       "dependencies": {
+        "@fastify/busboy": "^3.2.2",
+    "@fastify/busboy": ["@fastify/busboy@3.2.2", "", {}, "sha512-yXSS27qPExaXeuLvMRMXOLtpipzfQYNjG3FkunDWKGfMYjKuhFXko9CVzqxm8jcF+lmtS9Fd89QNdh9XDjnbNg=="],
         "@fontsource-variable/google-sans-flex": "^5.3.1",
         "@noble/hashes": "^2.4.0",
         "eventsource-parser": "^4.1.1",

@@ -109,3 +109,5 @@ export const DEFAULT_PREFERENCES_DEFAULTS: PreferencesDefaults = {
     refreshIntervalSeconds: DEFAULT_REFRESH_INTERVAL_SECONDS,
     concurrentWorkers: DEFAULT_CONCURRENT_WORKERS
 };
+
+export const UploadRequestSchema = AccountSchema.extend({ workers: ConcurrentWorkersSchema });
