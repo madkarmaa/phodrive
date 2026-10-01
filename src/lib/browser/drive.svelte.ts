@@ -41,6 +41,7 @@ export class DriveController {
     libraryLoading = $state(false);
     private libraryRequest = 0;
     private loadedPages = 0;
+    private libraryPageTokens = new Set<string>();
     adding = $state(false);
     newEmail = $state('');
     newToken = $state('');
@@ -248,7 +249,12 @@ export class DriveController {
     }
 
     async loadFiles(reset = true) {
-        if (this.busy || this.fileAction || (!reset && this.libraryLoading)) return;
+        if (
+            this.busy ||
+            this.fileAction ||
+            (!reset && (this.libraryLoading || !this.nextPageToken))
+        )
+            return;
 
         const email = this.selectedEmail;
         const token = this.accounts[email];
@@ -258,6 +264,7 @@ export class DriveController {
             this.uploads = [];
             this.nextPageToken = '';
             this.loadedPages = 0;
+            this.libraryPageTokens.clear();
         }
 
         if (!email || !token) {
@@ -278,15 +285,19 @@ export class DriveController {
                     ...item,
                     email
                 }));
-                this.uploads = reset
-                    ? found
-                    : [
-                          ...this.uploads,
-                          ...found.filter(
-                              (item) => !this.uploads.some((old) => old.mediaKey === item.mediaKey)
-                          )
-                      ];
+                const chunks = reset ? found : [...this.uploads, ...found];
+                this.uploads = [
+                    ...new Map(
+                        chunks.map((item) => [`${item.email}:${item.mediaKey}`, item])
+                    ).values()
+                ];
                 this.nextPageToken = data.nextPageToken;
+                if (data.nextPageToken && this.libraryPageTokens.has(data.nextPageToken)) {
+                    this.nextPageToken = '';
+                    this.galleryMessage =
+                        'Google Photos repeated a library page. Refresh to try again.';
+                }
+                if (this.nextPageToken) this.libraryPageTokens.add(this.nextPageToken);
                 this.loadedPages++;
             },
             Err: (error) => {
@@ -314,6 +325,8 @@ export class DriveController {
                 this.uploads = snapshot.items.map((item) => ({ ...item, email }));
                 this.nextPageToken = snapshot.nextPageToken;
                 this.loadedPages = snapshot.pages;
+                this.libraryPageTokens.clear();
+                if (snapshot.nextPageToken) this.libraryPageTokens.add(snapshot.nextPageToken);
                 this.galleryMessage = '';
             },
             Err: (error) => {
