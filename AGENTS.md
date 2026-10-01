@@ -27,3 +27,9 @@
 - Keep route components focused on composing the interface. Extract reusable Svelte components into `src/lib/components`, browser storage/network/file operations into `src/lib/browser`, and protocol parsing into focused server modules.
 
 - Before introducing or refactoring main package APIs, consult their current official web documentation and migration guides, and check installed declarations for deprecations. Use supported modern APIs; do not suppress deprecated usage warnings. Dependency versions must satisfy the installed toolchain's peer requirements.
+
+# Git standards
+
+- Use Conventional Commits.
+- Keep commit messages concise and spot on; do not overexplain.
+- Commit whenever a part of the requested work is complete. Keep each commit focused so the Git log reads like a pull request in progress.
