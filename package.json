@@ -10,11 +10,17 @@
         "url": "https://github.com/madkarmaa/phodrive"
     },
     "type": "module",
+    "imports": {
+        "#build-handler": {
+            "types": "./src/build-handler.d.ts",
+            "default": "./build/handler.js"
+        }
+    },
     "scripts": {
         "dev": "vite dev --host 127.0.0.1",
         "build": "vite build",
         "preview": "vite preview",
-        "start": "HOST=127.0.0.1 PORT=3000 ORIGIN=http://127.0.0.1:3000 BODY_SIZE_LIMIT=Infinity node build",
+        "start": "HOST=127.0.0.1 PORT=3000 ORIGIN=http://127.0.0.1:3000 BODY_SIZE_LIMIT=Infinity node src/server.ts",
         "test": "vitest run",
         "prepare": "svelte-kit sync || echo ''",
         "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

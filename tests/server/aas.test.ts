@@ -6,6 +6,7 @@ test('Phodrive exchanges OAuth2 for an AAS token with the Google auth form', asy
     const fakeFetch: Fetcher = async (input, init) => {
         expect(String(input)).toBe('https://android.clients.google.com/auth');
         expect(init?.method).toBe('POST');
+        expect(init?.signal).toBeUndefined();
         const form = new URLSearchParams(String(init?.body));
         expect(form.get('Email')).toBe('test@example.com');
         expect(form.get('Token')).toBe('oauth2_4/test+token');

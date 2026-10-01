@@ -63,7 +63,6 @@ export function listBmps(
                 {
                     method: 'POST',
                     redirect: 'manual',
-                    signal: AbortSignal.timeout(120_000),
                     headers: headers.rpcHeaders,
                     body: bodyBytes(body)
                 },
@@ -214,7 +213,6 @@ function authenticatedHeaders(
             {
                 method: 'POST',
                 redirect: 'manual',
-                signal: AbortSignal.timeout(120_000),
                 headers: {
                     app: APP,
                     device: androidId,
@@ -334,7 +332,6 @@ function startUpload(
         {
             method: 'POST',
             redirect: 'manual',
-            signal: AbortSignal.timeout(120_000),
             headers: {
                 ...commonHeaders,
                 'content-type': 'application/x-protobuf',
@@ -369,7 +366,6 @@ function transferBmp(
         {
             method: 'PUT',
             redirect: 'manual',
-            signal: AbortSignal.timeout(Math.max(120_000, Math.ceil(bmp.length / 524_288) * 1000)),
             headers: commonHeaders,
             body: bodyBytes(bmp)
         },
@@ -420,7 +416,6 @@ function commitBmp(
         {
             method: 'POST',
             redirect: 'manual',
-            signal: AbortSignal.timeout(120_000),
             headers: rpcHeaders,
             body: bodyBytes(request)
         },
@@ -452,7 +447,6 @@ function hashLookup(
         {
             method: 'POST',
             redirect: 'manual',
-            signal: AbortSignal.timeout(120_000),
             headers: rpcHeaders,
             body: bodyBytes(hashRequest)
         },
@@ -505,7 +499,6 @@ export function downloadBmp(
                 {
                     method: 'GET',
                     redirect: 'manual',
-                    signal: AbortSignal.timeout(120_000),
                     headers: commonHeaders
                 },
                 'Download'
@@ -543,7 +536,6 @@ function preparedDownloadUrl(
         {
             method: 'POST',
             redirect: 'manual',
-            signal: AbortSignal.timeout(120_000),
             headers: rpcHeaders,
             body: bodyBytes(request)
         },
@@ -598,7 +590,6 @@ function fetchPrefix(
             response = await fetcher(url, {
                 method: 'GET',
                 redirect: 'manual',
-                signal: AbortSignal.timeout(120_000),
                 headers: {
                     ...commonHeaders,
                     range: `bytes=0-${HEADER_PROBE_BYTES - 1}`
@@ -721,7 +712,6 @@ export function moveToTrash(
                 {
                     method: 'POST',
                     redirect: 'manual',
-                    signal: AbortSignal.timeout(120_000),
                     headers: { ...commonHeaders, 'content-type': 'application/x-protobuf' },
                     body: bodyBytes(body)
                 },

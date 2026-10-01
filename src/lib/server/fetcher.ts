@@ -6,9 +6,13 @@ export type Fetcher = typeof fetch;
 
 // Concurrent large Photos transfers fail with HTTP/2 stream resets on Node 26.
 // Use a dedicated HTTP/1.1 pool while retaining parallel requests and TLS verification.
-// New TLS connections need headroom while parallel PUTs occupy the uplink.
-const PHOTOS_CONNECT_TIMEOUT_MS = 60_000;
-const PHOTOS_AGENT = new Agent({ allowH2: false, connectTimeout: PHOTOS_CONNECT_TIMEOUT_MS });
+// Slow networks must not impose a deadline on connections or active requests.
+const PHOTOS_AGENT = new Agent({
+    allowH2: false,
+    connectTimeout: 0,
+    headersTimeout: 0,
+    bodyTimeout: 0
+});
 const TRANSFER_BLOCK_BYTES = 64 * 1024;
 
 function* transferBlocks(bytes: Uint8Array) {

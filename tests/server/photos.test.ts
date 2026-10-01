@@ -61,6 +61,7 @@ test('Pixel XL flow hashes, transfers, and commits one BMP', async () => {
     const fakeFetch: Fetcher = async (input, init) => {
         const url = String(input);
         const headers = new Headers(init?.headers);
+        expect(init?.signal).toBeUndefined();
         if (step++ === 0) {
             expect(url).toBe('https://android.googleapis.com/auth');
             expect(headers.get('user-agent')).toContain('Pixel XL');
@@ -154,6 +155,7 @@ test('download verifies the original and trash targets its dedup key', async () 
     let step = 0;
     const fakeFetch: Fetcher = async (input, init) => {
         const url = String(input);
+        expect(init?.signal).toBeUndefined();
         step++;
         if (step === 1 || step === 4)
             return new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`);

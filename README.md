@@ -53,12 +53,14 @@ To build and serve using Bun:
 
 ```sh
 bun --bun run build
-HOST=127.0.0.1 PORT=3000 ORIGIN=http://127.0.0.1:3000 BODY_SIZE_LIMIT=Infinity bun build/index.js
+HOST=127.0.0.1 PORT=3000 ORIGIN=http://127.0.0.1:3000 BODY_SIZE_LIMIT=Infinity bun src/server.ts
 ```
 
 Open `http://127.0.0.1:3000` for the production build.
 
 The server binds to `127.0.0.1`. `BODY_SIZE_LIMIT=Infinity` lets the server receive original files above [SvelteKit’s default 512 KiB request limit](https://svelte.dev/docs/kit/adapter-node#Environment-variables-BODY_SIZE_LIMIT).
+
+Use `src/server.ts` to launch the production build. It creates the HTTP server with incoming request deadlines disabled and uses SvelteKit's generated handler. Google requests have no connection, header, body, or overall timeout so slow networks can finish transfers.
 
 The browser sends original files and account credentials to the server. The server streams files to temporary storage, calculates SHA-256, splits them into payloads of up to 64 MB, converts each payload into a reversible BMP, and sends the authenticated Google Photos requests. Files larger than Google’s 200 MB photo limit are accepted because each generated BMP stays below that limit. One server transfer pool respects the selected concurrent worker count across the entire selection. Progress and individual chunk confirmations stream back to the browser; retrying a failed file reuses chunks Google already has.
 

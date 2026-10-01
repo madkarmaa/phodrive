@@ -1,5 +1,5 @@
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import type { Fetcher } from '$server/fetcher';
+import { photosFetch, type Fetcher } from '$server/fetcher';
 
 const AUTH_URL = 'https://android.clients.google.com/auth';
 
@@ -7,7 +7,7 @@ const AUTH_URL = 'https://android.clients.google.com/auth';
 export function exchangeOAuth2ForAas(
     email: string,
     oauth2: string,
-    fetcher: Fetcher = fetch
+    fetcher: Fetcher = photosFetch
 ): AsyncResult<string, Error> {
     return Ok(undefined).andThenAsync(async () => {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !oauth2.startsWith('oauth2_'))
@@ -33,7 +33,6 @@ export function exchangeOAuth2ForAas(
             response = await fetcher(AUTH_URL, {
                 method: 'POST',
                 redirect: 'manual',
-                signal: AbortSignal.timeout(120_000),
                 headers: {
                     'user-agent': '',
                     app: 'com.google.android.gms',
