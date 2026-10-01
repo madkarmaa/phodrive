@@ -42,6 +42,7 @@ export class DriveController {
     private libraryRequest = 0;
     private loadedPages = 0;
     private libraryPageTokens = new Set<string>();
+    private accountReloadPending = false;
     adding = $state(false);
     newEmail = $state('');
     newToken = $state('');
@@ -388,12 +389,35 @@ export class DriveController {
         this.searchTerm = '';
         this.typeFilter = '';
         this.modifiedDays = '';
+        this.uploads = [];
+        this.nextPageToken = '';
+        this.loadedPages = 0;
+        this.libraryPageTokens.clear();
+        this.libraryRequest++;
+        this.libraryLoading = false;
+
+        if (this.busy || this.fileAction) {
+            this.accountReloadPending = true;
+            return;
+        }
+
+        this.accountReloadPending = false;
         this.uploadJobs = [];
         this.uploadSources = [];
         this.uploadPanelOpen = false;
         this.message = '';
         this.galleryMessage = '';
         void this.loadFiles();
+    }
+
+    private reloadChangedAccount(email: string, token: string) {
+        if (
+            this.accountReloadPending ||
+            this.selectedEmail !== email ||
+            this.accounts[email] !== token
+        ) {
+            this.resetAccountView();
+        }
     }
 
     selectAccount(email: string) {
@@ -492,6 +516,7 @@ export class DriveController {
 
             this.uploadPanelOpen = false;
             this.fileAction = null;
+            this.reloadChangedAccount(item.email, token);
             return;
         }
 
@@ -515,6 +540,7 @@ export class DriveController {
         });
 
         this.fileAction = null;
+        this.reloadChangedAccount(item.email, token);
     }
 
     async upload(files: readonly File[]) {
@@ -593,5 +619,6 @@ export class DriveController {
         });
 
         this.busy = false;
+        this.reloadChangedAccount(email, token);
     }
 }
