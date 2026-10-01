@@ -1,5 +1,6 @@
 <script lang="ts">
     import { fly } from 'svelte/transition';
+    import { onMount } from 'svelte';
     import { onClickOutside } from 'runed';
     import { prefersReducedMotion } from 'svelte/motion';
     import Avatar from '$components/Avatar.svelte';
@@ -20,6 +21,17 @@
     let { emails, selected, disabled, onclose, onselect, onadd, onsignout }: Props = $props();
 
     let menu = $state<HTMLDivElement>();
+
+    function closeMenu() {
+        if (menu?.contains(document.activeElement)) {
+            document.querySelector<HTMLButtonElement>('[aria-controls="account-menu"]')?.focus();
+        }
+
+        onclose();
+    }
+
+    onMount(() => menu?.querySelector<HTMLButtonElement>('button')?.focus());
+
     onClickOutside(
         () => menu,
         (event) => {
@@ -27,21 +39,21 @@
             if (target instanceof Element && target.closest('[aria-controls="account-menu"]'))
                 return;
 
-            onclose();
+            closeMenu();
         }
     );
 </script>
 
 <svelte:window
     onkeydown={(event) => {
-        if (event.key === 'Escape') onclose();
+        if (event.key === 'Escape') closeMenu();
     }}
 />
 
 <div
     id="account-menu"
     bind:this={menu}
-    class="fixed inset-x-4 top-16 z-20 ml-auto box-border max-w-100 rounded-[28px] border border-border bg-menu px-4 pt-13 pb-5 text-text shadow-lg max-[800px]:top-18"
+    class="fixed inset-x-4 top-16 z-20 ml-auto box-border max-h-[calc(100dvh-5rem)] max-w-100 overflow-y-auto overscroll-contain rounded-[28px] border border-border bg-menu px-4 pt-13 pb-5 text-text shadow-lg max-[800px]:top-18"
     role="dialog"
     aria-label="Accounts"
     transition:fly={{ y: -8, duration: prefersReducedMotion.current ? 0 : 160 }}
@@ -50,7 +62,7 @@
         class="icon-button absolute top-3 right-5 size-8 text-subtle"
         type="button"
         aria-label="Close account menu"
-        onclick={onclose}><IconClose aria-hidden="true" /></button
+        onclick={closeMenu}><IconClose aria-hidden="true" /></button
     >
 
     <div class="overflow-hidden rounded-[28px] bg-panel">
@@ -71,7 +83,7 @@
                 {disabled}
                 onclick={() => {
                     onselect(email);
-                    onclose();
+                    closeMenu();
                 }}
             >
                 <span class="mx-1.5"><Avatar {email} small /></span>
@@ -85,7 +97,7 @@
             {disabled}
             onclick={() => {
                 onadd();
-                onclose();
+                closeMenu();
             }}
         >
             <span
@@ -102,7 +114,7 @@
                 {disabled}
                 onclick={() => {
                     onsignout();
-                    onclose();
+                    closeMenu();
                 }}
             >
                 <span

@@ -13,7 +13,9 @@
 </script>
 
 <Dialog
+    style="transition-property: opacity"
     bind:open
+    aria-label={target?.kind === ConfirmKind.Account ? 'Sign out?' : 'Move file to trash?'}
     headline={target?.kind === ConfirmKind.Account ? 'Sign out?' : 'Move file to trash?'}
 >
     {#if target?.kind === ConfirmKind.Account}
@@ -24,7 +26,7 @@
     {/if}
 
     {#snippet buttons()}
-        <Button variant="text" onclick={() => (open = false)}>Cancel</Button>
+        <Button autofocus variant="text" onclick={() => (open = false)}>Cancel</Button>
         <Button variant="text" onclick={onconfirm}
             >{target?.kind === ConfirmKind.Account ? 'Sign out' : 'Move to trash'}</Button
         >
