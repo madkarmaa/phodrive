@@ -370,6 +370,8 @@ export class DriveController {
     }
 
     private resetAccountView() {
+        this.confirmOpen = false;
+        this.confirmTarget = null;
         this.searchTerm = '';
         this.typeFilter = '';
         this.modifiedDays = '';
@@ -417,11 +419,38 @@ export class DriveController {
             return;
         }
 
-        void this.actOnFile(target.item, FileActionKind.Delete);
+        const item = target.item;
+        const current = this.files.find((file) => fileKey(file) === fileKey(item));
+        if (
+            item.email !== this.selectedEmail ||
+            !current ||
+            current.name !== item.name ||
+            current.chunks.length !== item.chunks.length ||
+            current.chunks.some(
+                (chunk) =>
+                    !item.chunks.some(
+                        (saved) =>
+                            saved.mediaKey === chunk.mediaKey &&
+                            saved.sha1 === chunk.sha1 &&
+                            saved.chunkIndex === chunk.chunkIndex
+                    )
+            )
+        ) {
+            this.galleryMessage = 'The file changed. Review its current chunks before deleting.';
+            return;
+        }
+
+        void this.actOnFile(current, FileActionKind.Delete);
     }
 
     async actOnFile(item: FileGroup, action: FileActionKind) {
         if (this.busy || this.fileAction || this.libraryLoading) return;
+
+        const token = this.accounts[item.email];
+        if (item.email !== this.selectedEmail || !token) {
+            this.galleryMessage = 'Select the file’s connected account before continuing.';
+            return;
+        }
 
         this.fileAction = { fileHash: item.fileHash, fileId: item.fileId, kind: action };
         this.galleryMessage = '';
@@ -429,10 +458,13 @@ export class DriveController {
         if (action === FileActionKind.Delete) {
             const deleted = await deleteFile(
                 item,
-                this.accounts[item.email],
+                token,
                 (chunk) => {
                     this.uploads = this.uploads.filter(
-                        (saved) => saved.mediaKey !== chunk.mediaKey
+                        (saved) =>
+                            saved.email !== item.email ||
+                            saved.mediaKey !== chunk.mediaKey ||
+                            saved.sha1 !== chunk.sha1
                     );
                 },
                 this.concurrentWorkers
@@ -450,7 +482,7 @@ export class DriveController {
             return;
         }
 
-        const downloaded = await downloadFile(item, this.accounts[item.email]);
+        const downloaded = await downloadFile(item, token);
         downloaded.match({
             Ok: (file) => {
                 try {
