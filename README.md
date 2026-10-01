@@ -21,7 +21,7 @@ Open `http://127.0.0.1:5173`. Add a Google account email and the one-time `oauth
 Phodrive exchanges it for an `aas_et/` token on the local server, verifies that Google accepts the email and AAS token, then saves only the AAS token in browser local storage. Existing AAS tokens can also be entered directly and are checked before saving.
 
 > [!NOTE]
-> The server keeps no copy, **everything is local**.
+> Credentials are stored only in your browser. The server uses them for each request and does not save them. Files use private temporary server storage while processing and are removed when the operation finishes.
 
 ### Deployment defaults
 
@@ -58,9 +58,11 @@ HOST=127.0.0.1 PORT=3000 ORIGIN=http://127.0.0.1:3000 BODY_SIZE_LIMIT=Infinity b
 
 Open `http://127.0.0.1:3000` for the production build.
 
-The server binds to `127.0.0.1`. `BODY_SIZE_LIMIT=Infinity` lets the server receive each BMP above [SvelteKit’s default 512 KiB request limit](https://svelte.dev/docs/kit/adapter-node#Environment-variables-BODY_SIZE_LIMIT).
+The server binds to `127.0.0.1`. `BODY_SIZE_LIMIT=Infinity` lets the server receive original files above [SvelteKit’s default 512 KiB request limit](https://svelte.dev/docs/kit/adapter-node#Environment-variables-BODY_SIZE_LIMIT).
 
-Google’s private Photos endpoints reject browser CORS preflights, so the browser converts the file and the local server sends the authenticated protocol requests.
+The browser sends original files and account credentials to the server. The server streams files to temporary storage, calculates SHA-256, splits them into payloads of up to 64 MB, converts each payload into a reversible BMP, and sends the authenticated Google Photos requests. Files larger than Google’s 200 MB photo limit are accepted because each generated BMP stays below that limit. One server transfer pool respects the selected concurrent worker count across the entire selection. Progress and individual chunk confirmations stream back to the browser; retrying a failed file reuses chunks Google already has.
+
+Downloads are decoded, reconstructed, and verified against the original SHA-256 on the server before the original file is sent to the browser. Existing Phodrive BMP files remain compatible.
 
 > [!WARNING]
 > Do not expose this server to other machines.
