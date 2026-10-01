@@ -42,15 +42,9 @@ export function planUpload(file: ReceivedFile): Result<UploadPlan, Error> {
             fileName: index === 0 ? file.name : undefined
         };
         const projected = splitBmpByteLength(header);
-        const failure = projected.match({
-            Ok: (size) => {
-                sizes.push(size);
-                return null;
-            },
-            Err: (error) => error
-        });
-        if (failure) return Err(failure);
+        if (projected.isErr()) return projected;
 
+        projected.inspect((size) => sizes.push(size));
         headers.push(header);
     }
 
@@ -79,67 +73,77 @@ function uploadChunk(
         );
 }
 
-function uploadFile(
+/** Keep wire bytes and reused bytes separate; only confirmed chunks can finish a job. */
+function createProgressReporter(plan: UploadPlan, id: number, emit: (event: UploadEvent) => void) {
+    const total = plan.sizes.reduce((sum, size) => sum + size, 0);
+    const sentByChunk = plan.headers.map(() => 0);
+    let completed = 0;
+    let reused = 0;
+    let lastUpdate = 0;
+
+    function report(force = false) {
+        const now = performance.now();
+        if (!force && lastUpdate && now - lastUpdate < PROGRESS_INTERVAL_MS) return;
+
+        lastUpdate = now;
+        emit({
+            type: UploadEventType.Progress,
+            id,
+            progress: { phase: UploadPhase.Uploading, completed, total, reused }
+        });
+    }
+
+    function sent(index: number, bytes: number) {
+        completed += bytes - sentByChunk[index];
+        sentByChunk[index] = bytes;
+        report(bytes === plan.sizes[index]);
+    }
+
+    function confirm(index: number, status: UploadStatus) {
+        if (status === UploadStatus.AlreadyExists) reused += plan.sizes[index];
+        if (status === UploadStatus.Uploaded && sentByChunk[index] < plan.sizes[index]) {
+            completed += plan.sizes[index] - sentByChunk[index];
+            sentByChunk[index] = plan.sizes[index];
+        }
+    }
+
+    return { report, sent, confirm };
+}
+
+function uploadPlannedFile(
     file: ReceivedFile,
+    plan: UploadPlan,
     id: number,
-    email: string,
-    token: string,
+    input: ReceivedUpload,
     emit: (event: UploadEvent) => void,
     limit: LimitFunction,
     fetcher?: Fetcher
 ): AsyncResult<UploadResponse, Error> {
-    return planUpload(file).andThenAsync(async ({ headers, sizes }) => {
+    return Ok(undefined).andThenAsync(async () => {
+        const progress = createProgressReporter(plan, id, emit);
         let failure: Error | null = null;
-        let completed = 0;
-        let reused = 0;
         let uploadedAny = false;
-        const total = sizes.reduce((sum, size) => sum + size, 0);
-        const sentByChunk = headers.map(() => 0);
-        let lastUpdate = 0;
-        const report = (force = false) => {
-            const now = performance.now();
-            if (!force && lastUpdate && now - lastUpdate < PROGRESS_INTERVAL_MS) return;
+        progress.report(true);
 
-            lastUpdate = now;
-            emit({
-                type: UploadEventType.Progress,
-                id,
-                progress: { phase: UploadPhase.Uploading, completed, total, reused }
-            });
-        };
-        report(true);
-
-        const upload = (
-            header: SplitHeader
-        ): Result<UploadResponse, Error> | AsyncResult<UploadResponse, Error> => {
-            // After failure, leave queued ranges unread and settle every active Google operation.
+        const responses = await limit.map(plan.headers, async (header) => {
+            // Leave queued ranges unread after failure; settle every active Google operation.
             if (failure) return Err(failure);
 
             const index = header.chunkIndex;
-            return uploadChunk(
+            const uploaded = await uploadChunk(
                 file,
                 header,
-                headers.length,
-                email,
-                token,
-                (sent) => {
-                    completed += sent - sentByChunk[index];
-                    sentByChunk[index] = sent;
-                    report(sent === sizes[index]);
-                },
+                plan.headers.length,
+                input.email,
+                input.token,
+                (sent) => progress.sent(index, sent),
                 fetcher
-            )
-                .map((response) => {
-                    uploadedAny ||= response.status === UploadStatus.Uploaded;
-                    if (response.status === UploadStatus.AlreadyExists) reused += sizes[index];
-                    if (
-                        response.status === UploadStatus.Uploaded &&
-                        sentByChunk[index] < sizes[index]
-                    ) {
-                        completed += sizes[index] - sentByChunk[index];
-                        sentByChunk[index] = sizes[index];
-                    }
+            );
 
+            uploaded.match({
+                Ok: (response) => {
+                    uploadedAny ||= response.status === UploadStatus.Uploaded;
+                    progress.confirm(index, response.status);
                     emit({
                         type: UploadEventType.Chunk,
                         id,
@@ -154,27 +158,26 @@ function uploadFile(
                             sha1: response.sha1
                         }
                     });
-                    report(true);
-                    return response;
-                })
-                .mapErr((error) => {
+                    progress.report(true);
+                },
+                Err: (error) => {
                     failure ??= error;
-                    return error;
-                });
-        };
-
-        const responses = await limit.map(headers, upload);
-        let final: Result<UploadResponse | null, Error> = Ok(null);
-        for (const response of responses) final = final.andThen(() => response);
-
-        return final.andThen((last) => {
-            if (!last) return Err(new Error('No chunks were uploaded.'));
-
-            return Ok({
-                ...last,
-                status: uploadedAny ? UploadStatus.Uploaded : UploadStatus.AlreadyExists
+                }
             });
+
+            return uploaded;
         });
+
+        let last: Result<UploadResponse, Error> = Err(new Error('No chunks were uploaded.'));
+        for (const response of responses) {
+            if (response.isErr()) return response;
+            last = response;
+        }
+
+        return last.map((response) => ({
+            ...response,
+            status: uploadedAny ? UploadStatus.Uploaded : UploadStatus.AlreadyExists
+        }));
     });
 }
 
@@ -195,14 +198,8 @@ export function uploadFiles(
                 id,
                 progress: { phase: UploadPhase.Preparing, completed: 0, total: file.size }
             });
-            const uploaded = await uploadFile(
-                file,
-                id,
-                input.email,
-                input.token,
-                emit,
-                chunkLimit,
-                fetcher
+            const uploaded = await planUpload(file).andThenAsync((plan) =>
+                uploadPlannedFile(file, plan, id, input, emit, chunkLimit, fetcher)
             );
             uploaded.match({
                 Ok: (result) => emit({ type: UploadEventType.FileComplete, id, result }),

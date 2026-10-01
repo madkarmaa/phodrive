@@ -71,7 +71,10 @@ function saveFile(
     });
 }
 
-function receive(request: Request, directory: string): AsyncResult<ReceivedUpload, Error> {
+function receiveMultipartUpload(
+    request: Request,
+    directory: string
+): AsyncResult<ReceivedUpload, Error> {
     return Ok(undefined).andThenAsync(async () => {
         const contentType = request.headers.get('content-type');
         if (!request.body || !contentType?.startsWith('multipart/form-data'))
@@ -148,14 +151,9 @@ function receive(request: Request, directory: string): AsyncResult<ReceivedUploa
 
         const files: ReceivedFile[] = [];
         for (const result of saved) {
-            const error = result.match({
-                Ok: (file) => {
-                    files.push(file);
-                    return null;
-                },
-                Err: (error) => error
-            });
-            if (error) return Err(error);
+            if (result.isErr()) return result;
+
+            result.inspect((file) => files.push(file));
         }
 
         return schemaResult(
@@ -173,7 +171,7 @@ function receive(request: Request, directory: string): AsyncResult<ReceivedUploa
 /** Credentials live only in this request; raw bytes are spooled with bounded stream buffers. */
 export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, Error> {
     return createTemporaryDirectory().andThenAsync(async (directory) => {
-        const received = await receive(request, directory);
+        const received = await receiveMultipartUpload(request, directory);
         if (received.isOk()) return received;
 
         const removed = await removeTemporaryDirectory(directory);
