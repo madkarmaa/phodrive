@@ -1,7 +1,7 @@
 import { FileActionKind, type FileRequest, type RemoteBmp } from '$lib/models';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { open } from 'node:fs/promises';
+import { open, type FileHandle } from 'node:fs/promises';
 import { join } from 'node:path';
 import pLimit from 'p-limit';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
@@ -32,72 +32,83 @@ function validateChunks(input: FileRequest): Result<RemoteBmp[], Error> {
     return Ok(chunks);
 }
 
+function downloadPayload(input: FileRequest, chunk: RemoteBmp): AsyncResult<Uint8Array, Error> {
+    return downloadBmp(input.email, input.token, chunk.mediaKey, chunk.sha1)
+        .andThen(decodeSplitBmp)
+        .andThen(({ header, payload }) => {
+            if (
+                header.fileHash !== input.fileHash ||
+                header.chunkIndex !== chunk.chunkIndex ||
+                header.flags !== Number(chunk.isLast) ||
+                header.payloadSize !== chunk.size ||
+                (chunk.chunkIndex === 0 && header.fileName !== input.name)
+            )
+                return Err(new Error('Downloaded chunks do not match this file.'));
+
+            return Ok(payload);
+        });
+}
+
+function writePayload(file: FileHandle, payload: Uint8Array): AsyncResult<void, Error> {
+    return Ok(undefined).andThenAsync(async () => {
+        try {
+            await file.writeFile(payload);
+            return Ok(undefined);
+        } catch {
+            return Err(new Error('Could not save the downloaded file.'));
+        }
+    });
+}
+
+function reconstructFile(
+    input: FileRequest,
+    chunks: RemoteBmp[],
+    file: FileHandle
+): AsyncResult<void, Error> {
+    return Ok(undefined).andThenAsync(async () => {
+        const hash = createHash('sha256');
+        for (const chunk of chunks) {
+            const downloaded = await downloadPayload(input, chunk);
+            const written = await downloaded.andThenAsync((payload) => {
+                hash.update(payload);
+                return writePayload(file, payload);
+            });
+            if (written.isErr()) return written;
+        }
+
+        if (hash.digest('hex') !== input.fileHash)
+            return Err(new Error('Reconstructed file failed SHA-256 verification.'));
+
+        return Ok(undefined);
+    });
+}
+
 function writeDownload(
     input: FileRequest,
     chunks: RemoteBmp[],
     path: string
 ): AsyncResult<void, Error> {
     return Ok(undefined).andThenAsync(async () => {
-        let file: Awaited<ReturnType<typeof open>>;
+        let file: FileHandle;
         try {
             file = await open(path, 'wx', 0o600);
         } catch {
             return Err(new Error('Could not create the downloaded file.'));
         }
 
-        const hash = createHash('sha256');
-        let failure: Error | null = null;
+        let written: Result<void, Error> = Ok(undefined);
+        let closed: Result<void, Error> = Ok(undefined);
         try {
-            for (const chunk of chunks) {
-                const downloaded = await downloadBmp(
-                    input.email,
-                    input.token,
-                    chunk.mediaKey,
-                    chunk.sha1
-                );
-                const decoded = downloaded
-                    .andThen(decodeSplitBmp)
-                    .andThen(({ header, payload }) => {
-                        if (
-                            header.fileHash !== input.fileHash ||
-                            header.chunkIndex !== chunk.chunkIndex ||
-                            header.flags !== Number(chunk.isLast) ||
-                            header.payloadSize !== chunk.size ||
-                            (chunk.chunkIndex === 0 && header.fileName !== input.name)
-                        )
-                            return Err(new Error('Downloaded chunks do not match this file.'));
-
-                        return Ok(payload);
-                    });
-                const payload = decoded.match({
-                    Ok: (bytes) => bytes,
-                    Err: (error) => {
-                        failure = error;
-                        return null;
-                    }
-                });
-                if (!payload) break;
-
-                hash.update(payload);
-                try {
-                    await file.writeFile(payload);
-                } catch {
-                    failure = new Error('Could not save the downloaded file.');
-                    break;
-                }
-            }
-
-            if (!failure && hash.digest('hex') !== input.fileHash)
-                failure = new Error('Reconstructed file failed SHA-256 verification.');
+            written = await reconstructFile(input, chunks, file);
         } finally {
             try {
                 await file.close();
             } catch {
-                failure ??= new Error('Could not close the downloaded file.');
+                closed = Err(new Error('Could not close the downloaded file.'));
             }
         }
 
-        return failure ? Err(failure) : Ok(undefined);
+        return written.andThen(() => closed);
     });
 }
 
@@ -153,10 +164,12 @@ export function downloadFile(input: FileRequest): AsyncResult<Response, Error> {
         createTemporaryDirectory().andThenAsync(async (directory) => {
             const path = join(directory, 'download');
             const written = await writeDownload(input, chunks, path);
-            if (written.isOk()) return Ok(downloadResponse(path, directory));
+            if (written.isErr()) {
+                const removed = await removeTemporaryDirectory(directory);
+                return removed.andThen(() => written);
+            }
 
-            const removed = await removeTemporaryDirectory(directory);
-            return removed.andThen(() => written.map(() => new Response()));
+            return written.map(() => downloadResponse(path, directory));
         })
     );
 }
