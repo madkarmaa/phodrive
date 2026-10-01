@@ -4,6 +4,7 @@
     import { flip } from 'svelte/animate';
     import { prefersReducedMotion } from 'svelte/motion';
     import type { FileGroup, FileAction } from '$lib/file-groups';
+    import { fileKey } from '$lib/file-groups';
     import FileCard from '$components/FileCard.svelte';
     import IconFolderOpen from '~icons/material-symbols/folder-open-outline';
 
@@ -43,7 +44,7 @@
         <ul
             class="mt-4 grid list-none grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5 p-0 max-[520px]:grid-cols-1"
         >
-            {#each files as item (item.email + ':' + item.fileHash)}
+            {#each files as item (fileKey(item))}
                 <li
                     class="min-w-0"
                     animate:flip={{ duration: prefersReducedMotion.current ? 0 : 180 }}
@@ -52,7 +53,10 @@
                     <FileCard
                         {item}
                         {disabled}
-                        working={action?.fileHash === item.fileHash ? action.kind : null}
+                        working={(action?.fileId ?? action?.fileHash) ===
+                        (item.fileId ?? item.fileHash)
+                            ? (action?.kind ?? null)
+                            : null}
                         {ondownload}
                         {ondelete}
                     />

@@ -79,6 +79,7 @@ function fileRequest(
             token,
             name: item.name,
             fileHash: item.fileHash,
+            fileId: item.fileId,
             chunks: item.chunks,
             workers
         })

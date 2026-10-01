@@ -9,7 +9,7 @@ import {
 import pLimit, { type LimitFunction } from 'p-limit';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import { encodeSplitBmp, MAX_CHUNK_PAYLOAD_BYTES, splitBmpByteLength } from '$server/bmp';
-import { chunkFileName } from '$server/chunks';
+import { chunkFileName, fileIdentity } from '$server/chunks';
 import { readFileRange } from '$server/temporary-files';
 import { photosFetchWithProgress, type Fetcher } from '$server/fetcher';
 import { uploadBmp } from '$server/photos';
@@ -28,11 +28,13 @@ export function planUpload(file: ReceivedFile): Result<UploadPlan, Error> {
         return Err(new Error('Invalid file name or size.'));
 
     const count = Math.max(1, Math.ceil(file.size / MAX_CHUNK_PAYLOAD_BYTES));
+    const fileId = fileIdentity(file.name, file.fileHash);
     const headers: SplitHeader[] = [];
     const sizes: number[] = [];
     for (let index = 0; index < count; index++) {
         const header: SplitHeader = {
             fileHash: file.fileHash,
+            fileId,
             chunkIndex: index,
             flags: index === count - 1 ? 1 : 0,
             payloadSize: Math.min(
@@ -149,6 +151,7 @@ function uploadPlannedFile(
                         id,
                         chunk: {
                             fileHash: file.fileHash,
+                            fileId: header.fileId,
                             chunkIndex: index,
                             isLast: header.flags === 1,
                             originalName: header.fileName,

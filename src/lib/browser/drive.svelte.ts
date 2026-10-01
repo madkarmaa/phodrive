@@ -12,6 +12,7 @@ import {
 import { watch } from 'runed';
 import {
     groupChunks,
+    fileKey,
     sortFiles,
     fileType,
     type FileGroup,
@@ -422,7 +423,7 @@ export class DriveController {
     async actOnFile(item: FileGroup, action: FileActionKind) {
         if (this.busy || this.fileAction || this.libraryLoading) return;
 
-        this.fileAction = { fileHash: item.fileHash, kind: action };
+        this.fileAction = { fileHash: item.fileHash, fileId: item.fileId, kind: action };
         this.galleryMessage = '';
 
         if (action === FileActionKind.Delete) {
@@ -527,9 +528,7 @@ export class DriveController {
                     saved,
                     ...this.uploads.filter(
                         (item) =>
-                            item.email !== email ||
-                            item.fileHash !== saved.fileHash ||
-                            item.chunkIndex !== saved.chunkIndex
+                            fileKey(item) !== fileKey(saved) || item.chunkIndex !== saved.chunkIndex
                     )
                 ];
             }

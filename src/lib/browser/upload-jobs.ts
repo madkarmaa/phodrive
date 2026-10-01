@@ -138,7 +138,8 @@ export function createUploadEventHandler(
                 if (
                     job.progress.phase !== UploadPhase.Uploading ||
                     saved.has(chunk.chunkIndex) ||
-                    (first && first.fileHash !== chunk.fileHash) ||
+                    (first &&
+                        (first.fileHash !== chunk.fileHash || first.fileId !== chunk.fileId)) ||
                     (chunk.chunkIndex === 0 && chunk.originalName !== file.name)
                 )
                     return invalidProgress();

@@ -14,7 +14,7 @@ function validateChunks(input: FileRequest): Result<RemoteBmp[], Error> {
     if (
         !input.name ||
         /[\\/\r\n\0]/.test(input.name) ||
-        chunks.some((chunk) => chunk.fileHash !== input.fileHash)
+        chunks.some((chunk) => chunk.fileHash !== input.fileHash || chunk.fileId !== input.fileId)
     )
         return Err(new Error('Invalid file metadata.'));
 
@@ -38,6 +38,7 @@ function downloadPayload(input: FileRequest, chunk: RemoteBmp): AsyncResult<Uint
         .andThen(({ header, payload }) => {
             if (
                 header.fileHash !== input.fileHash ||
+                header.fileId !== input.fileId ||
                 header.chunkIndex !== chunk.chunkIndex ||
                 header.flags !== Number(chunk.isLast) ||
                 header.payloadSize !== chunk.size ||

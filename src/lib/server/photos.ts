@@ -619,6 +619,7 @@ function probeLibraryItem(
                 Ok: ({ header }) => ({
                     ...candidate,
                     fileHash: header.fileHash,
+                    ...(header.fileId ? { fileId: header.fileId } : {}),
                     chunkIndex: header.chunkIndex,
                     isLast: header.flags === 1,
                     originalName: header.fileName,

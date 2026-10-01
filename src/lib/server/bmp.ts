@@ -6,9 +6,20 @@ export const MAX_PHOTOS_BMP_BYTES = 200_000_000;
 export const MAX_CHUNK_PAYLOAD_BYTES = 64_000_000;
 
 const BMP_HEADER_BYTES = 54;
-const SPLIT_MAGIC = new TextEncoder().encode('BMSPLIT\0');
+const LEGACY_SPLIT_MAGIC = new TextEncoder().encode('BMSPLIT\0');
+const SPLIT_MAGIC = new TextEncoder().encode('BMSPLIT\x01');
 const FILE_HASH_BYTES = 32;
 const UTF8 = new TextDecoder('utf-8', { fatal: true });
+
+function hashBytes(hash: string): Uint8Array {
+    return Uint8Array.from({ length: FILE_HASH_BYTES }, (_, position) =>
+        Number.parseInt(hash.slice(position * 2, position * 2 + 2), 16)
+    );
+}
+
+function hashHex(bytes: Uint8Array): string {
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 function bmpLayout(
     length: number
@@ -63,6 +74,7 @@ export function splitBmpByteLength(input: SplitHeader): Result<number, Error> {
     const contentLength =
         SPLIT_MAGIC.length +
         FILE_HASH_BYTES +
+        (header.fileId ? FILE_HASH_BYTES : 0) +
         Varint.encodingLength(header.chunkIndex) +
         1 +
         Varint.encodingLength(header.payloadSize) +
@@ -82,6 +94,8 @@ export function encodeSplitBmp(
         return Err(new Error('Invalid chunk metadata'));
 
     const header = parsed.data;
+    const identity = header.fileId ? hashBytes(header.fileId) : new Uint8Array();
+    const magic = header.fileId ? SPLIT_MAGIC : LEGACY_SPLIT_MAGIC;
     const fileName = header.fileName ? new TextEncoder().encode(header.fileName) : new Uint8Array();
     const index = Uint8Array.from(Varint.encode(header.chunkIndex));
     const size = Uint8Array.from(Varint.encode(header.payloadSize));
@@ -92,6 +106,7 @@ export function encodeSplitBmp(
     const contentLength =
         SPLIT_MAGIC.length +
         FILE_HASH_BYTES +
+        identity.length +
         index.length +
         1 +
         size.length +
@@ -119,14 +134,12 @@ export function encodeSplitBmp(
         view.setUint16(28, 24, true);
         view.setUint32(34, total - BMP_HEADER_BYTES, true);
 
-        const hashBytes = Uint8Array.from({ length: FILE_HASH_BYTES }, (_, position) =>
-            Number.parseInt(header.fileHash.slice(position * 2, position * 2 + 2), 16)
-        );
         let offset = BMP_HEADER_BYTES;
 
         for (const bytes of [
-            SPLIT_MAGIC,
-            hashBytes,
+            magic,
+            hashBytes(header.fileHash),
+            identity,
             index,
             Uint8Array.of(header.flags),
             size,
@@ -175,6 +188,16 @@ export function decodeSplitHeader(
     const view = new DataView(prefix.buffer, prefix.byteOffset, prefix.byteLength);
     const width = view.getInt32(18, true);
     const height = view.getInt32(22, true);
+    const hasIdentity = SPLIT_MAGIC.every(
+        (byte, index) => prefix[BMP_HEADER_BYTES + index] === byte
+    );
+    const magic = hasIdentity ? SPLIT_MAGIC : LEGACY_SPLIT_MAGIC;
+
+    if (
+        hasIdentity &&
+        prefix.length < BMP_HEADER_BYTES + SPLIT_MAGIC.length + 2 * FILE_HASH_BYTES + 3
+    )
+        return invalid();
 
     if (
         prefix[0] !== 66 ||
@@ -190,15 +213,17 @@ export function decodeSplitHeader(
         width % 4 !== 0 ||
         width * 3 * height !== totalSize - BMP_HEADER_BYTES ||
         view.getUint32(34, true) !== totalSize - BMP_HEADER_BYTES ||
-        SPLIT_MAGIC.some((byte, index) => prefix[BMP_HEADER_BYTES + index] !== byte)
+        magic.some((byte, index) => prefix[BMP_HEADER_BYTES + index] !== byte)
     )
         return invalid();
 
     let offset = BMP_HEADER_BYTES + SPLIT_MAGIC.length;
-    const fileHash = Array.from(prefix.subarray(offset, offset + FILE_HASH_BYTES), (byte) =>
-        byte.toString(16).padStart(2, '0')
-    ).join('');
+    const fileHash = hashHex(prefix.subarray(offset, offset + FILE_HASH_BYTES));
     offset += FILE_HASH_BYTES;
+    const fileId = hasIdentity
+        ? hashHex(prefix.subarray(offset, offset + FILE_HASH_BYTES))
+        : undefined;
+    if (hasIdentity) offset += FILE_HASH_BYTES;
 
     const metadata = readVarint(prefix, offset).andThen((index) => {
         if (index.next >= prefix.length) return invalid();
@@ -206,6 +231,7 @@ export function decodeSplitHeader(
         const flags = prefix[index.next];
         return readVarint(prefix, index.next + 1).map((size) => ({
             fileHash,
+            ...(fileId ? { fileId } : {}),
             chunkIndex: index.value,
             flags,
             payloadSize: size.value,
