@@ -8,6 +8,7 @@ function remoteFile(mediaKey: string): RemoteBmp {
     return {
         mediaKey,
         fileHash: '0'.repeat(64),
+        fileId: '0'.repeat(64),
         sha1: '0'.repeat(40),
         chunkIndex: 0,
         isLast: true,

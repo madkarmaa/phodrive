@@ -131,6 +131,7 @@ function downloadInput(payload: Buffer): { input: FileRequest; bmp: Uint8Array<A
     const fileHash = createHash('sha256').update(payload).digest('hex');
     const encoded = encodeSplitBmp(payload, {
         fileHash,
+        fileId: fileHash,
         chunkIndex: 0,
         flags: 1,
         payloadSize: payload.length,
@@ -143,10 +144,12 @@ function downloadInput(payload: Buffer): { input: FileRequest; bmp: Uint8Array<A
         token: 'synthetic-token',
         name: 'proof.bin',
         fileHash,
+        fileId: fileHash,
         workers: 1,
         chunks: [
             {
                 fileHash,
+                fileId: fileHash,
                 chunkIndex: 0,
                 isLast: true,
                 originalName: 'proof.bin',

@@ -20,6 +20,7 @@ afterEach(() => vi.restoreAllMocks());
 function chunk(name = 'proof.bin'): RemoteBmp {
     return {
         fileHash: FILE_HASH,
+        fileId: FILE_HASH,
         chunkIndex: 0,
         isLast: true,
         originalName: name,

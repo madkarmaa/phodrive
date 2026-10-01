@@ -90,7 +90,7 @@ export const Sha256HexSchema = z.string().regex(/^[a-f0-9]{64}$/);
 export const SplitHeaderSchema = z
     .object({
         fileHash: Sha256HexSchema,
-        fileId: Sha256HexSchema.optional(),
+        fileId: Sha256HexSchema,
         chunkIndex: z.int().nonnegative(),
         flags: z.union([z.literal(0), z.literal(1)]),
         payloadSize: z.int().nonnegative(),
@@ -100,7 +100,7 @@ export const SplitHeaderSchema = z
 
 export const RemoteBmpSchema = z.object({
     fileHash: Sha256HexSchema,
-    fileId: Sha256HexSchema.optional(),
+    fileId: Sha256HexSchema,
     chunkIndex: z.int().nonnegative(),
     isLast: z.boolean(),
     originalName: z.string().min(1).optional(),
@@ -179,7 +179,7 @@ export const FileRequestSchema = AccountRequestSchema.extend({
     action: z.enum(FileActionKind),
     name: z.string().min(1),
     fileHash: Sha256HexSchema,
-    fileId: Sha256HexSchema.optional(),
+    fileId: Sha256HexSchema,
     chunks: z.array(RemoteBmpSchema).nonempty(),
     workers: ConcurrentWorkersSchema
 });

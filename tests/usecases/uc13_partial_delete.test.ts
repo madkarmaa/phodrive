@@ -42,6 +42,7 @@ beforeEach(() => {
 function remoteChunk(overrides: Partial<RemoteBmp> = {}): RemoteBmp {
     return {
         fileHash: 'a'.repeat(64),
+        fileId: 'a'.repeat(64),
         chunkIndex: 0,
         isLast: false,
         originalName: 'archive.bin',
@@ -64,6 +65,7 @@ test('partial delete retains exact confirmations, retries remaining chunks, and 
     });
     const unrelated = remoteChunk({
         fileHash: 'd'.repeat(64),
+        fileId: 'd'.repeat(64),
         isLast: true,
         originalName: 'other-account.bin'
     });

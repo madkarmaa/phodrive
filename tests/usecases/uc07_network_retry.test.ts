@@ -71,6 +71,7 @@ function completeFile(id: number, name: string, fileHash = 'a'.repeat(64)): Uplo
             id,
             chunk: {
                 fileHash,
+                fileId: fileHash,
                 chunkIndex: 0,
                 isLast: true,
                 originalName: name,
@@ -136,6 +137,7 @@ test('truncated batch marks only unfinished work failed; retry submits that file
                     id: 1,
                     chunk: {
                         fileHash: 'b'.repeat(64),
+                        fileId: 'b'.repeat(64),
                         chunkIndex: 0,
                         isLast: true,
                         originalName: 'retry.bin',

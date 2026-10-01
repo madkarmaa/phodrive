@@ -42,6 +42,7 @@ function validNameEvents(names: readonly string[]): UploadEvent[] {
             id,
             chunk: {
                 fileHash: 'a'.repeat(64),
+                fileId: 'a'.repeat(64),
                 chunkIndex: 0,
                 isLast: true,
                 originalName: name,

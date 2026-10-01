@@ -61,6 +61,7 @@ function uploadedChunk(name: string): UploadedChunk {
     return {
         email: OWNER,
         fileHash: 'a'.repeat(64),
+        fileId: 'a'.repeat(64),
         chunkIndex: 0,
         isLast: true,
         originalName: name,

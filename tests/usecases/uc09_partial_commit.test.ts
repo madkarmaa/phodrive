@@ -72,6 +72,7 @@ function confirmedChunk(name: string, index: number): UploadedChunk {
     return {
         email: 'test@example.com',
         fileHash,
+        fileId: fileHash,
         chunkIndex: index,
         isLast: true,
         originalName: name,

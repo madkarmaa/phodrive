@@ -197,6 +197,7 @@ test('library finds renamed BMP chunks from their headers and ignores ordinary p
     const first = Buffer.from(
         encodeSplitBmp(Uint8Array.of(1, 2), {
             fileHash,
+            fileId: fileHash,
             chunkIndex: 0,
             flags: 0,
             payloadSize: 2,
@@ -206,6 +207,7 @@ test('library finds renamed BMP chunks from their headers and ignores ordinary p
     const last = Buffer.from(
         encodeSplitBmp(Uint8Array.of(3), {
             fileHash,
+            fileId: fileHash,
             chunkIndex: 1,
             flags: 1,
             payloadSize: 1
@@ -296,6 +298,7 @@ test('library finds renamed BMP chunks from their headers and ignores ordinary p
         {
             originalName: 'original.bin',
             fileHash,
+            fileId: fileHash,
             chunkIndex: 0,
             isLast: false,
             size: 2,
@@ -315,6 +318,7 @@ test('library finds renamed BMP chunks from their headers and ignores ordinary p
         {
             originalName: undefined,
             fileHash,
+            fileId: fileHash,
             chunkIndex: 1,
             isLast: true,
             size: 1,

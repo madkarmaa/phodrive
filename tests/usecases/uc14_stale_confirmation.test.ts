@@ -47,6 +47,7 @@ function chunk(
     return {
         email,
         fileHash,
+        fileId: fileHash,
         chunkIndex,
         isLast: true,
         originalName: `${fileHash === HASH_A ? 'alpha' : 'beta'}.bmp`,
@@ -92,6 +93,7 @@ test('confirming a file after switching accounts refuses the old account target'
     const itemA = {
         email: FIRST,
         fileHash: HASH_A,
+        fileId: HASH_A,
         name: 'alpha.bmp',
         at: 1,
         chunkCount: 1,
@@ -142,6 +144,7 @@ test('refresh removing a chunk invalidates the stale file confirmation', async (
         item: {
             email: FIRST,
             fileHash: HASH_A,
+            fileId: HASH_A,
             name: 'alpha.bmp',
             at: 1,
             chunkCount: 2,

@@ -8,6 +8,7 @@ function file(name: string, at: number): FileGroup {
         at,
         email: 'test@example.com',
         fileHash: name,
+        fileId: name,
         chunkCount: null,
         chunks: [],
         complete: false

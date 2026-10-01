@@ -53,10 +53,7 @@
                     <FileCard
                         {item}
                         {disabled}
-                        working={(action?.fileId ?? action?.fileHash) ===
-                        (item.fileId ?? item.fileHash)
-                            ? (action?.kind ?? null)
-                            : null}
+                        working={action?.fileId === item.fileId ? action.kind : null}
                         {ondownload}
                         {ondelete}
                     />

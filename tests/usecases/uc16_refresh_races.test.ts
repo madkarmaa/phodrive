@@ -62,6 +62,7 @@ function chunk(mediaKey: string) {
         mediaKey,
         sha1: '1'.repeat(40),
         fileHash: 'a'.repeat(64),
+        fileId: 'a'.repeat(64),
         chunkIndex: 0,
         isLast: true,
         originalName: `${mediaKey}.bin`,

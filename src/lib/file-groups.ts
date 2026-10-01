@@ -5,7 +5,7 @@ export type UploadedChunk = RemoteBmp & { email: string };
 export type FileGroup = {
     email: string;
     fileHash: string;
-    fileId?: string;
+    fileId: string;
     name: string;
     at: number;
     chunkCount: number | null;
@@ -13,8 +13,8 @@ export type FileGroup = {
     complete: boolean;
 };
 
-export function fileKey(file: { email: string; fileHash: string; fileId?: string }): string {
-    return `${file.email}:${file.fileId ?? file.fileHash}`;
+export function fileKey(file: { email: string; fileId: string }): string {
+    return `${file.email}:${file.fileId}`;
 }
 
 export function groupChunks(items: UploadedChunk[]): FileGroup[] {
@@ -28,7 +28,7 @@ export function groupChunks(items: UploadedChunk[]): FileGroup[] {
             group = {
                 email: chunk.email,
                 fileHash: chunk.fileHash,
-                ...(chunk.fileId ? { fileId: chunk.fileId } : {}),
+                fileId: chunk.fileId,
                 name: chunk.originalName ?? `File ${chunk.fileHash.slice(0, 12)}`,
                 at: chunk.at,
                 chunkCount: null,
@@ -76,4 +76,4 @@ export function sortFiles(files: readonly FileGroup[], order: FileSort): FileGro
     });
 }
 
-export type FileAction = { fileHash: string; fileId?: string; kind: FileActionKind };
+export type FileAction = { fileId: string; kind: FileActionKind };

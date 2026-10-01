@@ -34,6 +34,7 @@ function setup(): { input: FileRequest; bmps: Buffer[] } {
         Buffer.from(
             encodeSplitBmp(payload, {
                 fileHash: FILE_HASH,
+                fileId: FILE_HASH,
                 chunkIndex: index,
                 flags: index === 1 ? 1 : 0,
                 payloadSize: payload.length,
@@ -43,6 +44,7 @@ function setup(): { input: FileRequest; bmps: Buffer[] } {
     );
     const chunks: RemoteBmp[] = bmps.map((bmp, index) => ({
         fileHash: FILE_HASH,
+        fileId: FILE_HASH,
         chunkIndex: index,
         isLast: index === 1,
         originalName: index === 0 ? 'sample.bin' : undefined,
@@ -62,6 +64,7 @@ function setup(): { input: FileRequest; bmps: Buffer[] } {
             token: 'fake-token',
             name: 'sample.bin',
             fileHash: FILE_HASH,
+            fileId: FILE_HASH,
             chunks,
             workers: 2
         },

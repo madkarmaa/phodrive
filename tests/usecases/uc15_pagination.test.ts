@@ -45,6 +45,7 @@ function remoteFile(mediaKey: string, chunkIndex = 0): RemoteBmp {
     return {
         mediaKey,
         fileHash: '0'.repeat(64),
+        fileId: '0'.repeat(64),
         sha1: '0'.repeat(40),
         chunkIndex,
         isLast: true,

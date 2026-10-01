@@ -78,6 +78,7 @@ function requestFor(
     const bmps = parts.map((part, chunkIndex) =>
         encodeSplitBmp(part, {
             fileHash,
+            fileId: fileHash,
             chunkIndex,
             flags: chunkIndex === parts.length - 1 ? 1 : 0,
             payloadSize: part.length,
@@ -86,6 +87,7 @@ function requestFor(
     );
     const chunks: RemoteBmp[] = bmps.map((bmp, chunkIndex) => ({
         fileHash,
+        fileId: fileHash,
         chunkIndex,
         isLast: chunkIndex === bmps.length - 1,
         originalName: chunkIndex === 0 ? name : undefined,
@@ -102,6 +104,7 @@ function requestFor(
             token: TOKEN,
             name,
             fileHash,
+            fileId: fileHash,
             chunks,
             workers: 1
         },
@@ -156,6 +159,7 @@ test('browser save failures show an error and always clear the active file actio
     const item: FileGroup = {
         email: EMAIL,
         fileHash: 'a'.repeat(64),
+        fileId: 'a'.repeat(64),
         name: 'original.bin',
         at: 1,
         chunkCount: 1,
@@ -182,6 +186,7 @@ test('failed download is surfaced and clears the active file action', async () =
     const item: FileGroup = {
         email: EMAIL,
         fileHash: 'b'.repeat(64),
+        fileId: 'b'.repeat(64),
         name: 'unavailable.bin',
         at: 1,
         chunkCount: 1,

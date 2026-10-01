@@ -145,7 +145,7 @@ test('split upload plans use different stable identities for same-content filena
     expect(second.headers.every((header) => header.fileId !== first.headers[0].fileId)).toBe(true);
 });
 
-test('versioned split BMPs round-trip file identity and legacy BMPs remain readable', () => {
+test('split BMPs round-trip file identity', () => {
     const fileHash = createHash('sha256').update(PAYLOAD).digest('hex');
     const fileId = fileIdentity('first.bin', fileHash);
     const versioned = encodeSplitBmp(PAYLOAD, {
@@ -162,42 +162,6 @@ test('versioned split BMPs round-trip file identity and legacy BMPs remain reada
     expect(decodedVersioned.header.fileId).toBe(fileId);
     expect(decodedVersioned.header.fileName).toBe('first.bin');
     expect(decodedVersioned.payload).toEqual(Uint8Array.from(PAYLOAD));
-
-    const legacy = encodeSplitBmp(PAYLOAD, {
-        fileHash,
-        chunkIndex: 0,
-        flags: 1,
-        payloadSize: PAYLOAD.length,
-        fileName: 'legacy.bin'
-    }).unwrap();
-    const decodedLegacy = decodeSplitBmp(legacy).unwrap();
-
-    expect(new TextDecoder().decode(legacy.subarray(54, 62))).toBe('BMSPLIT\0');
-    expect(decodedLegacy.header.fileId).toBeUndefined();
-    expect(decodedLegacy.header.fileName).toBe('legacy.bin');
-    expect(decodedLegacy.payload).toEqual(Uint8Array.from(PAYLOAD));
-});
-
-test('legacy aliases without file identity retain the previous content-hash grouping', () => {
-    const fileHash = createHash('sha256').update(PAYLOAD).digest('hex');
-    const legacyChunks: UploadedChunk[] = ['first.bin', 'second.bin'].map(
-        (originalName, index) => ({
-            email: 'synthetic@example.com',
-            fileHash,
-            chunkIndex: 0,
-            isLast: true,
-            originalName,
-            size: PAYLOAD.length,
-            at: index + 1,
-            mediaKey: `legacy-${originalName}`,
-            sha1: String(index).repeat(40)
-        })
-    );
-
-    const [legacyFile] = groupChunks(legacyChunks);
-    expect(legacyFile.fileId).toBeUndefined();
-    expect(legacyFile.name).toBe('second.bin');
-    expect(legacyFile.chunks).toHaveLength(1);
 });
 
 test('download rejects a mismatched file identity before fetching any BMP bytes', async () => {

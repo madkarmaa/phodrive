@@ -489,7 +489,7 @@ export class DriveController {
             return;
         }
 
-        this.fileAction = { fileHash: item.fileHash, fileId: item.fileId, kind: action };
+        this.fileAction = { fileId: item.fileId, kind: action };
         this.galleryMessage = '';
 
         if (action === FileActionKind.Delete) {

@@ -54,6 +54,7 @@ test('leaving an upload settles the active operation, cleans temporary files, an
                 mediaKey: name,
                 sha1: '1'.repeat(40),
                 fileHash: header.fileHash,
+                fileId: header.fileId,
                 chunkIndex: header.chunkIndex,
                 isLast: header.flags === 1,
                 originalName: header.fileName ?? 'first.bin',

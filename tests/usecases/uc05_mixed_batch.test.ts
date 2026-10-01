@@ -58,6 +58,7 @@ function successfulEvents(id: number, file: File): UploadEvent[] {
             id,
             chunk: {
                 fileHash,
+                fileId: fileHash,
                 chunkIndex: 0,
                 isLast: true,
                 originalName: file.name,

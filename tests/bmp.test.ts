@@ -8,9 +8,9 @@ import {
     MAX_PHOTOS_BMP_BYTES,
     splitBmpByteLength
 } from '$server/bmp';
-import { chunkFileName, parseChunkFileName } from '$server/chunks';
+import { chunkFileName } from '$server/chunks';
 import { groupChunks } from '$lib/file-groups';
-import { type SplitHeader, type RemoteBmp } from '$lib/models';
+import { SplitHeaderSchema, type SplitHeader, type RemoteBmp } from '$lib/models';
 
 const ORIGINAL = Uint8Array.from({ length: 1031 }, (_, index) => index % 251);
 const FILE_HASH = createHash('sha256').update(ORIGINAL).digest('hex');
@@ -18,6 +18,7 @@ const FILE_HASH = createHash('sha256').update(ORIGINAL).digest('hex');
 function header(index: number, payloadSize: number, last: boolean): SplitHeader {
     return {
         fileHash: FILE_HASH,
+        fileId: FILE_HASH,
         chunkIndex: index,
         flags: last ? 1 : 0,
         payloadSize,
@@ -37,7 +38,7 @@ test('split BMPs store the Zod-validated metadata and reconstruct the original b
             splitBmpByteLength(header(index, payload.length, index === 2)).unwrap()
         );
         expect(bmp.length).toBeLessThan(MAX_PHOTOS_BMP_BYTES);
-        expect(new TextDecoder().decode(bmp.subarray(54, 62))).toBe('BMSPLIT\0');
+        expect(new TextDecoder().decode(bmp.subarray(54, 62))).toBe('BMSPLIT\x01');
         expect(new DataView(bmp.buffer).getUint32(10, true)).toBe(54);
         expect(decodeSplitHeader(bmp.subarray(0, 256), bmp.length).unwrap().header).toEqual(
             header(index, payload.length, index === 2)
@@ -62,8 +63,21 @@ test('chunk indexes use canonical varints, including indexes above 127', () => {
         [16_384, [0x80, 0x80, 0x01]]
     ] as const) {
         const bmp = encodeSplitBmp(Uint8Array.of(9), header(index, 1, false)).unwrap();
-        expect([...bmp.subarray(94, 94 + expected.length)]).toEqual([...expected]);
+        expect([...bmp.subarray(126, 126 + expected.length)]).toEqual([...expected]);
         expect(decodeSplitBmp(bmp).unwrap().header.chunkIndex).toBe(index);
+    }
+});
+
+test('split metadata requires file identity and rejects unsupported format versions', () => {
+    const metadata = header(0, 1, true);
+    const { fileId, ...missingIdentity } = metadata;
+    expect(fileId).toBe(FILE_HASH);
+    expect(SplitHeaderSchema.safeParse(missingIdentity).success).toBe(false);
+
+    for (const version of [0, 2, 255]) {
+        const bmp = encodeSplitBmp(Uint8Array.of(9), metadata).unwrap();
+        bmp[61] = version;
+        expect(decodeSplitBmp(bmp).isErr()).toBe(true);
     }
 });
 
@@ -81,6 +95,7 @@ test('remote chunks group into one card', () => {
     const makeChunk = (index: number): RemoteBmp => ({
         originalName: index === 0 ? 'video.mp4' : undefined,
         fileHash: FILE_HASH,
+        fileId: FILE_HASH,
         chunkIndex: index,
         isLast: index === 1,
         size: 100,
@@ -103,10 +118,5 @@ test('remote chunks group into one card', () => {
     expect(complete[0].chunks.map((chunk) => chunk.chunkIndex)).toEqual([0, 1]);
 
     const remoteName = chunkFileName('video.mp4', FILE_HASH, 1, 2);
-    expect(parseChunkFileName(remoteName)).toEqual({
-        name: 'video.mp4',
-        fileHash: FILE_HASH,
-        chunkIndex: 1,
-        chunkCount: 2
-    });
+    expect(remoteName).toBe(`video.mp4.phodrive-${FILE_HASH}-1-of-2.bmp`);
 });
