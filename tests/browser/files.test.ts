@@ -80,7 +80,19 @@ test('selection sends credentials, workers and original files once without readi
     const jobs = new Map<number, UploadJob>();
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
         if (!(init?.body instanceof FormData)) throw new Error('Expected upload form');
-        expect(init.body.getAll('file')).toEqual(files);
+        const submitted = init.body.getAll('file');
+        expect(submitted).toHaveLength(files.length);
+        for (const [index, file] of submitted.entries()) {
+            if (!(file instanceof File)) throw new Error('Expected an original file');
+            expect({ name: file.name, size: file.size, type: file.type }).toEqual({
+                name: files[index].name,
+                size: files[index].size,
+                type: files[index].type
+            });
+            // Native FormData may clone File objects; inspect bytes without invoking their spies.
+            const bytes = await File.prototype.arrayBuffer.call(file);
+            expect(new Uint8Array(bytes)).toEqual(PAYLOAD);
+        }
         expect(init.body.get('email')).toBe('test@example.com');
         expect(init.body.get('token')).toBe('aas_et/test');
         expect(init.body.get('workers')).toBe('2');
