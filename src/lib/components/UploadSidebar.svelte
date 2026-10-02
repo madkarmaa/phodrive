@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ExtendedFab, NavigationDrawer, NavigationDrawerItem } from 'noph-ui';
+    import { ExtendedFab, Fab, NavigationDrawer, NavigationDrawerItem } from 'noph-ui';
     import { AppView } from '$lib/models';
     import IconAdd from '~icons/material-symbols/add';
     import IconHome from '~icons/material-symbols/home-outline';
@@ -67,11 +67,23 @@
             {#snippet icon()}<IconSettings aria-hidden="true" class="size-5 shrink-0" />{/snippet}
         </NavigationDrawerItem>
     </NavigationDrawer>
+
+    <div class="mobile-upload">
+        <Fab
+            label="Upload"
+            variant="secondary-container"
+            shape="square"
+            {disabled}
+            onclick={() => (connected ? picker.click() : onconnect())}
+        >
+            {#snippet icon()}<IconAdd aria-hidden="true" class="size-6" />{/snippet}
+        </Fab>
+    </div>
 </aside>
 
 <style>
-    .upload-sidebar {
-        container: mobile-navigation / inline-size;
+    .mobile-upload {
+        display: none;
     }
 
     :global(:root .upload-button.np-extended-fab) {
@@ -115,10 +127,15 @@
         }
 
         :global(:root .upload-button.np-extended-fab) {
-            height: 46px;
-            min-width: 100px;
-            margin: 0;
-            flex-shrink: 0;
+            display: none;
+        }
+
+        .mobile-upload {
+            display: block;
+            position: fixed;
+            right: calc(16px + env(safe-area-inset-right, 0px));
+            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            z-index: 20;
         }
         :global(:root .drive-navigation.np-navigation-drawer-container) {
             width: auto;
@@ -130,37 +147,6 @@
             width: auto;
             padding-inline: 13px;
             flex-shrink: 0;
-        }
-
-        @container mobile-navigation (max-width: 360px) {
-            :global(:root .upload-button.np-extended-fab) {
-                width: 46px;
-                min-width: 46px;
-                padding: 0;
-                gap: 0;
-                justify-content: center;
-            }
-
-            :global(:root .upload-button.np-extended-fab .np-fab-label),
-            :global(
-                :root
-                    .drive-navigation
-                    .np-navigation-drawer-item:not([aria-current='page'])
-                    .np-navigation-drawer-item-label
-            ) {
-                display: none;
-            }
-
-            :global(
-                :root
-                    .drive-navigation.np-navigation-drawer-container
-                    .np-navigation-drawer-item:not([aria-current='page'])
-            ) {
-                width: 44px;
-                padding: 0;
-                justify-content: center;
-                gap: 0;
-            }
         }
     }
 

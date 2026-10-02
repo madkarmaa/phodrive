@@ -70,15 +70,23 @@
     {/snippet}
 
     {#snippet trailing()}
-        <IconButton
-            size="s"
+        <span
+            class="refresh-control"
+            role="group"
             aria-label="Refresh files"
-            title="Refresh files"
-            disabled={refreshDisabled}
-            onclick={onrefresh}
+            aria-busy={refreshing}
         >
-            <IconRefresh aria-hidden="true" class={refreshing ? 'motion-safe:animate-spin' : ''} />
-        </IconButton>
+            <IconButton
+                size="s"
+                title={refreshing ? 'Refreshing files' : 'Refresh files'}
+                disabled={refreshDisabled || refreshing}
+                onclick={onrefresh}
+            >
+                <span class="refresh-icon" class:refreshing aria-hidden="true">
+                    <IconRefresh />
+                </span>
+            </IconButton>
+        </span>
         <ThemeButton mode={theme} onchange={ontheme} />
         <IconButton
             id="account-button"
@@ -100,6 +108,23 @@
 </AppBar>
 
 <style>
+    .refresh-control,
+    .refresh-icon {
+        display: inline-flex;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .refresh-icon.refreshing {
+            animation: refresh-spin 1s linear infinite;
+        }
+    }
+
+    @keyframes refresh-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
     :global(:root .shell-header.np-app-bar) {
         position: static;
         height: 64px;
