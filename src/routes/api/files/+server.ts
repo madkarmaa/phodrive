@@ -17,17 +17,21 @@ export const POST: RequestHandler = async ({ request }) => {
         const downloaded = await downloadFile(input);
         return downloaded.match({
             Ok: (response) => response,
-            Err: (error) =>
-                json(
+            Err: (error) => {
+                const isFileValidationError =
+                    error.code === 'INCOMPLETE_DOWNLOAD_CHUNKS' ||
+                    error.code === 'DOWNLOAD_CHUNK_MISMATCH' ||
+                    error.code === 'FILE_INTEGRITY_FAILED';
+
+                return json(
                     {
-                        error: /^(Load the remaining|Downloaded chunks|Reconstructed file)/.test(
-                            error.message
-                        )
+                        error: isFileValidationError
                             ? error.message
                             : 'Download failed. Check your account and try again.'
                     },
                     { status: 400, headers: { 'cache-control': 'no-store' } }
-                )
+                );
+            }
         });
     }
 
