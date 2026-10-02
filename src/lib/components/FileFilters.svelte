@@ -1,9 +1,7 @@
 <script lang="ts">
     import FilterChip from '$components/FilterChip.svelte';
+    import { Button } from 'noph-ui';
     import { DEFAULT_FILE_SORT, FileSort } from '$lib/models';
-    import IconType from '~icons/material-symbols/category-outline';
-    import IconModified from '~icons/material-symbols/schedule';
-    import IconSort from '~icons/material-symbols/sort';
 
     interface Props {
         types: string[];
@@ -41,32 +39,37 @@
     ];
 </script>
 
-<div class="flex min-h-13.5 flex-wrap gap-2 pt-1 pb-3" aria-label="File filters">
+<div class="flex min-h-13.5 flex-wrap items-start gap-2 pt-1 pb-3" aria-label="File filters">
     <FilterChip
         label="Type"
         ariaLabel="Filter by file type"
-        class="w-36"
+        defaultValue=""
         options={typeOptions}
         bind:value={type}
-    >
-        {#snippet icon()}<IconType class="size-5.5" />{/snippet}
-    </FilterChip>
+    />
     <FilterChip
         label="Modified"
         ariaLabel="Filter by modified date"
-        class="w-54"
+        defaultValue=""
         options={MODIFIED_OPTIONS}
         bind:value={days}
-    >
-        {#snippet icon()}<IconModified class="size-5.5" />{/snippet}
-    </FilterChip>
+    />
     <FilterChip
         label="Sort"
         ariaLabel="Sort files"
-        class="w-50"
+        defaultValue={DEFAULT_FILE_SORT}
+        resetOnReselect={false}
         options={SORT_OPTIONS}
         bind:value={sort}
-    >
-        {#snippet icon()}<IconSort class="size-5.5" />{/snippet}
-    </FilterChip>
+    />
+    {#if type || days}
+        <Button
+            variant="text"
+            size="xs"
+            onclick={() => {
+                type = '';
+                days = '';
+            }}>Clear filters</Button
+        >
+    {/if}
 </div>
