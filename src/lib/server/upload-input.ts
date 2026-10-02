@@ -1,3 +1,4 @@
+import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import Busboy, { type BusboyFileStream } from '@fastify/busboy';
 import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
@@ -46,7 +47,7 @@ function saveFile(
     stream: BusboyFileStream,
     name: string,
     path: string
-): AsyncResult<ReceivedFile, Error> {
+): AsyncResult<ReceivedFile, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         const hash = createHash('sha256');
         let size = 0;
@@ -61,11 +62,11 @@ function saveFile(
         try {
             await pipeline(stream, hashing, createWriteStream(path, { flags: 'wx', mode: 0o600 }));
         } catch {
-            return Err(new Error('Could not receive the selected file.'));
+            return Err(SERVER_ERRORS.FILE_RECEIVE_FAILED);
         }
 
         if (stream.truncated || !Number.isSafeInteger(size))
-            return Err(new Error('File is too large.'));
+            return Err(SERVER_ERRORS.FILE_TOO_LARGE);
 
         return Ok({ name, path, size, fileHash: hash.digest('hex') });
     });
@@ -74,11 +75,11 @@ function saveFile(
 function receiveMultipartUpload(
     request: Request,
     directory: string
-): AsyncResult<ReceivedUpload, Error> {
+): AsyncResult<ReceivedUpload, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         const contentType = request.headers.get('content-type');
         if (!request.body || !contentType?.startsWith('multipart/form-data'))
-            return Err(new Error('Choose files and enter your account credentials.'));
+            return Err(SERVER_ERRORS.UPLOAD_INPUT_REQUIRED);
 
         let parser: InstanceType<typeof Busboy>;
         let source: Readable;
@@ -94,13 +95,13 @@ function receiveMultipartUpload(
             });
             source = Readable.from(requestBytes(request.body));
         } catch {
-            return Err(new Error('Invalid upload request.'));
+            return Err(SERVER_ERRORS.INVALID_UPLOAD_REQUEST);
         }
 
         const fields = new Map<string, string>();
         const active = new Set<BusboyFileStream>();
-        const pending: PromiseLike<Result<ReceivedFile, Error>>[] = [];
-        let failure: Error | null = null;
+        const pending: PromiseLike<Result<ReceivedFile, ServerError>>[] = [];
+        let failure: ServerError | null = null;
 
         parser.on('field', (key, value, nameTruncated, valueTruncated) => {
             if (
@@ -109,18 +110,18 @@ function receiveMultipartUpload(
                 fields.has(key) ||
                 !['email', 'token', 'workers'].includes(key)
             ) {
-                failure ??= new Error('Invalid upload request.');
+                failure ??= SERVER_ERRORS.INVALID_UPLOAD_REQUEST;
                 return;
             }
 
             fields.set(key, value);
         });
         parser.on('fieldsLimit', () => {
-            failure ??= new Error('Invalid upload request.');
+            failure ??= SERVER_ERRORS.INVALID_UPLOAD_REQUEST;
         });
         parser.on('file', (key, stream, name) => {
             if (key !== 'file' || !name || /[\\/\r\n\0]/.test(name)) {
-                failure ??= new Error('Invalid file name.');
+                failure ??= SERVER_ERRORS.INVALID_UPLOAD_FILE_NAME;
                 stream.resume();
                 return;
             }
@@ -132,7 +133,7 @@ function receiveMultipartUpload(
                 join(directory, String(pending.length))
             ).inspectErr((error) => {
                 failure ??= error;
-                parser.destroy(error);
+                parser.destroy(new Error(error.message));
             });
             pending.push(Promise.resolve(saved));
             stream.once('close', () => active.delete(stream));
@@ -141,13 +142,13 @@ function receiveMultipartUpload(
         try {
             await pipeline(source, parser);
         } catch {
-            failure ??= new Error('Could not receive the selected files.');
+            failure ??= SERVER_ERRORS.FILE_RECEIVE_FAILEDS;
             for (const stream of active) stream.destroy();
         }
 
         const saved = await Promise.all(pending);
         if (failure) return Err(failure);
-        if (saved.length === 0) return Err(new Error('Choose at least one file.'));
+        if (saved.length === 0) return Err(SERVER_ERRORS.FILES_REQUIRED);
 
         const files: ReceivedFile[] = [];
         for (const result of saved) {
@@ -164,12 +165,14 @@ function receiveMultipartUpload(
                 workers: Number(fields.get('workers'))
             },
             'Enter a valid account and worker count.'
-        ).map((credentials) => ({ ...credentials, files, directory }));
+        )
+            .mapErr(() => SERVER_ERRORS.INVALID_UPLOAD_CREDENTIALS)
+            .map((credentials) => ({ ...credentials, files, directory }));
     });
 }
 
 /** Credentials live only in this request; raw bytes are spooled with bounded stream buffers. */
-export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, Error> {
+export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, ServerError> {
     return createTemporaryDirectory().andThenAsync(async (directory) => {
         const received = await receiveMultipartUpload(request, directory);
         if (received.isOk()) return received;

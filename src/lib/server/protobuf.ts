@@ -1,3 +1,4 @@
+import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import { Err, Ok, type Result } from 'results-ts';
 import Varint from 'varint';
 
@@ -31,47 +32,47 @@ export function bodyBytes(buffer: Buffer): Uint8Array<ArrayBuffer> {
 
 export type Field = { number: number; value: number | Buffer };
 
-export function parse(data: Uint8Array): Result<Field[], Error> {
+export function parse(data: Uint8Array): Result<Field[], ServerError> {
     const fields: Field[] = [];
     let offset = 0;
 
-    function readVarint(): Result<number, Error> {
+    function readVarint(): Result<number, ServerError> {
         try {
             const value = Varint.decode(data, offset);
             const length = Varint.decode.bytes;
 
             if (!Number.isSafeInteger(value) || value < 0 || length === undefined)
-                return Err(new Error('Oversized protobuf integer'));
+                return Err(SERVER_ERRORS.OVERSIZED_PROTOBUF_INTEGER);
 
             offset += length;
             return Ok(value);
         } catch {
-            return Err(new Error('Invalid protobuf integer'));
+            return Err(SERVER_ERRORS.INVALID_PROTOBUF_INTEGER);
         }
     }
 
     while (offset < data.length) {
-        const next = readVarint().andThen<Field | null, Error>((tag) => {
+        const next = readVarint().andThen<Field | null, ServerError>((tag) => {
             const number = Math.floor(tag / 8);
             const wire = tag % 8;
-            if (!number) return Err(new Error('Invalid protobuf field'));
+            if (!number) return Err(SERVER_ERRORS.INVALID_PROTOBUF_FIELD);
 
             if (wire === 0) return readVarint().map((value): Field | null => ({ number, value }));
 
             if (wire === 2)
-                return readVarint().andThen<Field | null, Error>((length) => {
+                return readVarint().andThen<Field | null, ServerError>((length) => {
                     if (offset + length > data.length)
-                        return Err(new Error('Truncated protobuf field'));
+                        return Err(SERVER_ERRORS.TRUNCATED_PROTOBUF_FIELD);
 
                     const value = Buffer.from(data.subarray(offset, offset + length));
                     offset += length;
                     return Ok<Field | null>({ number, value });
                 });
 
-            if (wire !== 1 && wire !== 5) return Err(new Error('Unsupported protobuf field'));
+            if (wire !== 1 && wire !== 5) return Err(SERVER_ERRORS.UNSUPPORTED_PROTOBUF_FIELD);
 
             offset += wire === 1 ? 8 : 4;
-            if (offset > data.length) return Err(new Error('Truncated protobuf field'));
+            if (offset > data.length) return Err(SERVER_ERRORS.TRUNCATED_PROTOBUF_FIELD);
 
             return Ok<Field | null>(null);
         });
@@ -84,37 +85,37 @@ export function parse(data: Uint8Array): Result<Field[], Error> {
     return Ok(fields);
 }
 
-function one(fields: Field[], number: number): Result<Field, Error> {
+function one(fields: Field[], number: number): Result<Field, ServerError> {
     const matches = fields.filter((field) => field.number === number);
-    if (matches.length !== 1) return Err(new Error('Missing or ambiguous protobuf field'));
+    if (matches.length !== 1) return Err(SERVER_ERRORS.MISSING_OR_AMBIGUOUS_PROTOBUF_FIELD);
 
     return Ok(matches[0]);
 }
 
-export function bytes(fields: Field[], number: number): Result<Buffer, Error> {
+export function bytes(fields: Field[], number: number): Result<Buffer, ServerError> {
     return one(fields, number).andThen(({ value }) =>
-        typeof value === 'number' ? Err(new Error('Invalid protobuf field type')) : Ok(value)
+        typeof value === 'number' ? Err(SERVER_ERRORS.INVALID_PROTOBUF_FIELD_TYPE) : Ok(value)
     );
 }
 
-export function nested(data: Buffer, ...path: number[]): Result<Buffer, Error> {
-    return path.reduce<Result<Buffer, Error>>(
+export function nested(data: Buffer, ...path: number[]): Result<Buffer, ServerError> {
+    return path.reduce<Result<Buffer, ServerError>>(
         (current, field) => current.andThen(parse).andThen((fields) => bytes(fields, field)),
         Ok(data)
     );
 }
 
-export function integer(fields: Field[], number: number): Result<number, Error> {
+export function integer(fields: Field[], number: number): Result<number, ServerError> {
     return one(fields, number).andThen(({ value }) =>
-        typeof value !== 'number' ? Err(new Error('Invalid protobuf field type')) : Ok(value)
+        typeof value !== 'number' ? Err(SERVER_ERRORS.INVALID_PROTOBUF_FIELD_TYPE) : Ok(value)
     );
 }
 
-export function utf8(value: Buffer): Result<string, Error> {
+export function utf8(value: Buffer): Result<string, ServerError> {
     try {
         return Ok(DECODER.decode(value));
     } catch {
-        return Err(new Error('Invalid UTF-8 in response'));
+        return Err(SERVER_ERRORS.INVALID_UTF_8_IN_RESPONSE);
     }
 }
 

@@ -1,26 +1,27 @@
+import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import { mkdtemp, rm, open } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Err, Ok, type AsyncResult } from 'results-ts';
 
-export function createTemporaryDirectory(): AsyncResult<string, Error> {
+export function createTemporaryDirectory(): AsyncResult<string, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         try {
             const directory = await mkdtemp(join(tmpdir(), 'phodrive-'));
             return Ok(directory);
         } catch {
-            return Err(new Error('Could not create temporary file storage.'));
+            return Err(SERVER_ERRORS.TEMPORARY_STORAGE_CREATE_FAILED);
         }
     });
 }
 
-export function removeTemporaryDirectory(directory: string): AsyncResult<void, Error> {
+export function removeTemporaryDirectory(directory: string): AsyncResult<void, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         try {
             await rm(directory, { recursive: true, force: true });
             return Ok(undefined);
         } catch {
-            return Err(new Error('Could not remove temporary file storage.'));
+            return Err(SERVER_ERRORS.TEMPORARY_STORAGE_REMOVE_FAILED);
         }
     });
 }
@@ -30,7 +31,7 @@ export function readFileRange(
     path: string,
     start: number,
     length: number
-): AsyncResult<Buffer, Error> {
+): AsyncResult<Buffer, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         let file: Awaited<ReturnType<typeof open>>;
         let bytes: Buffer;
@@ -39,10 +40,10 @@ export function readFileRange(
             bytes = Buffer.alloc(length);
             file = await open(path, 'r');
         } catch {
-            return Err(new Error('Could not read the received file.'));
+            return Err(SERVER_ERRORS.FILE_READ_FAILED);
         }
 
-        let failure: Error | null = null;
+        let failure: ServerError | null = null;
         try {
             let offset = 0;
             while (offset < length) {
@@ -53,18 +54,18 @@ export function readFileRange(
                     start + offset
                 );
                 if (bytesRead === 0) {
-                    failure = new Error('The received file is incomplete.');
+                    failure = SERVER_ERRORS.INCOMPLETE_FILE;
                     break;
                 }
                 offset += bytesRead;
             }
         } catch {
-            failure = new Error('Could not read the received file.');
+            failure = SERVER_ERRORS.FILE_READ_FAILED;
         } finally {
             try {
                 await file.close();
             } catch {
-                failure ??= new Error('Could not close temporary file storage.');
+                failure ??= SERVER_ERRORS.TEMPORARY_STORAGE_CLOSE_FAILED;
             }
         }
 

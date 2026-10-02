@@ -134,9 +134,10 @@ test('a connection timeout during commit remains uncertain and is never retried 
         fakeFetch
     );
 
-    expect(uploaded.unwrapErr().message).toBe(
-        'Commit outcome uncertain. Check Google Photos before retrying.'
-    );
+    expect(uploaded.unwrapErr()).toEqual({
+        code: 'COMMIT_OUTCOME_UNCERTAIN',
+        message: 'Commit outcome uncertain. Check Google Photos before retrying.'
+    });
     expect(requests).toBe(5);
 });
 

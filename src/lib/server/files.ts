@@ -1,3 +1,4 @@
+import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import { FileActionKind, type FileRequest, type RemoteBmp } from '$lib/models';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -9,14 +10,14 @@ import { decodeSplitBmp } from '$server/bmp';
 import { downloadBmp, moveToTrash } from '$server/photos';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '$server/temporary-files';
 
-function validateChunks(input: FileRequest): Result<RemoteBmp[], Error> {
+function validateChunks(input: FileRequest): Result<RemoteBmp[], ServerError> {
     const chunks = input.chunks.toSorted((a, b) => a.chunkIndex - b.chunkIndex);
     if (
         !input.name ||
         /[\\/\r\n\0]/.test(input.name) ||
         chunks.some((chunk) => chunk.fileHash !== input.fileHash || chunk.fileId !== input.fileId)
     )
-        return Err(new Error('Invalid file metadata.'));
+        return Err(SERVER_ERRORS.INVALID_FILE_METADATA);
 
     if (input.action === FileActionKind.Delete) return Ok(chunks);
     if (
@@ -27,12 +28,15 @@ function validateChunks(input: FileRequest): Result<RemoteBmp[], Error> {
                 (index === 0 && chunk.originalName !== input.name)
         )
     )
-        return Err(new Error('Load the remaining chunks before downloading.'));
+        return Err(SERVER_ERRORS.INCOMPLETE_DOWNLOAD_CHUNKS);
 
     return Ok(chunks);
 }
 
-function downloadPayload(input: FileRequest, chunk: RemoteBmp): AsyncResult<Uint8Array, Error> {
+function downloadPayload(
+    input: FileRequest,
+    chunk: RemoteBmp
+): AsyncResult<Uint8Array, ServerError> {
     return downloadBmp(input.email, input.token, chunk.mediaKey, chunk.sha1)
         .andThen(decodeSplitBmp)
         .andThen(({ header, payload }) => {
@@ -44,19 +48,19 @@ function downloadPayload(input: FileRequest, chunk: RemoteBmp): AsyncResult<Uint
                 header.payloadSize !== chunk.size ||
                 (chunk.chunkIndex === 0 && header.fileName !== input.name)
             )
-                return Err(new Error('Downloaded chunks do not match this file.'));
+                return Err(SERVER_ERRORS.DOWNLOAD_CHUNK_MISMATCH);
 
             return Ok(payload);
         });
 }
 
-function writePayload(file: FileHandle, payload: Uint8Array): AsyncResult<void, Error> {
+function writePayload(file: FileHandle, payload: Uint8Array): AsyncResult<void, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         try {
             await file.writeFile(payload);
             return Ok(undefined);
         } catch {
-            return Err(new Error('Could not save the downloaded file.'));
+            return Err(SERVER_ERRORS.COULD_NOT_SAVE_THE_DOWNLOADED_FILE);
         }
     });
 }
@@ -65,7 +69,7 @@ function reconstructFile(
     input: FileRequest,
     chunks: RemoteBmp[],
     file: FileHandle
-): AsyncResult<void, Error> {
+): AsyncResult<void, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         const hash = createHash('sha256');
         for (const chunk of chunks) {
@@ -77,8 +81,7 @@ function reconstructFile(
             if (written.isErr()) return written;
         }
 
-        if (hash.digest('hex') !== input.fileHash)
-            return Err(new Error('Reconstructed file failed SHA-256 verification.'));
+        if (hash.digest('hex') !== input.fileHash) return Err(SERVER_ERRORS.FILE_INTEGRITY_FAILED);
 
         return Ok(undefined);
     });
@@ -88,24 +91,24 @@ function writeDownload(
     input: FileRequest,
     chunks: RemoteBmp[],
     path: string
-): AsyncResult<void, Error> {
+): AsyncResult<void, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         let file: FileHandle;
         try {
             file = await open(path, 'wx', 0o600);
         } catch {
-            return Err(new Error('Could not create the downloaded file.'));
+            return Err(SERVER_ERRORS.COULD_NOT_CREATE_THE_DOWNLOADED_FILE);
         }
 
-        let written: Result<void, Error> = Ok(undefined);
-        let closed: Result<void, Error> = Ok(undefined);
+        let written: Result<void, ServerError> = Ok(undefined);
+        let closed: Result<void, ServerError> = Ok(undefined);
         try {
             written = await reconstructFile(input, chunks, file);
         } finally {
             try {
                 await file.close();
             } catch {
-                closed = Err(new Error('Could not close the downloaded file.'));
+                closed = Err(SERVER_ERRORS.COULD_NOT_CLOSE_THE_DOWNLOADED_FILE);
             }
         }
 
@@ -130,7 +133,7 @@ function downloadResponse(path: string, directory: string): Response {
             try {
                 next = await reader.next();
             } catch {
-                controller.error(new Error('Could not read the downloaded file.'));
+                controller.error(SERVER_ERRORS.COULD_NOT_READ_THE_DOWNLOADED_FILE);
                 await cleanup();
                 return;
             }
@@ -141,7 +144,7 @@ function downloadResponse(path: string, directory: string): Response {
                 return;
             }
             if (!(next.value instanceof Uint8Array)) {
-                controller.error(new Error('Invalid downloaded file data.'));
+                controller.error(SERVER_ERRORS.INVALID_DOWNLOADED_FILE_DATA);
                 await cleanup();
                 return;
             }
@@ -160,7 +163,7 @@ function downloadResponse(path: string, directory: string): Response {
 }
 
 /** Verify the full original hash before returning any reconstructed bytes to the browser. */
-export function downloadFile(input: FileRequest): AsyncResult<Response, Error> {
+export function downloadFile(input: FileRequest): AsyncResult<Response, ServerError> {
     return validateChunks(input).andThenAsync((chunks) =>
         createTemporaryDirectory().andThenAsync(async (directory) => {
             const path = join(directory, 'download');
@@ -178,10 +181,10 @@ export function downloadFile(input: FileRequest): AsyncResult<Response, Error> {
 /** Attempt every known chunk and return all confirmed removals even after partial failure. */
 export function deleteFile(
     input: FileRequest
-): AsyncResult<{ deleted: RemoteBmp[]; error?: string }, Error> {
+): AsyncResult<{ deleted: RemoteBmp[]; error?: string }, ServerError> {
     return validateChunks(input).andThenAsync(async (chunks) => {
         const deleted: RemoteBmp[] = [];
-        let failure: Error | null = null;
+        let failure: ServerError | null = null;
         const limit = pLimit(input.workers);
         await limit.map(chunks, async (chunk) => {
             const removed = await moveToTrash(input.email, input.token, chunk.sha1);

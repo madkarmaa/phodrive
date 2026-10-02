@@ -1,3 +1,4 @@
+import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import { UploadStatus, type RemoteBmp, type UploadResponse } from '$lib/models';
 import { createHash, randomBytes } from 'node:crypto';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
@@ -44,10 +45,10 @@ export function listBmps(
     token: string,
     pageToken = '',
     fetcher: Fetcher = photosFetch
-): AsyncResult<{ items: RemoteBmp[]; nextPageToken: string }, Error> {
+): AsyncResult<{ items: RemoteBmp[]; nextPageToken: string }, ServerError> {
     const request =
         pageToken.length > 8192 || (pageToken && !/^[A-Za-z0-9_-]+$/.test(pageToken))
-            ? Err(new Error('Invalid page token'))
+            ? Err(SERVER_ERRORS.INVALID_PAGE_TOKEN)
             : pageToken
               ? pageRequest(Buffer.from(pageToken, 'base64url'))
               : Ok(Buffer.from(LIBRARY_STATE_REQUEST, 'base64'));
@@ -78,7 +79,7 @@ function scanLibraryPage(
     page: { items: LibraryCandidate[]; nextPageToken: string },
     headers: PhotosHeaders,
     fetcher: Fetcher
-): AsyncResult<{ items: RemoteBmp[]; nextPageToken: string }, Error> {
+): AsyncResult<{ items: RemoteBmp[]; nextPageToken: string }, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         const limit = pLimit(LIBRARY_PROBE_CONCURRENCY);
         const scanned = await limit.map(page.items, (candidate) =>
@@ -102,18 +103,18 @@ function scanLibraryPage(
     });
 }
 
-function readMediaKey(item: Field[], field: number): Result<string, Error> {
+function readMediaKey(item: Field[], field: number): Result<string, ServerError> {
     return bytes(item, field)
         .andThen((data) => nested(data, 1))
         .andThen(utf8)
         .andThen((key) => {
-            if (!key) return Err(new Error('Missing media key'));
+            if (!key) return Err(SERVER_ERRORS.MISSING_MEDIA_KEY);
 
             return Ok(key);
         });
 }
 
-function existingMedia(response: Buffer, sha1: Buffer): Result<string | null, Error> {
+function existingMedia(response: Buffer, sha1: Buffer): Result<string | null, ServerError> {
     return nested(response, 1, 2)
         .andThen(parse)
         .andThen((matched) =>
@@ -122,27 +123,27 @@ function existingMedia(response: Buffer, sha1: Buffer): Result<string | null, Er
                 .map((foundHash) => ({ matched, foundHash }))
         )
         .andThen(({ matched, foundHash }) => {
-            if (!foundHash.equals(sha1)) return Err(new Error('Hash lookup mismatch'));
+            if (!foundHash.equals(sha1)) return Err(SERVER_ERRORS.HASH_LOOKUP_MISMATCH);
             if (!matched.some((field) => field.number === 2)) return Ok(null);
 
             return readMediaKey(matched, 2);
         });
 }
 
-function mediaFromCommit(response: Buffer, scotty: Buffer): Result<string, Error> {
+function mediaFromCommit(response: Buffer, scotty: Buffer): Result<string, ServerError> {
     return nested(response, 1)
         .andThen(parse)
         .andThen((item) =>
             bytes(item, 1).andThen((token) => {
-                if (!token.equals(scotty)) return Err(new Error('Commit token mismatch'));
+                if (!token.equals(scotty)) return Err(SERVER_ERRORS.COMMIT_TOKEN_MISMATCH);
 
                 return integer(item, 2).map((status) => ({ item, status }));
             })
         )
         .andThen(({ item, status }) => {
             if (status === 10 && !item.some((field) => field.number === 3))
-                return Err(new Error('Commit rejected'));
-            if (status !== 0) return Err(new Error('Unknown commit status'));
+                return Err(SERVER_ERRORS.COMMIT_REJECTED);
+            if (status !== 0) return Err(SERVER_ERRORS.UNKNOWN_COMMIT_STATUS);
 
             return readMediaKey(item, 3);
         });
@@ -153,28 +154,34 @@ function send(
     url: string | URL,
     init: RequestInit,
     stage: string
-): AsyncResult<Response, Error> {
+): AsyncResult<Response, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         let response: Response;
         try {
             response = await fetcher(url, init);
         } catch {
-            return Err(new Error(init.signal?.aborted ? `${stage} timed out` : `${stage} failed`));
+            return Err({
+                code: 'REQUEST_FAILED',
+                message: init.signal?.aborted ? `${stage} timed out` : `${stage} failed`
+            } as const);
         }
         if (response.status !== 200)
-            return Err(new Error(`${stage} failed (HTTP ${response.status})`));
+            return Err({
+                code: 'REQUEST_FAILED',
+                message: `${stage} failed (HTTP ${response.status})`
+            } as const);
 
         return Ok(response);
     });
 }
 
-function readBody(response: Response, stage: string): AsyncResult<Buffer, Error> {
+function readBody(response: Response, stage: string): AsyncResult<Buffer, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         try {
             const body = await response.arrayBuffer();
             return Ok(Buffer.from(body));
         } catch {
-            return Err(new Error(`${stage} failed`));
+            return Err({ code: 'REQUEST_FAILED', message: `${stage} failed` } as const);
         }
     });
 }
@@ -183,10 +190,10 @@ function authenticatedHeaders(
     email: string,
     token: string,
     fetcher: Fetcher
-): AsyncResult<PhotosHeaders, Error> {
+): AsyncResult<PhotosHeaders, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !token.startsWith('aas_et/')) {
-            return Err(new Error('Enter a valid account email and AAS token'));
+            return Err(SERVER_ERRORS.INVALID_ACCOUNT);
         }
         const androidId = randomBytes(8).toString('hex');
         const form = new URLSearchParams({
@@ -229,7 +236,7 @@ function authenticatedHeaders(
     });
 }
 
-function authHeadersFromResponse(text: string): Result<PhotosHeaders, Error> {
+function authHeadersFromResponse(text: string): Result<PhotosHeaders, ServerError> {
     const authFields = Object.fromEntries(
         text
             .split('\n')
@@ -240,7 +247,7 @@ function authHeadersFromResponse(text: string): Result<PhotosHeaders, Error> {
             })
     );
     if (authFields.Error || !authFields.Auth || Number(authFields.Expiry) <= Date.now() / 1000)
-        return Err(new Error('AAS authentication failed'));
+        return Err(SERVER_ERRORS.AAS_AUTHENTICATION_FAILED);
 
     const commonHeaders = {
         Authorization: `Bearer ${authFields.Auth}`,
@@ -263,7 +270,7 @@ export function validateAasAccount(
     email: string,
     token: string,
     fetcher: Fetcher = photosFetch
-): AsyncResult<void, Error> {
+): AsyncResult<void, ServerError> {
     return authenticatedHeaders(email, token, fetcher).map(() => undefined);
 }
 
@@ -273,9 +280,9 @@ export function uploadBmp(
     name: string,
     bmp: Buffer,
     fetcher: Fetcher = photosFetch
-): AsyncResult<UploadResponse, Error> {
+): AsyncResult<UploadResponse, ServerError> {
     const validName =
-        name && !/[\\/\r\n]/.test(name) ? Ok(name) : Err(new Error('Invalid file name'));
+        name && !/[\\/\r\n]/.test(name) ? Ok(name) : Err(SERVER_ERRORS.INVALID_FILE_NAME);
 
     return validName
         .andThenAsync(() => authenticatedHeaders(email, token, fetcher))
@@ -287,11 +294,11 @@ function uploadAuthenticatedBmp(
     bmp: Buffer,
     { commonHeaders, rpcHeaders }: PhotosHeaders,
     fetcher: Fetcher
-): AsyncResult<UploadResponse, Error> {
+): AsyncResult<UploadResponse, ServerError> {
     const sha1 = createHash('sha1').update(bmp).digest();
     const sha1Hex = sha1.toString('hex');
 
-    return hashLookup(sha1, rpcHeaders, fetcher).andThenAsync<UploadResponse, Error>(
+    return hashLookup(sha1, rpcHeaders, fetcher).andThenAsync<UploadResponse, ServerError>(
         async (foundKey) => {
             if (foundKey)
                 return Ok<UploadResponse>({
@@ -317,7 +324,7 @@ function startUpload(
     sha1: Buffer,
     commonHeaders: Record<string, string>,
     fetcher: Fetcher
-): AsyncResult<string, Error> {
+): AsyncResult<string, ServerError> {
     const request = message(
         numberField(1, 2),
         numberField(2, 2),
@@ -344,7 +351,7 @@ function startUpload(
     ).andThenAsync((response) =>
         readBody(response, 'Upload start').andThen(() => {
             const uploadId = response.headers.get('x-guploader-uploadid');
-            return uploadId ? Ok(uploadId) : Err(new Error('Upload start response failed'));
+            return uploadId ? Ok(uploadId) : Err(SERVER_ERRORS.UPLOAD_START_RESPONSE_FAILED);
         })
     );
 }
@@ -356,7 +363,7 @@ function transferBmp(
     uploadId: string,
     commonHeaders: Record<string, string>,
     fetcher: Fetcher
-): AsyncResult<Transfer, Error> {
+): AsyncResult<Transfer, ServerError> {
     const url = new URL(UPLOAD_URL);
     url.searchParams.set('upload_id', uploadId);
 
@@ -373,13 +380,13 @@ function transferBmp(
     ).andThenAsync((response) => readBody(response, 'Upload transfer').andThen(parseTransfer));
 }
 
-function parseTransfer(scotty: Buffer): Result<Transfer, Error> {
+function parseTransfer(scotty: Buffer): Result<Transfer, ServerError> {
     return parse(scotty).andThen((fields) =>
         integer(fields, 1).andThen((type) =>
             bytes(fields, 2).andThen((token) =>
                 type === 2 && token.length
                     ? Ok({ scotty, type, token })
-                    : Err(new Error('Invalid transfer token'))
+                    : Err(SERVER_ERRORS.INVALID_TRANSFER_TOKEN)
             )
         )
     );
@@ -391,7 +398,7 @@ function commitBmp(
     transfer: Transfer,
     rpcHeaders: Record<string, string>,
     fetcher: Fetcher
-): AsyncResult<string, Error> {
+): AsyncResult<string, ServerError> {
     const field1 = message(
         bytesField(1, message(numberField(1, transfer.type), bytesField(2, transfer.token))),
         bytesField(2, name),
@@ -425,9 +432,7 @@ function commitBmp(
             readBody(response, 'Commit').andThen((body) => mediaFromCommit(body, transfer.scotty))
         )
         .mapErr((error) =>
-            error.message === 'Commit rejected'
-                ? error
-                : new Error('Commit outcome uncertain. Check Google Photos before retrying.')
+            error.code === 'COMMIT_REJECTED' ? error : SERVER_ERRORS.COMMIT_OUTCOME_UNCERTAIN
         );
 }
 
@@ -435,7 +440,7 @@ function hashLookup(
     sha1: Buffer,
     rpcHeaders: Record<string, string>,
     fetcher: Fetcher
-): AsyncResult<string | null, Error> {
+): AsyncResult<string | null, ServerError> {
     const hashRequest = bytesField(
         1,
         message(bytesField(1, bytesField(1, sha1)), bytesField(2, Buffer.alloc(0)))
@@ -462,8 +467,8 @@ export function findBmpBySha1(
     token: string,
     sha1: string,
     fetcher: Fetcher = photosFetch
-): AsyncResult<string | null, Error> {
-    const validHash = /^[a-f0-9]{40}$/.test(sha1) ? Ok(sha1) : Err(new Error('Invalid SHA-1'));
+): AsyncResult<string | null, ServerError> {
+    const validHash = /^[a-f0-9]{40}$/.test(sha1) ? Ok(sha1) : Err(SERVER_ERRORS.INVALID_SHA_1);
 
     return validHash
         .andThenAsync(() => authenticatedHeaders(email, token, fetcher))
@@ -478,11 +483,11 @@ export function downloadBmp(
     mediaKey: string,
     sha1: string,
     fetcher: Fetcher = photosFetch
-): AsyncResult<Buffer, Error> {
+): AsyncResult<Buffer, ServerError> {
     const validReference =
         mediaKey && mediaKey.length <= 1024 && /^[a-f0-9]{40}$/.test(sha1)
             ? Ok(undefined)
-            : Err(new Error('Invalid file reference'));
+            : Err(SERVER_ERRORS.INVALID_FILE_REFERENCE);
 
     return validReference
         .andThenAsync(() => authenticatedHeaders(email, token, fetcher))
@@ -506,14 +511,14 @@ export function downloadBmp(
         )
         .andThen((response) => {
             if (!response.headers.get('content-type')?.startsWith('image/'))
-                return Err(new Error('Invalid download content type'));
+                return Err(SERVER_ERRORS.INVALID_DOWNLOAD_CONTENT_TYPE);
 
             return Ok(response);
         })
         .andThenAsync((response) => readBody(response, 'Download'))
         .andThen((bmp) => {
             if (createHash('sha1').update(bmp).digest('hex') !== sha1)
-                return Err(new Error('Download integrity failed'));
+                return Err(SERVER_ERRORS.DOWNLOAD_INTEGRITY_FAILED);
 
             return Ok(bmp);
         });
@@ -524,7 +529,7 @@ function preparedDownloadUrl(
     sha1: string,
     rpcHeaders: Record<string, string>,
     fetcher: Fetcher
-): AsyncResult<URL, Error> {
+): AsyncResult<URL, ServerError> {
     const request = message(
         bytesField(1, bytesField(1, bytesField(1, mediaKey))),
         bytesField(2, DOWNLOAD_MASK)
@@ -547,10 +552,10 @@ function preparedDownloadUrl(
     );
 }
 
-function readPrefix(response: Response): AsyncResult<Buffer, Error> {
+function readPrefix(response: Response): AsyncResult<Buffer, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         const reader = response.body?.getReader();
-        if (!reader) return Err(new Error('Missing download body'));
+        if (!reader) return Err(SERVER_ERRORS.MISSING_DOWNLOAD_BODY);
 
         const parts: Uint8Array[] = [];
         let length = 0;
@@ -565,7 +570,7 @@ function readPrefix(response: Response): AsyncResult<Buffer, Error> {
                 length += part.length;
             }
         } catch {
-            return Err(new Error('Could not inspect photo header'));
+            return Err(SERVER_ERRORS.COULD_NOT_INSPECT_PHOTO_HEADER);
         } finally {
             try {
                 await reader.cancel();
@@ -582,7 +587,7 @@ function fetchPrefix(
     url: URL,
     commonHeaders: Record<string, string>,
     fetcher: Fetcher
-): AsyncResult<Buffer, Error> {
+): AsyncResult<Buffer, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         let response: Response;
 
@@ -596,11 +601,11 @@ function fetchPrefix(
                 }
             });
         } catch {
-            return Err(new Error('Could not inspect photo header'));
+            return Err(SERVER_ERRORS.COULD_NOT_INSPECT_PHOTO_HEADER);
         }
 
         if (response.status !== 200 && response.status !== 206)
-            return Err(new Error('Could not inspect photo header'));
+            return Err(SERVER_ERRORS.COULD_NOT_INSPECT_PHOTO_HEADER);
 
         return readPrefix(response);
     });
@@ -611,7 +616,7 @@ function probeLibraryItem(
     commonHeaders: Record<string, string>,
     rpcHeaders: Record<string, string>,
     fetcher: Fetcher
-): AsyncResult<RemoteBmp | null, Error> {
+): AsyncResult<RemoteBmp | null, ServerError> {
     return preparedDownloadUrl(candidate.mediaKey, candidate.sha1, rpcHeaders, fetcher)
         .andThenAsync((url) => fetchPrefix(url, commonHeaders, fetcher))
         .map((prefix) =>
@@ -630,12 +635,12 @@ function probeLibraryItem(
         );
 }
 
-function parseSignedDownloadUrl(text: string): Result<URL, Error> {
+function parseSignedDownloadUrl(text: string): Result<URL, ServerError> {
     let signed: URL;
     try {
         signed = new URL(text);
     } catch {
-        return Err(new Error('Invalid download URL'));
+        return Err(SERVER_ERRORS.INVALID_DOWNLOAD_URL);
     }
 
     if (
@@ -646,22 +651,22 @@ function parseSignedDownloadUrl(text: string): Result<URL, Error> {
         signed.password ||
         signed.hash
     )
-        return Err(new Error('Invalid download URL'));
+        return Err(SERVER_ERRORS.INVALID_DOWNLOAD_URL);
 
     return Ok(signed);
 }
 
-function downloadUrl(metadata: Buffer, mediaKey: string, sha1: string): Result<URL, Error> {
+function downloadUrl(metadata: Buffer, mediaKey: string, sha1: string): Result<URL, ServerError> {
     return nested(metadata, 1, 1)
         .andThen(utf8)
         .andThen((remoteKey) => {
-            if (remoteKey !== mediaKey) return Err(new Error('Download media mismatch'));
+            if (remoteKey !== mediaKey) return Err(SERVER_ERRORS.DOWNLOAD_MEDIA_MISMATCH);
 
             return nested(metadata, 1, 2, 13, 1);
         })
         .andThen((remoteSha1) => {
             if (remoteSha1.toString('hex') !== sha1)
-                return Err(new Error('Download fingerprint mismatch'));
+                return Err(SERVER_ERRORS.DOWNLOAD_FINGERPRINT_MISMATCH);
 
             return nested(metadata, 1, 5, 2, 5);
         })
@@ -674,10 +679,10 @@ export function moveToTrash(
     token: string,
     sha1: string,
     fetcher: Fetcher = photosFetch
-): AsyncResult<void, Error> {
+): AsyncResult<void, ServerError> {
     const validHash = /^[a-f0-9]{40}$/.test(sha1)
         ? Ok(sha1)
-        : Err(new Error('Invalid file reference'));
+        : Err(SERVER_ERRORS.INVALID_FILE_REFERENCE);
 
     return validHash
         .andThenAsync(() => authenticatedHeaders(email, token, fetcher))

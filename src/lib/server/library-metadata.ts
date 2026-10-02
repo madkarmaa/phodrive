@@ -1,3 +1,4 @@
+import type { ServerError } from '$server/errors';
 import { Ok, type Result } from 'results-ts';
 import { MAX_PHOTOS_BMP_BYTES } from '$server/bmp';
 import { LIBRARY_PAGE_REQUEST } from '$server/library-requests';
@@ -12,7 +13,7 @@ import {
     type Field
 } from '$server/protobuf';
 
-export function pageRequest(resume: Buffer): Result<Buffer, Error> {
+export function pageRequest(resume: Buffer): Result<Buffer, ServerError> {
     const envelope = parse(Buffer.from(LIBRARY_PAGE_REQUEST, 'base64')).andThen((fields) =>
         bytes(fields, 1)
             .andThen(parse)
@@ -41,7 +42,7 @@ export function pageRequest(resume: Buffer): Result<Buffer, Error> {
 
 export type LibraryCandidate = { size: number; at: number; mediaKey: string; sha1: string };
 
-function libraryItem(value: Buffer): Result<LibraryCandidate | null, Error> {
+function libraryItem(value: Buffer): Result<LibraryCandidate | null, ServerError> {
     const parsed = parse(value).andThen((item) =>
         bytes(item, 2)
             .andThen(parse)
@@ -70,7 +71,7 @@ function libraryItem(value: Buffer): Result<LibraryCandidate | null, Error> {
     });
 }
 
-function visibleInLibrary(details: Field[]): Result<boolean, Error> {
+function visibleInLibrary(details: Field[]): Result<boolean, ServerError> {
     const trashed = optional(details, 16);
     if (!trashed || typeof trashed.value === 'number') return Ok(true);
 
@@ -80,7 +81,7 @@ function visibleInLibrary(details: Field[]): Result<boolean, Error> {
 function libraryMetadata(
     item: Field[],
     details: Field[]
-): Result<{ fingerprint: Buffer; size: number; at: number; mediaKey: string }, Error> {
+): Result<{ fingerprint: Buffer; size: number; at: number; mediaKey: string }, ServerError> {
     const fingerprint = bytes(details, 13).andThen((data) => nested(data, 1));
     const sized = fingerprint.andThen((fingerprint) =>
         integer(details, 10).map((size) => ({ fingerprint, size }))
@@ -98,7 +99,7 @@ function libraryMetadata(
 
 export function parseLibraryPage(
     data: Buffer
-): Result<{ items: LibraryCandidate[]; nextPageToken: string }, Error> {
+): Result<{ items: LibraryCandidate[]; nextPageToken: string }, ServerError> {
     return parse(data)
         .andThen((fields) => bytes(fields, 1))
         .andThen(parse)

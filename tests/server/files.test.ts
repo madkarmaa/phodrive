@@ -1,3 +1,4 @@
+import { SERVER_ERRORS } from '$server/errors';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { access } from 'node:fs/promises';
@@ -120,7 +121,9 @@ test('temporary output is removed on cancelled downloads and upstream failures',
     await downloaded.unwrap().body?.cancel();
     await expectCleaned();
     vi.mocked(downloadBmp).mockImplementation(() =>
-        Err(new Error('Download failed')).andThenAsync(async () => Ok(Buffer.alloc(0)))
+        Err({ code: 'REQUEST_FAILED', message: 'Download failed' } as const).andThenAsync(
+            async () => Ok(Buffer.alloc(0))
+        )
     );
     const failed = await downloadFile(input);
     expect(failed.isErr()).toBe(true);
@@ -130,12 +133,14 @@ test('temporary output is removed on cancelled downloads and upstream failures',
 test('download cleanup failure takes precedence over an upstream failure', async () => {
     const { input } = fixture();
     vi.mocked(downloadBmp).mockImplementation(() =>
-        Err(new Error('Download failed')).andThenAsync(async () => Ok(Buffer.alloc(0)))
+        Err({ code: 'REQUEST_FAILED', message: 'Download failed' } as const).andThenAsync(
+            async () => Ok(Buffer.alloc(0))
+        )
     );
     const remove = vi
         .spyOn(temporary, 'removeTemporaryDirectory')
         .mockImplementation(() =>
-            Err(new Error('Could not remove temporary file storage.')).andThenAsync(async () =>
+            Err(SERVER_ERRORS.TEMPORARY_STORAGE_REMOVE_FAILED).andThenAsync(async () =>
                 Ok(undefined)
             )
         );
@@ -157,7 +162,9 @@ test('server deletion bounds workers, attempts all known chunks and preserves pa
             peak = Math.max(peak, active);
             await new Promise<void>((resolve) => setTimeout(resolve, 5));
             active--;
-            return sha1 === input.chunks[0].sha1 ? Err(new Error('Delete failed')) : Ok(undefined);
+            return sha1 === input.chunks[0].sha1
+                ? Err({ code: 'REQUEST_FAILED', message: 'Delete failed' } as const)
+                : Ok(undefined);
         })
     );
     const chunks = Array.from({ length: 5 }, (_, index) => ({

@@ -1,3 +1,4 @@
+import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import {
     UploadEventType,
     UploadPhase,
@@ -18,14 +19,14 @@ import type { ReceivedFile, ReceivedUpload } from '$server/upload-input';
 const PROGRESS_INTERVAL_MS = 100;
 type UploadPlan = { headers: SplitHeader[]; sizes: number[] };
 
-export function planUpload(file: ReceivedFile): Result<UploadPlan, Error> {
+export function planUpload(file: ReceivedFile): Result<UploadPlan, ServerError> {
     if (
         !Number.isSafeInteger(file.size) ||
         file.size < 0 ||
         !file.name ||
         /[\\/\r\n\0]/.test(file.name)
     )
-        return Err(new Error('Invalid file name or size.'));
+        return Err(SERVER_ERRORS.INVALID_FILE_NAME_OR_SIZE);
 
     const count = Math.max(1, Math.ceil(file.size / MAX_CHUNK_PAYLOAD_BYTES));
     const fileId = fileIdentity(file.name, file.fileHash);
@@ -61,7 +62,7 @@ function uploadChunk(
     token: string,
     onProgress: (sent: number) => void,
     fetcher?: Fetcher
-): AsyncResult<UploadResponse, Error> {
+): AsyncResult<UploadResponse, ServerError> {
     return readFileRange(file.path, header.chunkIndex * MAX_CHUNK_PAYLOAD_BYTES, header.payloadSize)
         .andThen((payload) => encodeSplitBmp(payload, header))
         .andThenAsync((bmp) =>
@@ -120,10 +121,10 @@ function uploadPlannedFile(
     emit: (event: UploadEvent) => void,
     limit: LimitFunction,
     fetcher?: Fetcher
-): AsyncResult<UploadResponse, Error> {
+): AsyncResult<UploadResponse, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         const progress = createProgressReporter(plan, id, emit);
-        let failure: Error | null = null;
+        let failure: ServerError | null = null;
         let uploadedAny = false;
         progress.report(true);
 
@@ -171,7 +172,7 @@ function uploadPlannedFile(
             return uploaded;
         });
 
-        let last: Result<UploadResponse, Error> = Err(new Error('No chunks were uploaded.'));
+        let last: Result<UploadResponse, ServerError> = Err(SERVER_ERRORS.NO_UPLOADED_CHUNKS);
         for (const response of responses) {
             if (response.isErr()) return response;
             last = response;
@@ -189,7 +190,7 @@ export function uploadFiles(
     input: ReceivedUpload,
     emit: (event: UploadEvent) => void,
     fetcher?: Fetcher
-): AsyncResult<void, Error> {
+): AsyncResult<void, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         const chunkLimit = pLimit(input.workers);
         const fileLimit = pLimit(input.workers);

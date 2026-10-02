@@ -1,3 +1,4 @@
+import { SERVER_ERRORS } from '$server/errors';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { readFile, access, open, stat } from 'node:fs/promises';
@@ -174,7 +175,10 @@ test('one transfer pool bounds a selection, retains confirmations after failure 
             await new Promise<void>((resolve) => setTimeout(resolve, 10));
             active--;
             if (name.startsWith('file-0.'))
-                return Err(new Error('Upload transfer failed (HTTP 429)'));
+                return Err({
+                    code: 'REQUEST_FAILED',
+                    message: 'Upload transfer failed (HTTP 429)'
+                } as const);
             return Ok({ status: UploadStatus.AlreadyExists, mediaKey: name, sha1: '0'.repeat(40) });
         })
     );
@@ -218,7 +222,10 @@ test('late chunk failure keeps earlier confirmation and leaves queued chunks unr
     vi.mocked(uploadBmp).mockImplementation((_email, _token, name) =>
         Ok(undefined).andThenAsync(async () => {
             if (name.startsWith('large.bin.') && name.includes('-1-of-3.bmp'))
-                return Err(new Error('Upload transfer failed (HTTP 429)'));
+                return Err({
+                    code: 'REQUEST_FAILED',
+                    message: 'Upload transfer failed (HTTP 429)'
+                } as const);
             return Ok({ status: UploadStatus.Uploaded, mediaKey: name, sha1: '0'.repeat(40) });
         })
     );
@@ -251,7 +258,7 @@ test('upload stream reports cleanup failure instead of batch completion', async 
     const remove = vi
         .spyOn(temporary, 'removeTemporaryDirectory')
         .mockImplementation(() =>
-            Err(new Error('Could not remove temporary file storage.')).andThenAsync(async () =>
+            Err(SERVER_ERRORS.TEMPORARY_STORAGE_REMOVE_FAILED).andThenAsync(async () =>
                 Ok(undefined)
             )
         );

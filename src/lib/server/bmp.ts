@@ -1,3 +1,4 @@
+import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import { Err, Ok, type Result } from 'results-ts';
 import Varint from 'varint';
 import { SplitHeaderSchema, type SplitHeader } from '$lib/models';
@@ -22,8 +23,8 @@ function hashHex(bytes: Uint8Array): string {
 
 function bmpLayout(
     length: number
-): Result<{ width: number; height: number; total: number }, Error> {
-    if (!Number.isSafeInteger(length) || length < 0) return Err(new Error('Invalid chunk size'));
+): Result<{ width: number; height: number; total: number }, ServerError> {
+    if (!Number.isSafeInteger(length) || length < 0) return Err(SERVER_ERRORS.INVALID_CHUNK_SIZE);
 
     const width = Math.max(
         32,
@@ -34,7 +35,7 @@ function bmpLayout(
     const total = BMP_HEADER_BYTES + stride * height;
 
     if (total > MAX_PHOTOS_BMP_BYTES || width > 0x7fffffff || height > 0x7fffffff)
-        return Err(new Error('Chunk would exceed the 200 MB photo limit'));
+        return Err(SERVER_ERRORS.CHUNK_TOO_LARGE);
 
     return Ok({ width, height, total });
 }
@@ -42,7 +43,7 @@ function bmpLayout(
 function readVarint(
     data: Uint8Array,
     start: number
-): Result<{ value: number; next: number }, Error> {
+): Result<{ value: number; next: number }, ServerError> {
     try {
         const value = Varint.decode(data, start);
         const length = Varint.decode.bytes;
@@ -53,18 +54,18 @@ function readVarint(
             length === undefined ||
             length !== Varint.encodingLength(value)
         )
-            return Err(new Error('Invalid chunk varint'));
+            return Err(SERVER_ERRORS.INVALID_CHUNK_VARINT);
 
         return Ok({ value, next: start + length });
     } catch {
-        return Err(new Error('Invalid chunk varint'));
+        return Err(SERVER_ERRORS.INVALID_CHUNK_VARINT);
     }
 }
 
 /** Exact projected BMP size before a file slice is read. */
-export function splitBmpByteLength(input: SplitHeader): Result<number, Error> {
+export function splitBmpByteLength(input: SplitHeader): Result<number, ServerError> {
     const parsed = SplitHeaderSchema.safeParse(input);
-    if (!parsed.success) return Err(new Error('Invalid chunk metadata'));
+    if (!parsed.success) return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
 
     const header = parsed.data;
     const nameBytes = header.fileName
@@ -87,10 +88,10 @@ export function splitBmpByteLength(input: SplitHeader): Result<number, Error> {
 export function encodeSplitBmp(
     payload: Uint8Array,
     input: SplitHeader
-): Result<Uint8Array<ArrayBuffer>, Error> {
+): Result<Uint8Array<ArrayBuffer>, ServerError> {
     const parsed = SplitHeaderSchema.safeParse(input);
     if (!parsed.success || parsed.data.payloadSize !== payload.length)
-        return Err(new Error('Invalid chunk metadata'));
+        return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
 
     const header = parsed.data;
     const identity = hashBytes(header.fileId);
@@ -118,7 +119,7 @@ export function encodeSplitBmp(
         try {
             bmp = new Uint8Array(total);
         } catch {
-            return Err(new Error('Not enough memory to create BMP'));
+            return Err(SERVER_ERRORS.BMP_ALLOCATION_FAILED);
         }
 
         const view = new DataView(bmp.buffer);
@@ -157,19 +158,19 @@ function readSplitName(
     prefix: Uint8Array,
     offset: number,
     chunkIndex: number
-): Result<{ fileName: string | undefined; payloadOffset: number }, Error> {
+): Result<{ fileName: string | undefined; payloadOffset: number }, ServerError> {
     if (chunkIndex !== 0) return Ok({ fileName: undefined, payloadOffset: offset });
 
     return readVarint(prefix, offset).andThen((length) => {
         if (length.value > prefix.length - length.next)
-            return Err(new Error('Downloaded BMP is invalid or damaged'));
+            return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
 
         const payloadOffset = length.next + length.value;
         try {
             const fileName = UTF8.decode(prefix.subarray(length.next, payloadOffset));
             return Ok({ fileName, payloadOffset });
         } catch {
-            return Err(new Error('Downloaded BMP is invalid or damaged'));
+            return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
         }
     });
 }
@@ -178,8 +179,8 @@ function readSplitName(
 export function decodeSplitHeader(
     prefix: Uint8Array,
     totalSize: number
-): Result<{ header: SplitHeader; payloadOffset: number }, Error> {
-    const invalid = () => Err(new Error('Downloaded BMP is invalid or damaged'));
+): Result<{ header: SplitHeader; payloadOffset: number }, ServerError> {
+    const invalid = () => Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
     if (prefix.length < BMP_HEADER_BYTES + SPLIT_MAGIC.length + 2 * FILE_HASH_BYTES + 3)
         return invalid();
 
@@ -235,7 +236,7 @@ export function decodeSplitHeader(
             if (header.payloadSize > totalSize - payloadOffset) return invalid();
 
             const parsed = SplitHeaderSchema.safeParse(header);
-            if (!parsed.success) return Err(new Error('Invalid chunk metadata'));
+            if (!parsed.success) return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
 
             return Ok({ header: parsed.data, payloadOffset });
         });
@@ -244,11 +245,11 @@ export function decodeSplitHeader(
 /** Parse a complete chunk and reject damaged payload bounds or nonzero padding. */
 export function decodeSplitBmp(
     bmp: Uint8Array
-): Result<{ header: SplitHeader; payload: Uint8Array }, Error> {
+): Result<{ header: SplitHeader; payload: Uint8Array }, ServerError> {
     return decodeSplitHeader(bmp, bmp.length).andThen(({ header, payloadOffset }) => {
         const payloadEnd = payloadOffset + header.payloadSize;
         if (bmp.subarray(payloadEnd).some(Boolean))
-            return Err(new Error('Downloaded BMP is invalid or damaged'));
+            return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
 
         return Ok({ header, payload: bmp.subarray(payloadOffset, payloadEnd) });
     });
