@@ -11,10 +11,14 @@ Use Google Photos as a cloud storage provider by spoofing a Pixel XL device to g
 
 ## Run locally
 
+Use Node.js 22.19 or newer, or Bun. The commands work on Windows, macOS, and Linux.
+
 ```sh
 bun install
 bun --bun run dev
 ```
+
+With plain Node.js and npm, use `npm install` and `npm run dev`.
 
 Open `http://127.0.0.1:5173`. Add a Google account email and the one-time `oauth2_4/` token from [Google Embedded Setup](https://accounts.google.com/EmbeddedSetup).
 
@@ -37,7 +41,7 @@ Settings use this order: **saved user choice → deployment default → hardcode
 Set these variables in the server environment before starting the app. Missing or invalid values use the hardcoded defaults. The server publishes only the validated settings defaults; credentials stay private. For example:
 
 ```sh
-PHODRIVE_DEFAULT_REFRESH_INTERVAL_SECONDS=120 PHODRIVE_DEFAULT_CONCURRENT_WORKERS=4 bun --bun run dev
+bunx cross-env PHODRIVE_DEFAULT_REFRESH_INTERVAL_SECONDS=120 PHODRIVE_DEFAULT_CONCURRENT_WORKERS=4 bun run dev
 ```
 
 For Docker, pass the same variables with `-e`, for example `-e PHODRIVE_DEFAULT_CONCURRENT_WORKERS=4`.
@@ -53,8 +57,10 @@ To build and serve using Bun:
 
 ```sh
 bun --bun run build
-HOST=127.0.0.1 PORT=3000 ORIGIN=http://127.0.0.1:3000 BODY_SIZE_LIMIT=Infinity bun src/server.ts
+bun run start:bun
 ```
+
+With plain Node.js and npm, use `npm run build` and `npm start`.
 
 Open `http://127.0.0.1:3000` for the production build.
 

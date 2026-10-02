@@ -1,6 +1,7 @@
 import { SERVER_ERRORS } from '$server/errors';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createHash } from 'node:crypto';
+import * as fs from 'node:fs';
 import { access } from 'node:fs/promises';
 import { Err, Ok } from 'results-ts';
 import { downloadFile, deleteFile } from '$server/files';
@@ -10,6 +11,10 @@ import * as temporary from '$server/temporary-files';
 import { FileActionKind, type FileRequest, type RemoteBmp } from '$lib/models';
 
 vi.mock('$server/photos', () => ({ downloadBmp: vi.fn(), moveToTrash: vi.fn() }));
+vi.mock(import('node:fs'), async (importOriginal) => {
+    const actual = await importOriginal();
+    return { ...actual, createReadStream: vi.fn(actual.createReadStream) };
+});
 const PAYLOAD = Buffer.from([0, 255, 13, 10, 42]);
 const FILE_HASH = createHash('sha256').update(PAYLOAD).digest('hex');
 const directories: string[] = [];
@@ -87,6 +92,37 @@ test('server downloads, orders, decodes and verifies the original file before re
     expect(downloadBmp).toHaveBeenCalledTimes(2);
     await expectCleaned();
 });
+
+test.each(['complete', 'cancel'] as const)(
+    'download %s closes the read handle before removing temporary files',
+    async (action) => {
+        const { input } = fixture();
+        const { createReadStream } = await vi.importActual<typeof import('node:fs')>('node:fs');
+        const streams: fs.ReadStream[] = [];
+        vi.mocked(fs.createReadStream).mockImplementationOnce((path, options) => {
+            const stream = createReadStream(path, options);
+            streams.push(stream);
+            return stream;
+        });
+
+        const removeDirectory = temporary.removeTemporaryDirectory;
+        vi.spyOn(temporary, 'removeTemporaryDirectory').mockImplementation((directory) => {
+            expect(streams).toHaveLength(1);
+            expect(streams.every((stream) => stream.closed)).toBe(true);
+            return removeDirectory(directory);
+        });
+
+        const downloaded = await downloadFile(input);
+        const response = downloaded.unwrap();
+        if (action === 'complete') {
+            const bytes = await response.arrayBuffer();
+            expect(Buffer.from(bytes)).toEqual(PAYLOAD);
+        }
+        if (action === 'cancel') await response.body?.cancel();
+
+        await expectCleaned();
+    }
+);
 
 test('server refuses incomplete groups before downloading and rejects metadata, padding, and whole-file corruption', async () => {
     const { input, bmps } = fixture();

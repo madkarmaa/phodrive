@@ -4,6 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Err, Ok, type AsyncResult } from 'results-ts';
 
+const TEMPORARY_REMOVE_MAX_RETRIES = 3;
+const TEMPORARY_REMOVE_RETRY_DELAY_MS = 100;
+
 export function createTemporaryDirectory(): AsyncResult<string, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         try {
@@ -18,7 +21,12 @@ export function createTemporaryDirectory(): AsyncResult<string, ServerError> {
 export function removeTemporaryDirectory(directory: string): AsyncResult<void, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         try {
-            await rm(directory, { recursive: true, force: true });
+            await rm(directory, {
+                recursive: true,
+                force: true,
+                maxRetries: TEMPORARY_REMOVE_MAX_RETRIES,
+                retryDelay: TEMPORARY_REMOVE_RETRY_DELAY_MS
+            });
             return Ok(undefined);
         } catch {
             return Err(SERVER_ERRORS.TEMPORARY_STORAGE_REMOVE_FAILED);

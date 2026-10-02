@@ -1,14 +1,17 @@
 import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import { FileActionKind, type FileRequest, type RemoteBmp } from '$lib/models';
 import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
+import { createReadStream, type ReadStream } from 'node:fs';
 import { open, type FileHandle } from 'node:fs/promises';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import pLimit from 'p-limit';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import { decodeSplitBmp } from '$server/bmp';
 import { downloadBmp, moveToTrash } from '$server/photos';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '$server/temporary-files';
+
+const STREAM_PREMATURE_CLOSE_CODE = 'ERR_STREAM_PREMATURE_CLOSE';
 
 function validateChunks(input: FileRequest): Result<RemoteBmp[], ServerError> {
     const chunks = input.chunks.toSorted((a, b) => a.chunkIndex - b.chunkIndex);
@@ -116,6 +119,28 @@ function writeDownload(
     });
 }
 
+function closeDownloadStream(file: ReadStream): AsyncResult<void, ServerError> {
+    return Ok(undefined).andThenAsync(async () => {
+        const close = promisify(file.close.bind(file));
+
+        try {
+            await close();
+        } catch (error) {
+            if (
+                file.closed &&
+                error instanceof Error &&
+                'code' in error &&
+                error.code === STREAM_PREMATURE_CLOSE_CODE
+            )
+                return Ok(undefined);
+
+            return Err(SERVER_ERRORS.COULD_NOT_CLOSE_THE_DOWNLOADED_FILE);
+        }
+
+        return Ok(undefined);
+    });
+}
+
 function downloadResponse(path: string, directory: string): Response {
     const file = createReadStream(path);
     const reader = file.iterator();
@@ -123,9 +148,13 @@ function downloadResponse(path: string, directory: string): Response {
     const cleanup = async () => {
         if (closed) return;
         closed = true;
-        file.destroy();
+
+        // Windows cannot remove a temporary file until its read handle has closed.
+        const fileClosed = await closeDownloadStream(file);
         const removed = await removeTemporaryDirectory(directory);
-        removed.match({ Ok: () => {}, Err: (error) => console.error(error.message) });
+        fileClosed
+            .andThen(() => removed)
+            .match({ Ok: () => {}, Err: (error) => console.error(error.message) });
     };
     const body = new ReadableStream<Uint8Array>({
         async pull(controller) {
