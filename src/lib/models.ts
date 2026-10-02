@@ -96,7 +96,12 @@ export const SplitHeaderSchema = z
         payloadSize: z.int().nonnegative(),
         fileName: z.string().min(1).optional()
     })
-    .refine((header) => (header.chunkIndex === 0) === (header.fileName !== undefined));
+    .refine((header) => {
+        if (header.chunkIndex === 0 && header.fileName === undefined) {
+            return false;
+        }
+        return true;
+    });
 
 export const RemoteBmpSchema = z.object({
     fileHash: Sha256HexSchema,
