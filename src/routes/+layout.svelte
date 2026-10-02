@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { Snippet } from 'svelte';
-    import 'noph-ui/defaultTheme';
+    import './theme.css';
     import './layout.css';
     import '@fontsource-variable/google-sans-flex/opsz.css';
 

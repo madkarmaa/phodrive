@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
   <title>Phodrive</title>
   <path
-    fill="#1E1E2E"
+    fill="#5D3D85"
     fill-rule="evenodd"
     d="M36 97a23 23 0 0 1-4-45 30 30 0 0 1 58-8 26.5 26.5 0 0 1 1.5 53H36Z M88 61a5 5 0 1 0-10 0a5 5 0 1 0 10 0Z M29 85l18-23 19 23 12-15 16 18H29v-3Z"
   />

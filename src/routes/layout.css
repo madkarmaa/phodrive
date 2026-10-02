@@ -1,47 +1,12 @@
 @import 'tailwindcss';
 
 :root {
-    color-scheme: light;
+    color-scheme: light dark;
     font-family: 'Google Sans Flex', system-ui, sans-serif;
-    /* Preserve the app's lavender Material palette and Catppuccin surfaces. */
-    --np-color-primary: light-dark(#545c8c, #b4befe);
-    --np-color-on-primary: light-dark(#faf8ff, #181825);
-    --np-color-primary-container: light-dark(#bec6fd, #45475a);
-    --np-color-on-primary-container: light-dark(#373f6d, #cdd6f4);
-    --np-color-inverse-primary: light-dark(#b4befe, #545c8c);
-    --np-color-secondary: light-dark(#5b5e72, #cba6f7);
-    --np-color-on-secondary: light-dark(#faf8ff, #181825);
-    --np-color-secondary-container: light-dark(#dfe1f9, #45475a);
-    --np-color-on-secondary-container: light-dark(#4e5065, #cdd6f4);
-    --np-color-tertiary: light-dark(#176b61, #94e2d5);
-    --np-color-on-tertiary: light-dark(#ffffff, #181825);
-    --np-color-tertiary-container: light-dark(#b7eee2, #313244);
-    --np-color-on-tertiary-container: light-dark(#134e46, #94e2d5);
-    --np-color-surface: light-dark(#e6e9ef, #181825);
-    --np-color-background: var(--np-color-surface);
-    --np-color-on-background: var(--np-color-on-surface);
-    --np-color-surface-tint: var(--np-color-primary);
-    --np-color-surface-container-lowest: light-dark(#ffffff, #11111b);
-    --np-color-surface-container-low: light-dark(#eff1f5, #1e1e2e);
-    --np-color-surface-container: light-dark(#dce0e8, #313244);
-    --np-color-surface-container-high: light-dark(#ccd0da, #45475a);
-    --np-color-surface-container-highest: light-dark(#bcc0cc, #585b70);
-    --np-color-on-surface: light-dark(#4c4f69, #cdd6f4);
-    --np-color-on-surface-variant: light-dark(#5c5f77, #bac2de);
-    --np-color-inverse-surface: light-dark(#313244, #eff1f5);
-    --np-color-inverse-on-surface: light-dark(#cdd6f4, #4c4f69);
-    --np-color-outline: light-dark(#6c6f85, #9399b2);
-    --np-color-outline-variant: light-dark(#bcc0cc, #45475a);
-    --np-color-error: light-dark(#a8364b, #f38ba8);
-    --np-color-on-error: light-dark(#fff7f7, #181825);
-    --np-color-error-container: light-dark(#ffced2, #5f001c);
-    --np-color-on-error-container: light-dark(#8f2339, #f38ba8);
-    --np-color-shadow: #000;
-    --np-color-scrim: #000;
 
     --app-panel: var(--np-color-surface-container-low);
     --app-text: var(--np-color-on-surface);
-    --app-muted: light-dark(#6c6f85, #a6adc8);
+    --app-muted: var(--np-color-on-surface-variant);
     --app-search: var(--np-color-surface-container);
     --app-menu: var(--np-color-surface-container);
     --app-card: var(--np-color-surface-container);
@@ -54,7 +19,7 @@
     --app-avatar: var(--np-color-primary);
     --app-avatar-text: var(--np-color-on-primary);
     --app-success: light-dark(#146c2e, #a6e3a1);
-    --app-feedback: light-dark(#d3d8ff, #313244);
+    --app-feedback: var(--np-color-secondary-container);
 }
 
 :root[theme='light'] {

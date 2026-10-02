@@ -1,0 +1,96 @@
+:root {
+    color-scheme: light dark;
+    --np-color-background: light-dark(#fff7fe, #100d12);
+    --np-color-error: light-dark(#9e000b, #ff897d);
+    --np-color-error-container: light-dark(#ff7164, #c52421);
+    --np-color-inverse-on-surface: light-dark(#bab4bb, #454147);
+    --np-color-inverse-primary: light-dark(#d1abfd, #6a4992);
+    --np-color-inverse-surface: light-dark(#100d12, #fff7fe);
+    --np-color-neutral-palette-key-color: light-dark(#7a757b, #7a757b);
+    --np-color-neutral-variant-palette-key-color: light-dark(#7b7480, #7b7480);
+    --np-color-on-background: light-dark(#2c282e, #ffffff);
+    --np-color-on-error: light-dark(#ffdcd7, #530003);
+    --np-color-on-error-container: light-dark(#4a0002, #ffffff);
+    --np-color-on-primary: light-dark(#efddff, #412168);
+    --np-color-on-primary-container: light-dark(#24004a, #28014f);
+    --np-color-on-primary-fixed: light-dark(#000000, #000000);
+    --np-color-on-primary-fixed-variant: light-dark(#190036, #3d1c64);
+    --np-color-on-secondary: light-dark(#efddff, #413451);
+    --np-color-on-secondary-container: light-dark(#1e122c, #ffffff);
+    --np-color-on-secondary-fixed: light-dark(#000000, #332642);
+    --np-color-on-secondary-fixed-variant: light-dark(#150923, #514361);
+    --np-color-on-surface: light-dark(#2c282e, #ffffff);
+    --np-color-on-surface-variant: light-dark(#4f4b51, #b8b1b8);
+    --np-color-on-tertiary: light-dark(#ffdae7, #682145);
+    --np-color-on-tertiary-container: light-dark(#36001f, #5c173c);
+    --np-color-on-tertiary-fixed: light-dark(#000000, #000000);
+    --np-color-on-tertiary-fixed-variant: light-dark(#270015, #571338);
+    --np-color-outline: light-dark(#6c676d, #8c878d);
+    --np-color-outline-variant: light-dark(#8f8990, #69656b);
+    --np-color-primary: light-dark(#5d3d85, #d1abfd);
+    --np-color-primary-container: light-dark(#b28edd, #b591e0);
+    --np-color-primary-fixed: light-dark(#b28edd, #d1abfd);
+    --np-color-primary-fixed-dim: light-dark(#a481cf, #c39eee);
+    --np-color-primary-palette-key-color: light-dark(#8967b3, #8967b3);
+    --np-color-scrim: light-dark(#000000, #000000);
+    --np-color-secondary: light-dark(#554765, #d2bfe3);
+    --np-color-secondary-container: light-dark(#a897b9, #6f607f);
+    --np-color-secondary-fixed: light-dark(#a897b9, #eedbff);
+    --np-color-secondary-fixed-dim: light-dark(#9b8aac, #e0cdf2);
+    --np-color-secondary-palette-key-color: light-dark(#807191, #807191);
+    --np-color-shadow: light-dark(#000000, #000000);
+    --np-color-surface: light-dark(#fff7fe, #100d12);
+    --np-color-surface-bright: light-dark(#fff7fe, #2e2b30);
+    --np-color-surface-container: light-dark(#f3ecf3, #1b191e);
+    --np-color-surface-container-high: light-dark(#ede6ed, #211e24);
+    --np-color-surface-container-highest: light-dark(#e7e0e7, #28252a);
+    --np-color-surface-container-low: light-dark(#f9f1f9, #151217);
+    --np-color-surface-container-lowest: light-dark(#ffffff, #000000);
+    --np-color-surface-dim: light-dark(#dfd8df, #100d12);
+    --np-color-surface-tint: light-dark(#5d3d85, #d1abfd);
+    --np-color-surface-variant: light-dark(#e7e0e7, #28252a);
+    --np-color-tertiary: light-dark(#7d3257, #ffb4d2);
+    --np-color-tertiary-container: light-dark(#dc82aa, #fe9ec8);
+    --np-color-tertiary-fixed: light-dark(#dc82aa, #fe9ec8);
+    --np-color-tertiary-fixed-dim: light-dark(#cd759c, #ef91ba);
+    --np-color-tertiary-palette-key-color: light-dark(#f899c2, #f899c2);
+    --np-elevation-1: rgba(0, 0, 0, 0.3) 0px 1px 2px 0px, rgba(0, 0, 0, 0.15) 0px 1px 3px 1px;
+    --np-elevation-2: rgba(0, 0, 0, 0.3) 0px 1px 2px 0px, rgba(0, 0, 0, 0.15) 0px 2px 6px 2px;
+    --np-elevation-3: rgba(0, 0, 0, 0.3) 0px 1px 3px 0px, rgba(0, 0, 0, 0.15) 0px 4px 8px 3px;
+
+    /* Motion: Expressive spatial */
+    --np-motion-expressive-fast-spatial: 350ms cubic-bezier(0.42, 1.67, 0.21, 0.9);
+    --np-motion-expressive-default-spatial: 500ms cubic-bezier(0.38, 1.21, 0.22, 1);
+    --np-motion-expressive-slow-spatial: 650ms cubic-bezier(0.39, 1.29, 0.35, 0.98);
+
+    /* Motion: Expressive effects */
+    --np-motion-expressive-fast-effects: 150ms cubic-bezier(0.31, 0.94, 0.34, 1);
+    --np-motion-expressive-default-effects: 200ms cubic-bezier(0.34, 0.8, 0.34, 1);
+    --np-motion-expressive-slow-effects: 300ms cubic-bezier(0.34, 0.88, 0.34, 1);
+
+    /* Motion: Standard spatial */
+    --np-motion-standard-fast-spatial: 350ms cubic-bezier(0.27, 1.06, 0.18, 1);
+    --np-motion-standard-default-spatial: 500ms cubic-bezier(0.27, 1.06, 0.18, 1);
+    --np-motion-standard-slow-spatial: 750ms cubic-bezier(0.27, 1.06, 0.18, 1);
+
+    /* Motion: Standard effects */
+    --np-motion-standard-fast-effects: 150ms cubic-bezier(0.31, 0.94, 0.34, 1);
+    --np-motion-standard-default-effects: 200ms cubic-bezier(0.34, 0.8, 0.34, 1);
+    --np-motion-standard-slow-effects: 300ms cubic-bezier(0.34, 0.88, 0.34, 1);
+
+    --np-shape-corner-full: 9999px;
+    --np-shape-corner-extra-small: 0.25rem;
+    --np-shape-corner-small: 0.5rem;
+    --np-shape-corner-medium: 0.75rem;
+    --np-shape-corner-large: 1rem;
+    --np-shape-corner-extra-large: 1.75rem;
+    --np-shape-corner-none: 0;
+}
+
+[data-theme='light'] {
+    color-scheme: light;
+}
+
+[data-theme='dark'] {
+    color-scheme: dark;
+}
