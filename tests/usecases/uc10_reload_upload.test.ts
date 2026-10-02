@@ -100,7 +100,7 @@ test('leaving an upload settles the active operation, cleans temporary files, an
     await vi.waitFor(() => expect(secondUploadStarted).toBe(true));
     await reader.cancel();
 
-    await expect(access(input.directory)).resolves.toBeUndefined();
+    await access(input.directory);
     expect(activeSettled).toBe(false);
 
     releaseSecondUpload();

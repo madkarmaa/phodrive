@@ -61,7 +61,9 @@ test('raw multipart files are streamed to private disk storage and hashed on ser
     const bytes = await readFile(input.files[0].path);
     expect(bytes).toEqual(PAYLOAD);
     const savedFile = await stat(input.files[0].path);
-    expect(savedFile.mode & 0o777).toBe(0o600);
+    expect(savedFile.mode & 0o600).toBe(0o600);
+    // Windows does not implement separate owner, group, and other permission bits.
+    if (process.platform !== 'win32') expect(savedFile.mode & 0o777).toBe(0o600);
     expect(input.files[1].size).toBe(0);
     expect(input.files[1].fileHash).toBe(createHash('sha256').digest('hex'));
     const events: UploadEvent[] = [];

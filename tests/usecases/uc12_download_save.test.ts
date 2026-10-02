@@ -128,7 +128,8 @@ test('downloads empty and large originals byte-for-byte and removes server tempo
         const response = await downloadServerFile(input);
         const downloaded = response.unwrap();
         const body = await downloaded.arrayBuffer();
-        expect(new Uint8Array(body)).toEqual(payload);
+        const downloadedBytes = Buffer.from(body);
+        expect(downloadedBytes.equals(payload)).toBe(true);
         await expect(access(directories.at(-1) ?? '')).rejects.toThrow();
     }
 
