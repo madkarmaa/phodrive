@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import { connectGoogleAccount } from '$server/accounts';
 import type { Fetcher } from '$server/fetcher';
+import { SERVER_ERRORS } from '$server/errors';
 
 test('account connection exchanges OAuth2 then validates the AAS token before returning it', async () => {
     let calls = 0;
@@ -36,7 +37,7 @@ test('account connection validates an existing AAS token without an exchange', a
     expect(calls).toBe(1);
 });
 
-test('failed exchange or validation returns a safe error instead of an account token', async () => {
+test('failed exchange or validation preserves the original error', async () => {
     let exchangeCalls = 0;
     const failedExchange: Fetcher = async () => {
         exchangeCalls++;
@@ -48,7 +49,10 @@ test('failed exchange or validation returns a safe error instead of an account t
         failedExchange
     );
 
-    expect(exchanged.unwrapErr().message).toContain('fresh token');
+    expect(exchanged.unwrapErr()).toEqual({
+        code: 'OAUTH_EXCHANGE_FAILED',
+        message: 'OAuth2 exchange failed'
+    });
     expect(exchangeCalls).toBe(1);
 
     let validationCalls = 0;
@@ -62,7 +66,7 @@ test('failed exchange or validation returns a safe error instead of an account t
         failedValidation
     );
 
-    expect(validated.unwrapErr().message).toContain('could not validate');
+    expect(validated.unwrapErr()).toEqual(SERVER_ERRORS.AAS_AUTHENTICATION_FAILED);
     expect(validationCalls).toBe(2);
     expect(validated.unwrapErr().message).not.toContain('aas_et/');
 });

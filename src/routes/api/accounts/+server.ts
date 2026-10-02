@@ -3,6 +3,7 @@ import { NewAccountSchema } from '$lib/models';
 import { schemaResult } from '$lib/schema-result';
 import { connectGoogleAccount } from '$server/accounts';
 import { readJson } from '$server/request';
+import type { z } from 'zod';
 import type { RequestHandler } from './$types';
 
 const RESPONSE_HEADERS = { 'cache-control': 'no-store' };
@@ -12,11 +13,11 @@ export const POST: RequestHandler = async ({ request }) => {
     const parsed = body.andThen((value) =>
         schemaResult(NewAccountSchema, value, 'Invalid account')
     );
-    const input = parsed.match({ Ok: (value) => value, Err: () => null });
-
-    if (!input) {
-        return json({ error: 'Invalid account' }, { status: 400, headers: RESPONSE_HEADERS });
-    }
+    const input = parsed.match<z.infer<typeof NewAccountSchema> | Response>({
+        Ok: (value) => value,
+        Err: (error) => json({ error: error.message }, { status: 400, headers: RESPONSE_HEADERS })
+    });
+    if (input instanceof Response) return input;
 
     const connected = await connectGoogleAccount(input.email, input.token);
 

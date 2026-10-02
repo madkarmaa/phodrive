@@ -425,10 +425,12 @@ export class DriveController {
         if (!Object.hasOwn(this.accounts, email)) return;
         const saved = this.preferences?.selectAccount(email);
         if (!saved) return;
-        if (saved.isErr()) {
-            this.message = 'Could not update browser storage.';
-            return;
-        }
+        saved.match({
+            Ok: () => {},
+            Err: (error) => {
+                this.message = error.message;
+            }
+        });
     }
 
     removeAccount(email: string) {
@@ -440,8 +442,8 @@ export class DriveController {
         if (!removed) return;
         removed.match({
             Ok: () => {},
-            Err: () => {
-                this.message = 'Could not update browser storage.';
+            Err: (error) => {
+                this.message = error.message;
             }
         });
     }

@@ -3,6 +3,7 @@ import { listBmps } from '$server/photos';
 import { readJson } from '$server/request';
 import { LibraryRequestSchema } from '$lib/models';
 import { schemaResult } from '$lib/schema-result';
+import type { z } from 'zod';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -10,15 +11,18 @@ export const POST: RequestHandler = async ({ request }) => {
     const parsed = body.andThen((value) =>
         schemaResult(LibraryRequestSchema, value, 'Invalid request')
     );
-    const input = parsed.match({ Ok: (value) => value, Err: () => null });
-    if (!input) return json({ error: 'Invalid request' }, { status: 400 });
+    const input = parsed.match<z.infer<typeof LibraryRequestSchema> | Response>({
+        Ok: (value) => value,
+        Err: (error) => json({ error: error.message }, { status: 400 })
+    });
+    if (input instanceof Response) return input;
 
     const files = await listBmps(input.email, input.token, input.pageToken ?? '');
     return files.match({
         Ok: (value) => json(value, { headers: { 'cache-control': 'no-store' } }),
-        Err: () =>
+        Err: (error) =>
             json(
-                { error: 'Could not load Google Photos files.' },
+                { error: error.message },
                 { status: 400, headers: { 'cache-control': 'no-store' } }
             )
     });

@@ -2,8 +2,6 @@
 export type ApplicationError = {
     readonly code:
         | 'ACCOUNT_CONNECTION_FAILED'
-        | 'ACCOUNT_EXCHANGE_FAILED'
-        | 'ACCOUNT_VALIDATION_FAILED'
         | 'DELETE_FAILED'
         | 'DOWNLOAD_RECEIVE_FAILED'
         | 'INCOMPLETE_DOWNLOAD_CHUNKS'

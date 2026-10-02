@@ -213,7 +213,7 @@ export function deleteFile(
 ): AsyncResult<{ deleted: RemoteBmp[]; error?: string }, ServerError> {
     return validateChunks(input).andThenAsync(async (chunks) => {
         const deleted: RemoteBmp[] = [];
-        let failure: ServerError | null = null;
+        const failures: ServerError[] = [];
         const limit = pLimit(input.workers);
         await limit.map(chunks, async (chunk) => {
             const removed = await moveToTrash(input.email, input.token, chunk.sha1);
@@ -222,14 +222,15 @@ export function deleteFile(
                     deleted.push(chunk);
                 },
                 Err: (error) => {
-                    failure ??= error;
+                    failures.push(error);
                 }
             });
         });
 
+        const failure = failures[0];
         return Ok({
             deleted,
-            ...(failure ? { error: 'Could not move every chunk to Google Photos trash.' } : {})
+            ...(failure ? { error: failure.message } : {})
         });
     });
 }

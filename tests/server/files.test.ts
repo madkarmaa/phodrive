@@ -210,7 +210,7 @@ test('server deletion bounds workers, attempts all known chunks and preserves pa
     }));
     const result = await deleteFile({ ...input, action: FileActionKind.Delete, chunks });
     expect(result.unwrap().deleted).toHaveLength(2);
-    expect(result.unwrap().error).toBeTruthy();
+    expect(result.unwrap().error).toBe('Delete failed');
     expect(attempted).toBe(chunks.length);
     expect(peak).toBe(input.workers);
     expect(active).toBe(0);
