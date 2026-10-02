@@ -135,7 +135,7 @@
         --np-search-pane-margin: 0px;
     }
 
-    @media (max-width: 800px) {
+    @media (width < 800px) {
         :global(:root .shell-header.np-app-bar) {
             height: 72px;
         }
@@ -151,6 +151,29 @@
         :global(:root .drive-search.np-search .np-search-input) {
             font-size: 14px;
         }
+
+        :global(:root .shell-header.np-app-bar:has(.drive-search:focus-within) .np-app-bar-row) {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 0;
+        }
+
+        :global(:root .shell-header.np-app-bar:has(.drive-search:focus-within) .np-app-bar-leading),
+        :global(
+            :root .shell-header.np-app-bar:has(.drive-search:focus-within) .np-app-bar-trailing
+        ) {
+            display: none;
+        }
+
+        :global(:root .drive-search.np-search:focus-within) {
+            --np-search-view-margin: 0px;
+            --np-search-width: 100%;
+        }
+
+        :global(
+            :root .shell-header.np-app-bar:has(.drive-search:focus-within) .np-app-bar-search-field
+        ) {
+            padding-inline: 0;
+        }
     }
 
     @media (max-width: 520px) {
@@ -160,6 +183,9 @@
         }
         :global(:root .drive-search.np-search .np-search-input::placeholder) {
             color: transparent;
+        }
+        :global(:root .drive-search.np-search:focus-within .np-search-input::placeholder) {
+            color: var(--np-color-on-surface-variant);
         }
     }
 </style>
