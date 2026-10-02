@@ -37,10 +37,9 @@
 </script>
 
 <ListItem class="upload-status-row" variant="text" aria-label={job.name}>
-    {#snippet start()}<IconDescription
-            aria-hidden="true"
-            class="size-5 shrink-0 text-primary"
-        />{/snippet}
+    {#snippet start()}
+        <IconDescription aria-hidden="true" class="size-5 shrink-0 text-primary" />
+    {/snippet}
     <p class="truncate text-sm" title={job.name}>{job.name}</p>
     {#snippet supportingText()}
         <p

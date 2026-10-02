@@ -30,11 +30,11 @@
     {/if}
 
     {#snippet actions()}
-        <Button bind:element={cancelButton} autofocus variant="text" onclick={() => (open = false)}
-            >Cancel</Button
-        >
-        <Button variant="text" onclick={onconfirm}
-            >{target?.kind === ConfirmKind.Account ? 'Sign out' : 'Move to trash'}</Button
-        >
+        <Button bind:element={cancelButton} autofocus variant="text" onclick={() => (open = false)}>
+            Cancel
+        </Button>
+        <Button variant="text" onclick={onconfirm}>
+            {target?.kind === ConfirmKind.Account ? 'Sign out' : 'Move to trash'}
+        </Button>
     {/snippet}
 </Dialog>

@@ -152,8 +152,10 @@
                     onclick={() => {
                         onresetworkers();
                         workersDraft = concurrentWorkers;
-                    }}>Reset</Button
+                    }}
                 >
+                    Reset
+                </Button>
             </div>
         </form>
 

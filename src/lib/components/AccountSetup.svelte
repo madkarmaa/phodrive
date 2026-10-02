@@ -57,16 +57,20 @@
                     />
                 </div>
                 <div class="flex flex-wrap items-center gap-2.5">
-                    <Button type="submit" variant="filled" size="s" disabled={connecting}
-                        >{connecting ? 'Connecting…' : 'Save account'}</Button
-                    >
-                    {#if canCancel}<Button
+                    <Button type="submit" variant="filled" size="s" disabled={connecting}>
+                        {connecting ? 'Connecting…' : 'Save account'}
+                    </Button>
+                    {#if canCancel}
+                        <Button
                             type="button"
                             size="s"
                             variant="text"
                             disabled={connecting}
-                            onclick={oncancel}>Cancel</Button
-                        >{/if}
+                            onclick={oncancel}
+                        >
+                            Cancel
+                        </Button>
+                    {/if}
                 </div>
             </form>
 

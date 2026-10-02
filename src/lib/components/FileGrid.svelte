@@ -78,9 +78,9 @@
 
     {#if hasMore}
         <div class="mt-6 flex justify-center">
-            <Button variant="outlined" disabled={loading || disabled} onclick={onmore}
-                >{loading ? 'Loading…' : 'Load more'}</Button
-            >
+            <Button variant="outlined" disabled={loading || disabled} onclick={onmore}>
+                {loading ? 'Loading…' : 'Load more'}
+            </Button>
         </div>
     {/if}
 </section>

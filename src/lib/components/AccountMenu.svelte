@@ -93,10 +93,9 @@
                     closeMenu();
                 }}
             >
-                {#snippet start()}<IconLogout
-                        class="size-5.5 text-primary"
-                        aria-hidden="true"
-                    />{/snippet}
+                {#snippet start()}
+                    <IconLogout class="size-5.5 text-primary" aria-hidden="true" />
+                {/snippet}
                 Sign out
             </MenuItem>
         {/if}
