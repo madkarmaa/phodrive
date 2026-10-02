@@ -39,40 +39,83 @@ type PhotosHeaders = {
     rpcHeaders: Record<string, string>;
 };
 
-/** One live page, identified from embedded BMP metadata rather than editable filenames. */
+/** A page of files with a continuation only when another file page exists. */
 export function listBmps(
     email: string,
     token: string,
     pageToken = '',
     fetcher: Fetcher = photosFetch
 ): AsyncResult<{ items: RemoteBmp[]; nextPageToken: string }, ServerError> {
-    const request =
+    const validated =
         pageToken.length > 8192 || (pageToken && !/^[A-Za-z0-9_-]+$/.test(pageToken))
             ? Err(SERVER_ERRORS.INVALID_PAGE_TOKEN)
-            : pageToken
-              ? pageRequest(Buffer.from(pageToken, 'base64url'))
-              : Ok(Buffer.from(LIBRARY_STATE_REQUEST, 'base64'));
+            : Ok(pageToken);
 
-    return request
-        .andThenAsync((body) =>
-            authenticatedHeaders(email, token, fetcher).map((headers) => ({ body, headers }))
-        )
-        .andThenAsync(({ body, headers }) =>
-            send(
-                fetcher,
-                LIBRARY_URL,
-                {
-                    method: 'POST',
-                    redirect: 'manual',
-                    headers: headers.rpcHeaders,
-                    body: bodyBytes(body)
-                },
-                'Library list'
-            )
-                .andThenAsync((response) => readBody(response, 'Library list'))
-                .andThen(parseLibraryPage)
-                .andThenAsync((page) => scanLibraryPage(page, headers, fetcher))
-        );
+    return validated
+        .andThenAsync(() => authenticatedHeaders(email, token, fetcher))
+        .andThenAsync((headers) => {
+            const visited = new Set<string>();
+
+            return findFilePage(pageToken, headers, fetcher, visited).andThenAsync(async (page) => {
+                if (!page.nextPageToken) return Ok({ items: page.items, nextPageToken: '' });
+
+                // Google Photos can return a resume token followed only by an empty sync page.
+                // Look ahead so the UI offers Load more only for confirmed Phodrive files.
+                return await findFilePage(page.nextPageToken, headers, fetcher, visited).map(
+                    (next) => ({
+                        items: page.items,
+                        nextPageToken: next.items.length ? next.requestToken : ''
+                    })
+                );
+            });
+        });
+}
+
+function findFilePage(
+    pageToken: string,
+    headers: PhotosHeaders,
+    fetcher: Fetcher,
+    visited: Set<string>
+): AsyncResult<{ items: RemoteBmp[]; nextPageToken: string; requestToken: string }, ServerError> {
+    return Ok(undefined).andThenAsync(async () => {
+        let nextPageToken = pageToken;
+
+        while (true) {
+            const requestToken = nextPageToken;
+            if (visited.has(requestToken)) return Err(SERVER_ERRORS.REPEATED_LIBRARY_PAGE);
+            visited.add(requestToken);
+
+            const request = requestToken
+                ? pageRequest(Buffer.from(requestToken, 'base64url'))
+                : Ok(Buffer.from(LIBRARY_STATE_REQUEST, 'base64'));
+            const received = await request.andThenAsync((body) =>
+                send(
+                    fetcher,
+                    LIBRARY_URL,
+                    {
+                        method: 'POST',
+                        redirect: 'manual',
+                        headers: headers.rpcHeaders,
+                        body: bodyBytes(body)
+                    },
+                    'Library list'
+                )
+                    .andThenAsync((response) => readBody(response, 'Library list'))
+                    .andThen(parseLibraryPage)
+                    .andThenAsync((page) => scanLibraryPage(page, headers, fetcher))
+                    .map((page) => {
+                        nextPageToken = page.nextPageToken;
+                        return { ...page, requestToken };
+                    })
+            );
+
+            const finished = received.match({
+                Ok: (page) => page.items.length > 0 || !page.nextPageToken,
+                Err: () => true
+            });
+            if (finished) return received;
+        }
+    });
 }
 
 function scanLibraryPage(

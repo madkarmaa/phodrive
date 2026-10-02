@@ -53,6 +53,10 @@ export const SERVER_ERRORS = {
         message: 'Could not close temporary file storage.'
     },
     INVALID_PAGE_TOKEN: { code: 'INVALID_PAGE_TOKEN', message: 'Invalid page token' },
+    REPEATED_LIBRARY_PAGE: {
+        code: 'REPEATED_LIBRARY_PAGE',
+        message: 'Google Photos repeated a library page. Refresh to try again.'
+    },
     MISSING_MEDIA_KEY: { code: 'MISSING_MEDIA_KEY', message: 'Missing media key' },
     HASH_LOOKUP_MISMATCH: { code: 'HASH_LOOKUP_MISMATCH', message: 'Hash lookup mismatch' },
     COMMIT_TOKEN_MISMATCH: { code: 'COMMIT_TOKEN_MISMATCH', message: 'Commit token mismatch' },

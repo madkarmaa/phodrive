@@ -19,18 +19,11 @@ export function pageRequest(resume: Buffer): Result<Buffer, ServerError> {
             .andThen(parse)
             .map((outer) => ({ fields, outer }))
     );
-    const contents = envelope.andThen(({ fields, outer }) =>
-        bytes(outer, 1)
-            .andThen(parse)
-            .map((inner) => ({ fields, outer, inner }))
-    );
 
-    return contents.map(({ fields, outer, inner }) => {
-        const updatedInner = inner.filter((field) => field.number !== 4);
-        updatedInner.push({ number: 4, value: resume });
-        const updatedOuter = outer.map((field) =>
-            field.number === 1 ? { number: 1, value: encodeFields(updatedInner) } : field
-        );
+    return envelope.map(({ fields, outer }) => {
+        // The resume token belongs at 1.4; 1.1 contains the media metadata mask.
+        const updatedOuter = outer.filter((field) => field.number !== 4);
+        updatedOuter.push({ number: 4, value: resume });
 
         return encodeFields(
             fields.map((field) =>

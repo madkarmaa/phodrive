@@ -5,6 +5,7 @@ import Varint from 'varint';
 import { encodeSplitBmp } from '$server/bmp';
 import { downloadBmp, listBmps, moveToTrash, uploadBmp, validateAasAccount } from '$server/photos';
 import type { Fetcher } from '$server/fetcher';
+import { nested } from '$server/protobuf';
 
 function varint(value: number): Buffer {
     return Buffer.from(Varint.encode(value));
@@ -193,147 +194,195 @@ test('download verifies the original and trash targets its dedup key', async () 
     expect(step).toBe(5);
 });
 
-test('library finds renamed BMP chunks from their headers and ignores ordinary photos', async () => {
-    const fileHash = 'a'.repeat(64);
-    const first = Buffer.from(
-        encodeSplitBmp(Uint8Array.of(1, 2), {
-            fileHash,
-            fileId: fileHash,
-            chunkIndex: 0,
-            flags: 0,
-            payloadSize: 2,
-            fileName: 'original.bin'
-        }).unwrap()
-    );
-    const last = Buffer.from(
-        encodeSplitBmp(Uint8Array.of(3), {
-            fileHash,
-            fileId: fileHash,
-            chunkIndex: 1,
-            flags: 1,
-            payloadSize: 1
-        }).unwrap()
-    );
-    const ordinary = Buffer.alloc(first.length);
-    const originals = new Map([
-        ['renamed-first', first],
-        ['renamed-last', last],
-        ['ordinary-photo', ordinary]
-    ]);
-    const fingerprint = (data: Buffer) => createHash('sha1').update(data).digest();
-    const item = (key: string, remoteName: string, trashed = false) => {
-        const data = originals.get(key) ?? first;
-        const details = Buffer.concat([
-            bytes(4, remoteName),
-            num(9, 42),
-            num(10, data.length),
-            bytes(13, bytes(1, fingerprint(data))),
-            ...(trashed ? [bytes(16, num(3, 1))] : [])
+test.each([false, true])(
+    'library discovers file pages and hides empty continuations (empty final page: %s)',
+    async (emptyFinalPage) => {
+        const fileHash = 'a'.repeat(64);
+        const first = Buffer.from(
+            encodeSplitBmp(Uint8Array.of(1, 2), {
+                fileHash,
+                fileId: fileHash,
+                chunkIndex: 0,
+                flags: 0,
+                payloadSize: 2,
+                fileName: 'original.bin'
+            }).unwrap()
+        );
+        const last = Buffer.from(
+            encodeSplitBmp(Uint8Array.of(3), {
+                fileHash,
+                fileId: fileHash,
+                chunkIndex: 1,
+                flags: 1,
+                payloadSize: 1
+            }).unwrap()
+        );
+        const ordinary = Buffer.alloc(first.length);
+        const originals = new Map([
+            ['renamed-first', first],
+            ['renamed-last', last],
+            ['ordinary-photo', ordinary]
+        ]);
+        const fingerprint = (data: Buffer) => createHash('sha1').update(data).digest();
+        const item = (key: string, remoteName: string, trashed = false) => {
+            const data = originals.get(key) ?? first;
+            const details = Buffer.concat([
+                bytes(4, remoteName),
+                num(9, 42),
+                num(10, data.length),
+                bytes(13, bytes(1, fingerprint(data))),
+                ...(trashed ? [bytes(16, num(3, 1))] : [])
+            ]);
+
+            return bytes(2, Buffer.concat([bytes(1, key), bytes(2, details)]));
+        };
+        const firstPage = bytes(
+            1,
+            Buffer.concat([
+                bytes(1, 'empty-page'),
+                item('renamed-first', 'vacation.jpg'),
+                item('ordinary-photo', 'family.jpg')
+            ])
+        );
+        const secondPage = emptyFinalPage
+            ? bytes(1, bytes(6, 'next-sync'))
+            : bytes(
+                  1,
+                  Buffer.concat([
+                      item('renamed-first', 'deleted-copy.bmp', true),
+                      item('renamed-last', 'untitled')
+                  ])
+              );
+        let libraryCalls = 0;
+        let prefixCalls = 0;
+        let failPrefix = false;
+
+        const fakeFetch: Fetcher = async (input, init) => {
+            const url = String(input);
+            if (url.includes('android.googleapis.com/auth'))
+                return new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`);
+
+            if (url.includes('18047484249733410717')) {
+                const requestBytes = await new Response(init?.body).arrayBuffer();
+                const body = Buffer.from(requestBytes);
+                libraryCalls++;
+                const requestToken = nested(body, 1, 4).match({
+                    Ok: (value) => value.toString(),
+                    Err: () => ''
+                });
+                expect(['', 'empty-page', 'next-page']).toContain(requestToken);
+                const response =
+                    requestToken === ''
+                        ? firstPage
+                        : requestToken === 'empty-page'
+                          ? bytes(1, bytes(1, 'next-page'))
+                          : secondPage;
+                return new Response(Uint8Array.from(response));
+            }
+
+            if (url.includes('PhotosPrepareDownload')) {
+                const requestBytes = await new Response(init?.body).arrayBuffer();
+                const request = Buffer.from(requestBytes);
+                const entry = [...originals].find(([key]) => request.includes(Buffer.from(key)));
+                if (!entry) throw new Error('Missing test item');
+
+                const [key, data] = entry;
+                const metadata = bytes(
+                    1,
+                    Buffer.concat([
+                        bytes(1, key),
+                        bytes(2, bytes(13, bytes(1, fingerprint(data)))),
+                        bytes(5, bytes(2, bytes(5, `https://lh3.googleusercontent.com/p/${key}=d`)))
+                    ])
+                );
+                return new Response(Uint8Array.from(metadata));
+            }
+
+            const key = url.split('/').pop()?.replace('=d', '') ?? '';
+            const data = originals.get(key);
+            if (!data) throw new Error('Missing test photo');
+            expect(new Headers(init?.headers).get('range')).toBe('bytes=0-65535');
+            prefixCalls++;
+            if (failPrefix && key === 'renamed-first') return new Response(null, { status: 503 });
+
+            return new Response(Uint8Array.from(data), { status: 206 });
+        };
+
+        const firstResult = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
+        const firstItems = firstResult.unwrap();
+        expect(firstItems.items).toEqual([
+            {
+                originalName: 'original.bin',
+                fileHash,
+                fileId: fileHash,
+                chunkIndex: 0,
+                isLast: false,
+                size: 2,
+                at: 42,
+                mediaKey: 'renamed-first',
+                sha1: fingerprint(first).toString('hex')
+            }
         ]);
 
-        return bytes(2, Buffer.concat([bytes(1, key), bytes(2, details)]));
-    };
-    const firstPage = bytes(
-        1,
-        Buffer.concat([
-            bytes(1, 'next-page'),
-            item('renamed-first', 'vacation.jpg'),
-            item('ordinary-photo', 'family.jpg')
-        ])
-    );
-    const secondPage = bytes(
-        1,
-        Buffer.concat([
-            item('renamed-first', 'deleted-copy.bmp', true),
-            item('renamed-last', 'untitled')
-        ])
-    );
-    let libraryCalls = 0;
-    let prefixCalls = 0;
-    let failPrefix = false;
+        expect(firstItems.nextPageToken).toBe(
+            emptyFinalPage ? '' : Buffer.from('next-page').toString('base64url')
+        );
+        expect(libraryCalls).toBe(3);
 
-    const fakeFetch: Fetcher = async (input, init) => {
-        const url = String(input);
-        if (url.includes('android.googleapis.com/auth'))
+        if (!emptyFinalPage) {
+            const secondResult = await listBmps(
+                'test@example.com',
+                'aas_et/test',
+                firstItems.nextPageToken,
+                fakeFetch
+            );
+            expect(secondResult.unwrap().items).toEqual([
+                {
+                    originalName: undefined,
+                    fileHash,
+                    fileId: fileHash,
+                    chunkIndex: 1,
+                    isLast: true,
+                    size: 1,
+                    at: 42,
+                    mediaKey: 'renamed-last',
+                    sha1: fingerprint(last).toString('hex')
+                }
+            ]);
+            expect(libraryCalls).toBe(4);
+            expect(prefixCalls).toBe(4);
+        }
+
+        failPrefix = true;
+        libraryCalls = 0;
+
+        const failedRefresh = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
+        expect(failedRefresh.unwrapErr().message).toBe('Could not inspect photo header');
+    }
+);
+
+test('library lookahead propagates failures and rejects repeated continuation tokens', async () => {
+    let failContinuation = false;
+    let libraryCalls = 0;
+    const fakeFetch: Fetcher = async (input) => {
+        if (String(input).includes('android.googleapis.com/auth'))
             return new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`);
 
-        if (url.includes('18047484249733410717')) {
-            const requestBytes = await new Response(init?.body).arrayBuffer();
-            const body = Buffer.from(requestBytes);
-            if (libraryCalls++) expect(body.includes(Buffer.from('next-page'))).toBe(true);
-            else expect(body.includes(Buffer.from('next-page'))).toBe(false);
-            return new Response(Uint8Array.from(libraryCalls === 1 ? firstPage : secondPage));
-        }
+        libraryCalls++;
+        if (failContinuation && libraryCalls > 1) return new Response(null, { status: 503 });
 
-        if (url.includes('PhotosPrepareDownload')) {
-            const requestBytes = await new Response(init?.body).arrayBuffer();
-            const request = Buffer.from(requestBytes);
-            const entry = [...originals].find(([key]) => request.includes(Buffer.from(key)));
-            if (!entry) throw new Error('Missing test item');
-
-            const [key, data] = entry;
-            const metadata = bytes(
-                1,
-                Buffer.concat([
-                    bytes(1, key),
-                    bytes(2, bytes(13, bytes(1, fingerprint(data)))),
-                    bytes(5, bytes(2, bytes(5, `https://lh3.googleusercontent.com/p/${key}=d`)))
-                ])
-            );
-            return new Response(Uint8Array.from(metadata));
-        }
-
-        const key = url.split('/').pop()?.replace('=d', '') ?? '';
-        const data = originals.get(key);
-        if (!data) throw new Error('Missing test photo');
-        expect(new Headers(init?.headers).get('range')).toBe('bytes=0-65535');
-        prefixCalls++;
-        if (failPrefix && key === 'renamed-first') return new Response(null, { status: 503 });
-
-        return new Response(Uint8Array.from(data), { status: 206 });
+        return new Response(Uint8Array.from(bytes(1, bytes(1, 'repeat-page'))));
     };
 
-    const firstResult = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
-    const firstItems = firstResult.unwrap();
-    expect(firstItems.items).toEqual([
-        {
-            originalName: 'original.bin',
-            fileHash,
-            fileId: fileHash,
-            chunkIndex: 0,
-            isLast: false,
-            size: 2,
-            at: 42,
-            mediaKey: 'renamed-first',
-            sha1: fingerprint(first).toString('hex')
-        }
-    ]);
+    const repeated = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
 
-    const secondResult = await listBmps(
-        'test@example.com',
-        'aas_et/test',
-        firstItems.nextPageToken,
-        fakeFetch
-    );
-    expect(secondResult.unwrap().items).toEqual([
-        {
-            originalName: undefined,
-            fileHash,
-            fileId: fileHash,
-            chunkIndex: 1,
-            isLast: true,
-            size: 1,
-            at: 42,
-            mediaKey: 'renamed-last',
-            sha1: fingerprint(last).toString('hex')
-        }
-    ]);
+    expect(repeated.unwrapErr().code).toBe('REPEATED_LIBRARY_PAGE');
     expect(libraryCalls).toBe(2);
-    expect(prefixCalls).toBe(3);
 
-    failPrefix = true;
     libraryCalls = 0;
+    failContinuation = true;
+    const failed = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
 
-    const failedRefresh = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
-    expect(failedRefresh.unwrapErr().message).toBe('Could not inspect photo header');
+    expect(failed.unwrapErr().message).toBe('Library list failed (HTTP 503)');
+    expect(libraryCalls).toBe(2);
 });
