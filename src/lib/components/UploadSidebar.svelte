@@ -19,13 +19,11 @@
     let picker: HTMLInputElement;
 </script>
 
-<aside
-    class="min-w-0 px-4 pt-2 pb-8 max-[800px]:flex max-[800px]:flex-wrap max-[800px]:items-center max-[800px]:gap-3 max-[800px]:pb-4"
-    aria-label="Navigation and accounts"
->
+<aside class="upload-sidebar min-w-0 px-4 pt-2 pb-8" aria-label="Navigation and accounts">
     <ExtendedFab
         class="upload-button"
         label="Upload"
+        aria-label="Upload"
         variant="secondary-container"
         {disabled}
         onclick={() => (connected ? picker.click() : onconnect())}
@@ -52,6 +50,7 @@
     <NavigationDrawer class="drive-navigation" aria-label="Main">
         <NavigationDrawerItem
             label="My files"
+            aria-label="My files"
             selected={view === AppView.Files}
             aria-current={view === AppView.Files ? 'page' : undefined}
             onclick={() => onnavigate(AppView.Files)}
@@ -60,6 +59,7 @@
         </NavigationDrawerItem>
         <NavigationDrawerItem
             label="Settings"
+            aria-label="Settings"
             selected={view === AppView.Settings}
             aria-current={view === AppView.Settings ? 'page' : undefined}
             onclick={() => onnavigate(AppView.Settings)}
@@ -70,6 +70,10 @@
 </aside>
 
 <style>
+    .upload-sidebar {
+        container: mobile-navigation / inline-size;
+    }
+
     :global(:root .upload-button.np-extended-fab) {
         height: 56px;
         min-width: 110px;
@@ -101,11 +105,20 @@
         gap: 16px;
     }
 
-    @media (max-width: 800px) {
+    @media (width < 800px) {
+        .upload-sidebar {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 16px;
+        }
+
         :global(:root .upload-button.np-extended-fab) {
             height: 46px;
             min-width: 100px;
             margin: 0;
+            flex-shrink: 0;
         }
         :global(:root .drive-navigation.np-navigation-drawer-container) {
             width: auto;
@@ -116,6 +129,38 @@
         :global(:root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer-item) {
             width: auto;
             padding-inline: 13px;
+            flex-shrink: 0;
+        }
+
+        @container mobile-navigation (max-width: 360px) {
+            :global(:root .upload-button.np-extended-fab) {
+                width: 46px;
+                min-width: 46px;
+                padding: 0;
+                gap: 0;
+                justify-content: center;
+            }
+
+            :global(:root .upload-button.np-extended-fab .np-fab-label),
+            :global(
+                :root
+                    .drive-navigation
+                    .np-navigation-drawer-item:not([aria-current='page'])
+                    .np-navigation-drawer-item-label
+            ) {
+                display: none;
+            }
+
+            :global(
+                :root
+                    .drive-navigation.np-navigation-drawer-container
+                    .np-navigation-drawer-item:not([aria-current='page'])
+            ) {
+                width: 44px;
+                padding: 0;
+                justify-content: center;
+                gap: 0;
+            }
         }
     }
 
