@@ -7,12 +7,15 @@
     import darkLogo from '$assets/favicon.svg';
     import lightLogo from '$assets/favicon-light.svg';
     import IconRefresh from '~icons/material-symbols/refresh';
+    import IconMenu from '~icons/material-symbols/menu';
 
     interface Props {
         search?: string;
         email: string;
         theme: ThemeMode;
         menuOpen: boolean;
+        navigationOpen: boolean;
+        onnavigation: () => void;
         refreshing: boolean;
         refreshDisabled: boolean;
         onrefresh: () => void;
@@ -25,6 +28,8 @@
         email,
         theme,
         menuOpen,
+        navigationOpen,
+        onnavigation,
         refreshing,
         refreshDisabled,
         onrefresh,
@@ -50,8 +55,19 @@
 
 <AppBar variant="search" class="shell-header col-span-full">
     {#snippet leading()}
+        <div class="min-[800px]:hidden">
+            <IconButton
+                title="Open navigation"
+                aria-controls="main-navigation"
+                aria-expanded={navigationOpen}
+                aria-haspopup="dialog"
+                onclick={onnavigation}
+            >
+                <IconMenu aria-hidden="true" />
+            </IconButton>
+        </div>
         <div
-            class="flex items-center gap-3 text-[22px] whitespace-nowrap text-subtle"
+            class="flex items-center gap-3 text-[22px] whitespace-nowrap text-subtle max-[800px]:hidden"
             aria-label="Phodrive"
         >
             <img src={logo} alt="" class="size-10 max-[520px]:size-8" />

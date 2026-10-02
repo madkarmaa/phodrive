@@ -27,6 +27,7 @@
     const drive = new DriveController(untrack(() => data.preferencesDefaults));
     const actionsDisabled = $derived(drive.busy || !!drive.fileAction);
     let view = $state<AppView>(AppView.Files);
+    let navigationOpen = $state(false);
     let accountButton = $state<HTMLElement>();
 
     onMount(() => drive.initialize());
@@ -47,7 +48,7 @@
 </svelte:head>
 
 <div
-    class="grid min-h-screen grid-cols-[256px_minmax(0,1fr)] grid-rows-[64px_minmax(calc(100vh-64px),auto)] max-[800px]:grid-cols-1 max-[800px]:grid-rows-[72px_auto_1fr]"
+    class="grid min-h-screen grid-cols-[256px_minmax(0,1fr)] grid-rows-[64px_minmax(calc(100vh-64px),auto)] max-[800px]:grid-cols-1 max-[800px]:grid-rows-[72px_minmax(calc(100vh-72px),auto)]"
 >
     <ConfirmDialog
         bind:open={drive.confirmOpen}
@@ -60,6 +61,8 @@
         email={drive.selectedEmail}
         theme={drive.themeMode}
         menuOpen={drive.accountMenuOpen}
+        {navigationOpen}
+        onnavigation={() => (navigationOpen = true)}
         refreshing={drive.libraryLoading}
         refreshDisabled={!drive.selectedEmail || actionsDisabled || drive.libraryLoading}
         onrefresh={() => {
@@ -86,6 +89,7 @@
     />
 
     <UploadSidebar
+        bind:open={navigationOpen}
         connected={!!drive.selectedEmail}
         disabled={actionsDisabled || drive.libraryLoading}
         {view}

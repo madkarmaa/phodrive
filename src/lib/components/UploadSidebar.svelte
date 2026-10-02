@@ -1,11 +1,14 @@
 <script lang="ts">
-    import { ExtendedFab, Fab, NavigationDrawer, NavigationDrawerItem } from 'noph-ui';
+    import { ExtendedFab, Fab, IconButton, NavigationDrawer, NavigationDrawerItem } from 'noph-ui';
+    import { MediaQuery } from 'svelte/reactivity';
     import { AppView } from '$lib/models';
     import IconAdd from '~icons/material-symbols/add';
     import IconHome from '~icons/material-symbols/home-outline';
     import IconSettings from '~icons/material-symbols/settings-outline';
+    import IconClose from '~icons/material-symbols/close';
 
     interface Props {
+        open?: boolean;
         connected: boolean;
         disabled: boolean;
         view: AppView;
@@ -14,9 +17,27 @@
         onconnect: () => void;
     }
 
-    let { connected, disabled, view, onnavigate, onupload, onconnect }: Props = $props();
+    let {
+        open = $bindable(false),
+        connected,
+        disabled,
+        view,
+        onnavigate,
+        onupload,
+        onconnect
+    }: Props = $props();
 
     let picker: HTMLInputElement;
+    const mobile = new MediaQuery('(width < 800px)');
+
+    $effect(() => {
+        if (!mobile.current) open = false;
+    });
+
+    function navigate(nextView: AppView) {
+        open = false;
+        onnavigate(nextView);
+    }
 </script>
 
 <aside class="upload-sidebar min-w-0 px-4 pt-2 pb-8" aria-label="Navigation and accounts">
@@ -47,13 +68,28 @@
         }}
     />
 
-    <NavigationDrawer class="drive-navigation" aria-label="Main">
+    <NavigationDrawer
+        id="main-navigation"
+        class={mobile.current ? 'mobile-navigation' : 'drive-navigation'}
+        aria-label="Main"
+        modal={mobile.current}
+        backdrop
+        bind:open
+    >
+        {#if mobile.current}
+            <div class="mb-4 flex items-center justify-between gap-4 pl-4">
+                <span class="text-xl text-text">Phodrive</span>
+                <IconButton title="Close navigation" onclick={() => (open = false)}>
+                    <IconClose aria-hidden="true" />
+                </IconButton>
+            </div>
+        {/if}
         <NavigationDrawerItem
             label="My files"
             aria-label="My files"
             selected={view === AppView.Files}
             aria-current={view === AppView.Files ? 'page' : undefined}
-            onclick={() => onnavigate(AppView.Files)}
+            onclick={() => navigate(AppView.Files)}
         >
             {#snippet icon()}<IconHome aria-hidden="true" class="size-5 shrink-0" />{/snippet}
         </NavigationDrawerItem>
@@ -62,7 +98,7 @@
             aria-label="Settings"
             selected={view === AppView.Settings}
             aria-current={view === AppView.Settings ? 'page' : undefined}
-            onclick={() => onnavigate(AppView.Settings)}
+            onclick={() => navigate(AppView.Settings)}
         >
             {#snippet icon()}<IconSettings aria-hidden="true" class="size-5 shrink-0" />{/snippet}
         </NavigationDrawerItem>
@@ -84,6 +120,13 @@
 <style>
     .mobile-upload {
         display: none;
+    }
+
+    :global(.mobile-navigation) {
+        --np-navigation-drawer-width: min(320px, calc(100vw - 56px));
+        --np-navigation-drawer-padding: max(16px, env(safe-area-inset-top, 0px)) 12px 24px;
+        --np-color-secondary-container: var(--app-selected);
+        --np-color-on-secondary-container: var(--app-selected-text);
     }
 
     :global(:root .upload-button.np-extended-fab) {
@@ -119,11 +162,7 @@
 
     @media (width < 800px) {
         .upload-sidebar {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            gap: 12px;
-            padding-bottom: 16px;
+            display: contents;
         }
 
         :global(:root .upload-button.np-extended-fab) {
@@ -136,28 +175,6 @@
             right: calc(16px + env(safe-area-inset-right, 0px));
             bottom: calc(16px + env(safe-area-inset-bottom, 0px));
             z-index: 20;
-        }
-        :global(:root .drive-navigation.np-navigation-drawer-container) {
-            width: auto;
-        }
-        :global(:root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer) {
-            flex-direction: row;
-        }
-        :global(:root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer-item) {
-            width: auto;
-            padding-inline: 13px;
-            flex-shrink: 0;
-        }
-    }
-
-    @media (max-width: 520px) {
-        :global(:root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer-item) {
-            gap: 8px;
-        }
-        :global(
-            :root .drive-navigation.np-navigation-drawer-container .np-navigation-drawer-item-label
-        ) {
-            font-size: 13px;
         }
     }
 </style>
