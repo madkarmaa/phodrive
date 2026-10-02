@@ -96,13 +96,6 @@
         coverAnchor={false}
         class="filter-menu"
         aria-label={ariaLabel}
-        onkeydown={(event) => {
-            if (event.key !== 'Escape') return;
-
-            event.preventDefault();
-            menu?.close();
-            anchor?.focus();
-        }}
         ontoggle={(event) => {
             if (event.newState === 'open') focusSelection();
         }}
@@ -182,7 +175,7 @@
     }
 
     .filter-chip :global(.filter-menu .np-item) {
-        min-height: 40px;
+        --np-item-container-height: 40px;
         padding-block: 8px;
     }
 

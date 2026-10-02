@@ -21,6 +21,7 @@
         progress.completed + (progress.phase === UploadPhase.Uploading ? progress.reused : 0)
     );
     const percent = $derived(progress.total ? Math.round((processed / progress.total) * 100) : 0);
+    const indeterminate = $derived(progress.phase === UploadPhase.Receiving || !progress.total);
     const detail = $derived.by(() => {
         if (job.status === UploadJobStatus.Queued) return 'Waiting…';
         if (job.status === UploadJobStatus.Error) return job.message;
@@ -54,10 +55,11 @@
     {#snippet end()}
         {#if job.status === UploadJobStatus.Active}
             <CircularProgress
-                value={percent}
+                {indeterminate}
+                value={indeterminate ? undefined : percent}
                 max={100}
                 aria-label="Upload progress"
-                style="width: 24px; height: 24px"
+                --np-circular-progress-size="24px"
             />
         {:else if job.status === UploadJobStatus.Error}
             <IconError aria-hidden="true" class="size-6 shrink-0 text-error" />
@@ -78,7 +80,7 @@
 
 <style>
     :global(:root .upload-status-row.np-item) {
-        min-height: 64px;
+        --np-item-container-height: 64px;
         padding: 12px 16px;
         gap: 16px;
     }

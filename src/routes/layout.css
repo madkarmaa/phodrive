@@ -7,6 +7,7 @@
     --app-panel: var(--np-color-surface-container-low);
     --app-text: var(--np-color-on-surface);
     --app-muted: var(--np-color-on-surface-variant);
+    --app-subtle: var(--np-color-on-surface-variant);
     --app-search: var(--np-color-surface-container);
     --app-menu: var(--np-color-surface-container);
     --app-card: var(--np-color-surface-container);

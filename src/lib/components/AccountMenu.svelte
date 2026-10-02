@@ -26,10 +26,11 @@
         onadd,
         onsignout
     }: Props = $props();
-    let menu = $state<HTMLDivElement>();
+    let menuElement = $state<HTMLDivElement>();
+    let menu = $state<ReturnType<typeof Menu>>();
 
     function closeMenu() {
-        open = false;
+        menu?.close();
         anchor?.focus();
     }
 </script>
@@ -37,16 +38,24 @@
 <Menu
     id="account-menu"
     bind:open
-    bind:element={menu}
+    bind:element={menuElement}
+    bind:this={menu}
     {anchor}
     coverAnchor={false}
     aria-label="Accounts"
     class="account-menu"
     ontoggle={(event) => {
-        if (event.newState === 'open') menu?.querySelector<HTMLButtonElement>('button')?.focus();
+        if (event.newState === 'open')
+            menuElement?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     }}
 >
-    <IconButton class="account-close" size="xs" aria-label="Close account menu" onclick={closeMenu}>
+    <IconButton
+        class="account-close"
+        size="xs"
+        role="menuitem"
+        title="Close account menu"
+        onclick={closeMenu}
+    >
         <IconClose aria-hidden="true" />
     </IconButton>
 
@@ -134,11 +143,11 @@
         min-width: 0;
     }
     :global(:root .account-list .current-account) {
-        min-height: 82px;
+        --np-item-container-height: 82px;
         padding: 10px 18px;
     }
     :global(:root .account-list .account-row) {
-        min-height: 58px;
+        --np-item-container-height: 58px;
         border-top: 2px solid var(--app-menu);
         padding: 10px 18px;
     }
