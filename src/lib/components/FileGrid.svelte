@@ -1,17 +1,21 @@
 <script lang="ts">
     import { Button, LoadingIndicator } from 'noph-ui';
+    import { FileLayout, FileSort } from '$lib/models';
     import { fade } from 'svelte/transition';
     import { flip } from 'svelte/animate';
     import { prefersReducedMotion } from 'svelte/motion';
     import type { FileGroup, FileAction } from '$lib/file-groups';
     import { fileKey } from '$lib/file-groups';
     import FileCard from '$components/FileCard.svelte';
+    import FileList from '$components/FileList.svelte';
     import IconFolderOpen from '~icons/material-symbols/folder-open-outline';
 
     interface Props {
         files: FileGroup[];
+        layout: FileLayout;
+        sort: FileSort;
         loading: boolean;
-        message: string;
+        loadFailed: boolean;
         filtered: boolean;
         hasFiles: boolean;
         hasMore: boolean;
@@ -24,8 +28,10 @@
 
     let {
         files,
+        layout,
+        sort = $bindable(),
         loading,
-        message,
+        loadFailed,
         filtered,
         hasFiles,
         hasMore,
@@ -38,33 +44,35 @@
 </script>
 
 <section aria-labelledby="files-heading">
-    {#if message}<p role="alert" class="my-3.5 text-sm text-error">{message}</p>{/if}
-
     {#if files.length}
-        <ul
-            class="mt-4 grid list-none grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5 p-0 max-[520px]:grid-cols-1"
-        >
-            {#each files as item (fileKey(item))}
-                <li
-                    class="min-w-0"
-                    animate:flip={{ duration: prefersReducedMotion.current ? 0 : 180 }}
-                    transition:fade={{ duration: prefersReducedMotion.current ? 0 : 150 }}
-                >
-                    <FileCard
-                        {item}
-                        {disabled}
-                        working={action?.fileId === item.fileId ? action.kind : null}
-                        {ondownload}
-                        {ondelete}
-                    />
-                </li>
-            {/each}
-        </ul>
+        {#if layout === FileLayout.List}
+            <FileList {files} bind:sort {disabled} {action} {ondownload} {ondelete} />
+        {:else}
+            <ul
+                class="mt-4 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,220px),1fr))] gap-4 p-0"
+            >
+                {#each files as item (fileKey(item))}
+                    <li
+                        class="min-w-0"
+                        animate:flip={{ duration: prefersReducedMotion.current ? 0 : 180 }}
+                        transition:fade={{ duration: prefersReducedMotion.current ? 0 : 150 }}
+                    >
+                        <FileCard
+                            {item}
+                            {disabled}
+                            working={action?.fileId === item.fileId ? action.kind : null}
+                            {ondownload}
+                            {ondelete}
+                        />
+                    </li>
+                {/each}
+            </ul>
+        {/if}
     {:else}
         <div class="grid justify-items-center gap-3 px-6 py-22.5 text-center text-sm text-muted">
             {#if loading}
                 <LoadingIndicator aria-label="Loading Google Photos files" />
-            {:else if message}
+            {:else if loadFailed}
                 <p>Use Refresh to try loading your files again.</p>
             {:else if filtered && hasFiles}
                 <p>No files match your search or filters.</p>

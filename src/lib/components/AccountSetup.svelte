@@ -1,11 +1,11 @@
 <script lang="ts">
     import { Button, Card, TextField } from 'noph-ui';
+    import { NewAccountSchema } from '$lib/models';
 
     interface Props {
         email?: string;
         token?: string;
         connecting: boolean;
-        message: string;
         canCancel: boolean;
         onsave: () => void;
         oncancel: () => void;
@@ -15,11 +15,28 @@
         email = $bindable(''),
         token = $bindable(''),
         connecting,
-        message,
         canCancel,
         onsave,
         oncancel
     }: Props = $props();
+
+    let emailTouched = $state(false);
+    let tokenTouched = $state(false);
+    let emailInput = $state<HTMLInputElement | HTMLTextAreaElement>();
+    let tokenInput = $state<HTMLInputElement | HTMLTextAreaElement>();
+    const validation = $derived(
+        NewAccountSchema.safeParse({ email: email.trim(), token: token.trim() })
+    );
+    const emailIssues = $derived(
+        emailTouched && !validation.success
+            ? validation.error.issues.filter((issue) => issue.path[0] === 'email')
+            : undefined
+    );
+    const tokenIssues = $derived(
+        tokenTouched && !validation.success
+            ? validation.error.issues.filter((issue) => issue.path[0] === 'token')
+            : undefined
+    );
 </script>
 
 <div class="max-w-162.5">
@@ -33,8 +50,17 @@
 
             <form
                 class="mt-7 grid gap-4.5"
+                novalidate
                 onsubmit={(event) => {
                     event.preventDefault();
+                    emailTouched = true;
+                    tokenTouched = true;
+                    if (!validation.success) {
+                        const firstField = validation.error.issues[0]?.path[0];
+                        (firstField === 'email' ? emailInput : tokenInput)?.focus();
+                        return;
+                    }
+
                     onsave();
                 }}
             >
@@ -43,6 +69,10 @@
                         label="Google account email"
                         type="email"
                         bind:value={email}
+                        bind:inputElement={emailInput}
+                        issues={emailIssues}
+                        onblur={() => (emailTouched = true)}
+                        disabled={connecting}
                         autocomplete="email"
                         required
                     />
@@ -52,13 +82,23 @@
                         label="OAuth2 or AAS token"
                         type="password"
                         bind:value={token}
+                        bind:inputElement={tokenInput}
+                        issues={tokenIssues}
+                        onblur={() => (tokenTouched = true)}
+                        disabled={connecting}
                         autocomplete="off"
                         required
                     />
                 </div>
                 <div class="flex flex-wrap items-center gap-2.5">
-                    <Button type="submit" variant="filled" size="s" disabled={connecting}>
-                        {connecting ? 'Connecting…' : 'Save account'}
+                    <Button
+                        type="submit"
+                        variant="filled"
+                        size="s"
+                        loading={connecting}
+                        loadingAriaLabel="Connecting account"
+                    >
+                        Save account
                     </Button>
                     {#if canCancel}
                         <Button
@@ -73,8 +113,6 @@
                     {/if}
                 </div>
             </form>
-
-            {#if message}<p role="alert" class="mt-3.5 text-sm text-error">{message}</p>{/if}
         </div>
     </Card>
 

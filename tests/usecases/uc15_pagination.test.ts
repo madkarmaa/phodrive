@@ -128,7 +128,7 @@ test('load more deduplicates chunks and disables further loading after a cyclic 
 
     await drive.loadFiles();
     await drive.loadFiles(false);
-    expect(drive.galleryMessage).toContain('repeated a library page');
+    expect(drive.feedbackMessage).toContain('repeated a library page');
     expect(drive.nextPageToken).toBe('');
     await drive.loadFiles(false);
 

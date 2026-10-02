@@ -132,5 +132,5 @@ test('manual refresh replaces completed initial data and clears the loading stat
 
     expect(drive.libraryLoading).toBe(false);
     expect(drive.uploads.map(({ mediaKey }) => mediaKey)).toEqual(['refreshed']);
-    expect(drive.galleryMessage).toBe('');
+    expect(drive.feedbackMessage).toBe('');
 });

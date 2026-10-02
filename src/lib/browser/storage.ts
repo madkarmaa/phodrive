@@ -6,6 +6,9 @@ import {
     ConcurrentWorkersSchema,
     DEFAULT_PREFERENCES_DEFAULTS,
     FileSortSchema,
+    FileLayoutSchema,
+    FileLayout,
+    DEFAULT_FILE_LAYOUT,
     MAX_CONCURRENT_WORKERS,
     MAX_REFRESH_INTERVAL_SECONDS,
     RefreshIntervalSchema,
@@ -21,6 +24,7 @@ export const ACCOUNTS_KEY = 'accounts';
 export const SELECTED_KEY = 'selectedAccount';
 export const THEME_KEY = 'phodrive-theme';
 export const FILE_SORT_KEY = 'phodrive-sort';
+export const FILE_LAYOUT_KEY = 'phodrive-layout';
 export const REFRESH_INTERVAL_KEY = 'phodrive-refresh-interval';
 export const CONCURRENT_WORKERS_KEY = 'phodrive-concurrent-workers';
 export const NEXT_THEME: Record<ThemeMode, ThemeMode> = {
@@ -77,6 +81,15 @@ export const FILE_SORT_SERIALIZER = {
     serialize: (order: FileSort | undefined) => order ?? '',
     deserialize: (raw: string): FileSort | undefined => {
         const parsed = FileSortSchema.safeParse(raw);
+
+        return parsed.success ? parsed.data : undefined;
+    }
+};
+
+export const FILE_LAYOUT_SERIALIZER = {
+    serialize: (layout: FileLayout | undefined) => layout ?? '',
+    deserialize: (raw: string): FileLayout | undefined => {
+        const parsed = FileLayoutSchema.safeParse(raw);
 
         return parsed.success ? parsed.data : undefined;
     }
@@ -197,6 +210,11 @@ export class BrowserPreferences {
         undefined,
         { serializer: REFRESH_INTERVAL_SERIALIZER }
     );
+    private readonly fileLayoutState = new PersistedState<FileLayout | undefined>(
+        FILE_LAYOUT_KEY,
+        undefined,
+        { serializer: FILE_LAYOUT_SERIALIZER }
+    );
     private readonly concurrentWorkersState = new PersistedState<number | null | undefined>(
         CONCURRENT_WORKERS_KEY,
         undefined,
@@ -230,6 +248,13 @@ export class BrowserPreferences {
         });
     }
 
+    get fileLayout(): FileLayout {
+        return readState(this.fileLayoutState).match({
+            Ok: (value) => value ?? DEFAULT_FILE_LAYOUT,
+            Err: () => DEFAULT_FILE_LAYOUT
+        });
+    }
+
     get refreshIntervalSeconds(): number {
         return readState(this.refreshIntervalState).match({
             Ok: (value) => value ?? this.defaults.refreshIntervalSeconds,
@@ -260,6 +285,10 @@ export class BrowserPreferences {
 
     saveFileSort(order: FileSort): Result<void, ApplicationError> {
         return writeState(this.fileSortState, order);
+    }
+
+    saveFileLayout(layout: FileLayout): Result<void, ApplicationError> {
+        return writeState(this.fileLayoutState, layout);
     }
 
     saveRefreshInterval(seconds: number): Result<void, ApplicationError> {

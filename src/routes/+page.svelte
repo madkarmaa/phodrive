@@ -14,6 +14,7 @@
     import UploadPanel from '$components/UploadPanel.svelte';
     import FileFilters from '$components/FileFilters.svelte';
     import FileGrid from '$components/FileGrid.svelte';
+    import LayoutToggle from '$components/LayoutToggle.svelte';
     import SettingsPanel from '$components/SettingsPanel.svelte';
     import ErrorFeedback from '$components/ErrorFeedback.svelte';
 
@@ -33,7 +34,7 @@
     function addAccount() {
         view = AppView.Files;
         drive.adding = true;
-        drive.message = '';
+        drive.feedbackMessage = '';
     }
 </script>
 
@@ -68,7 +69,7 @@
         bind:accountButton
     />
 
-    <ErrorFeedback bind:message={drive.themeError} />
+    <ErrorFeedback bind:message={drive.feedbackMessage} />
 
     <AccountMenu
         bind:open={drive.accountMenuOpen}
@@ -104,7 +105,6 @@
                 refreshIntervalSeconds={drive.refreshIntervalSeconds}
                 concurrentWorkers={drive.concurrentWorkers}
                 theme={drive.themeMode}
-                error={drive.settingsError}
                 onrefreshinterval={(seconds) => drive.chooseRefreshInterval(seconds)}
                 onworkers={(workers) => drive.chooseConcurrentWorkers(workers)}
                 onresetrefreshinterval={() => drive.resetRefreshInterval()}
@@ -123,14 +123,13 @@
                     bind:email={drive.newEmail}
                     bind:token={drive.newToken}
                     connecting={drive.connecting}
-                    message={drive.message}
                     canCancel={!!drive.selectedEmail}
                     onsave={() => {
                         void drive.saveAccount();
                     }}
                     oncancel={() => {
                         drive.adding = false;
-                        drive.message = '';
+                        drive.feedbackMessage = '';
                     }}
                 />
             </div>
@@ -140,6 +139,7 @@
                     <h1 id="files-heading">
                         My files <span class="text-subtle">({drive.visibleUploads.length})</span>
                     </h1>
+                    <LayoutToggle bind:layout={drive.fileLayout} />
                 </div>
 
                 <FileFilters
@@ -150,8 +150,10 @@
                 />
                 <FileGrid
                     files={drive.visibleUploads}
+                    layout={drive.fileLayout}
+                    bind:sort={drive.fileSort}
                     loading={drive.libraryLoading}
-                    message={drive.galleryMessage}
+                    loadFailed={drive.libraryLoadFailed}
                     filtered={!!(drive.searchTerm || drive.typeFilter || drive.modifiedDays)}
                     hasFiles={!!drive.files.length}
                     hasMore={!!drive.nextPageToken}

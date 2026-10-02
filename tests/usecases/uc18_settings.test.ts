@@ -68,7 +68,7 @@ test('controller saves boundary settings and leaves rejected extremes unchanged'
     controller.chooseRefreshInterval(0);
     expect(controller.refreshIntervalSeconds).toBe(0);
     expect(storage.getItem(REFRESH_INTERVAL_KEY)).toBe('0');
-    expect(controller.settingsError).toBe('');
+    expect(controller.feedbackMessage).toBe('');
 
     controller.chooseRefreshInterval(MAX_REFRESH_INTERVAL_SECONDS);
     expect(controller.refreshIntervalSeconds).toBe(MAX_REFRESH_INTERVAL_SECONDS);
@@ -78,15 +78,15 @@ test('controller saves boundary settings and leaves rejected extremes unchanged'
 
     controller.chooseConcurrentWorkers(MAX_CONCURRENT_WORKERS);
     expect(controller.concurrentWorkers).toBe(MAX_CONCURRENT_WORKERS);
-    expect(controller.settingsError).toBe('');
+    expect(controller.feedbackMessage).toBe('');
 
     controller.chooseRefreshInterval(MAX_REFRESH_INTERVAL_SECONDS + 1);
     expect(controller.refreshIntervalSeconds).toBe(MAX_REFRESH_INTERVAL_SECONDS);
-    expect(controller.settingsError).toMatch(/whole number/);
+    expect(controller.feedbackMessage).toMatch(/whole number/);
 
     controller.chooseConcurrentWorkers(MAX_CONCURRENT_WORKERS + 1);
     expect(controller.concurrentWorkers).toBe(MAX_CONCURRENT_WORKERS);
-    expect(controller.settingsError).toMatch(/whole number/);
+    expect(controller.feedbackMessage).toMatch(/whole number/);
 });
 
 test('controller rejects fractional, NaN, infinite, and blank numeric input without changing saved values', () => {
@@ -98,23 +98,23 @@ test('controller rejects fractional, NaN, infinite, and blank numeric input with
     for (const seconds of [0.5, Number.NaN, Infinity]) {
         controller.chooseRefreshInterval(seconds);
         expect(controller.refreshIntervalSeconds).toBe(90);
-        expect(controller.settingsError).not.toBe('');
+        expect(controller.feedbackMessage).not.toBe('');
     }
 
     // An empty number field is submitted as an empty string; Number('') coerces it to 0.
     controller.chooseRefreshInterval(Number(''));
     expect(controller.refreshIntervalSeconds).toBe(0);
-    expect(controller.settingsError).toBe('');
+    expect(controller.feedbackMessage).toBe('');
 
     for (const workers of [1.5, Number.NaN, Infinity]) {
         controller.chooseConcurrentWorkers(workers);
         expect(controller.concurrentWorkers).toBe(4);
-        expect(controller.settingsError).not.toBe('');
+        expect(controller.feedbackMessage).not.toBe('');
     }
 
     controller.chooseConcurrentWorkers(Number(''));
     expect(controller.concurrentWorkers).toBe(4);
-    expect(controller.settingsError).not.toBe('');
+    expect(controller.feedbackMessage).not.toBe('');
 });
 
 test('reset returns settings to live deployment defaults and preserves other choices', () => {
@@ -136,7 +136,7 @@ test('reset returns settings to live deployment defaults and preserves other cho
     controller.resetConcurrentWorkers();
     expect(controller.concurrentWorkers).toBe(3);
     expect(storage.getItem(CONCURRENT_WORKERS_KEY)).toBeNull();
-    expect(controller.settingsError).toBe('');
+    expect(controller.feedbackMessage).toBe('');
 });
 
 test('theme selection updates the page and persists the chosen mode', () => {
@@ -147,7 +147,7 @@ test('theme selection updates the page and persists the chosen mode', () => {
     expect(controller.themeMode).toBe(ThemeMode.Dark);
     expect(document.documentElement.setAttribute).toHaveBeenCalledWith('theme', ThemeMode.Dark);
     expect(storage.getItem(THEME_KEY)).toBe(ThemeMode.Dark);
-    expect(controller.themeError).toBe('');
+    expect(controller.feedbackMessage).toBe('');
 });
 
 test('storage write failures are reported by settings and theme actions', () => {
@@ -156,10 +156,10 @@ test('storage write failures are reported by settings and theme actions', () => 
     const setItem = vi.spyOn(storage, 'setItem').mockImplementation(() => {});
 
     controller.chooseRefreshInterval(120);
-    expect(controller.settingsError).toContain('storage');
+    expect(controller.feedbackMessage).toContain('storage');
 
     controller.chooseTheme(ThemeMode.Light);
-    expect(controller.themeError).toContain('storage');
+    expect(controller.feedbackMessage).toContain('storage');
     expect(controller.themeMode).toBe(ThemeMode.Light);
 
     setItem.mockRestore();

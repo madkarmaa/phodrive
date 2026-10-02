@@ -15,30 +15,27 @@
             if (!open) message = '';
         }
     }
-    iconAriaLabel="Dismiss theme error"
+    iconAriaLabel="Dismiss error"
 >
     {#snippet icon()}<IconClose aria-hidden="true" />{/snippet}
 </Snackbar>
 
 <style>
     :global(:root .error-feedback.np-snackbar[popover]) {
-        inset: 64px 72px auto auto;
+        inset: auto auto 24px 24px;
         margin: 0;
         min-width: 0;
-        max-width: min(320px, calc(100vw - 32px));
-        --np-snackbar-container-color: var(--app-panel);
-        --np-snackbar-text-color: var(--np-color-error);
-        --np-snackbar-container-shape: 10px;
+        max-width: min(560px, calc(100vw - 32px));
     }
 
     :global(:root .error-feedback.np-snackbar .np-snackbar-label) {
         text-wrap: wrap;
+        overflow-wrap: anywhere;
     }
 
     @media (max-width: 800px) {
         :global(:root .error-feedback.np-snackbar[popover]) {
-            top: 72px;
-            right: 16px;
+            inset: auto 16px calc(88px + env(safe-area-inset-bottom, 0px));
         }
     }
 </style>

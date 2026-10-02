@@ -56,6 +56,14 @@ export enum FileSort {
     ModifiedAscending = 'modified-asc'
 }
 
+export enum FileLayout {
+    List = 'list',
+    Grid = 'grid'
+}
+
+export const DEFAULT_FILE_LAYOUT = FileLayout.List;
+export const FileLayoutSchema = z.enum(FileLayout);
+
 export const DEFAULT_REFRESH_INTERVAL_SECONDS = 60;
 export const MAX_REFRESH_INTERVAL_SECONDS = 86_400;
 export const DEFAULT_CONCURRENT_WORKERS = 8;
@@ -79,8 +87,12 @@ export const AccountSchema = z.object({
 });
 
 export const NewAccountSchema = z.object({
-    email: z.email(),
-    token: z.string().refine((value) => value.startsWith('oauth2_') || value.startsWith('aas_et/'))
+    email: z.email({ error: 'Enter a valid Google account email.' }),
+    token: z
+        .string()
+        .refine((value) => value.startsWith('oauth2_') || value.startsWith('aas_et/'), {
+            error: 'Enter an OAuth2 token starting with oauth2_ or an AAS token starting with aas_et/.'
+        })
 });
 
 export const StoredAccountsSchema = z.record(z.string(), z.unknown());

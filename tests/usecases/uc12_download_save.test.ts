@@ -170,7 +170,7 @@ test('browser save failures show an error and always clear the active file actio
 
     await drive.actOnFile(item, FileActionKind.Download);
 
-    expect(drive.galleryMessage).toBe('Could not save the downloaded file.');
+    expect(drive.feedbackMessage).toBe('Could not save the downloaded file.');
     expect(drive.fileAction).toBeNull();
     expect(drive.busy).toBe(false);
 });
@@ -198,6 +198,6 @@ test('failed download is surfaced and clears the active file action', async () =
 
     await drive.actOnFile(item, FileActionKind.Download);
 
-    expect(drive.galleryMessage).toBe('Could not receive the downloaded file.');
+    expect(drive.feedbackMessage).toBe('Could not receive the downloaded file.');
     expect(drive.fileAction).toBeNull();
 });

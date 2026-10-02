@@ -1,8 +1,9 @@
 import { ThemeMode, UploadJobStatus, UploadStatus } from '$lib/models';
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
-import { Ok } from 'results-ts';
+import { Err, Ok } from 'results-ts';
 import { DriveController } from '$browser/drive.svelte';
 import * as filesApi from '$browser/files';
+import * as libraryApi from '$browser/library';
 
 const { storage } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -81,6 +82,11 @@ test('retry keeps the original job ID and sends only its file, preserving other 
     const completed = drive.uploadJobs[0];
     const otherFailure = drive.uploadJobs[1];
 
+    expect(drive.feedbackMessage).toBe('Upload start failed');
+    drive.feedbackMessage = '';
+    expect(drive.uploadJobs[1]).toEqual(otherFailure);
+    expect(drive.uploadJobs[2].status).toBe(UploadJobStatus.Error);
+
     await drive.retryUpload(2);
 
     expect(upload).toHaveBeenCalledTimes(2);
@@ -104,4 +110,40 @@ test('retry keeps the original job ID and sends only its file, preserving other 
     await drive.retryUpload(1);
 
     expect(upload).toHaveBeenCalledTimes(2);
+});
+
+test('dismissing a library error preserves failed-load state and repeated errors can reappear', async () => {
+    const failure = {
+        code: 'REQUEST_FAILED',
+        message: 'Library list failed (HTTP 400)'
+    } as const;
+
+    vi.spyOn(libraryApi, 'readLibraryPage').mockImplementation(() =>
+        Ok(undefined).andThenAsync(async () => Err(failure))
+    );
+    vi.spyOn(libraryApi, 'readLibrarySnapshot')
+        .mockImplementationOnce(() => Ok(undefined).andThenAsync(async () => Err(failure)))
+        .mockImplementationOnce(() =>
+            Ok(undefined).andThenAsync(async () => Ok({ items: [], nextPageToken: '', pages: 1 }))
+        );
+
+    const drive = new DriveController();
+    drive.initialize();
+    await drive.loadFiles();
+
+    expect(drive.feedbackMessage).toBe(failure.message);
+    expect(drive.libraryLoadFailed).toBe(true);
+
+    drive.feedbackMessage = '';
+    expect(drive.libraryLoadFailed).toBe(true);
+
+    await drive.refreshFiles();
+    expect(drive.feedbackMessage).toBe(failure.message);
+    expect(drive.libraryLoadFailed).toBe(true);
+
+    drive.feedbackMessage = '';
+    await drive.refreshFiles();
+    expect(drive.libraryLoadFailed).toBe(false);
+    expect(drive.feedbackMessage).toBe('');
+    expect(drive.uploads).toEqual([]);
 });

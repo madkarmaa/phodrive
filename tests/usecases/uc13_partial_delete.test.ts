@@ -108,5 +108,5 @@ test('partial delete retains exact confirmations, retries remaining chunks, and 
         'other@example.com:shared-media-key'
     ]);
     expect(drive.uploads).toEqual([{ ...unrelated, email: 'other@example.com' }]);
-    expect(drive.galleryMessage).toBe('');
+    expect(drive.feedbackMessage).toBe('');
 });

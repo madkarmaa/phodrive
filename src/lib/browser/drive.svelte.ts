@@ -6,6 +6,8 @@ import {
     NewAccountSchema,
     ThemeSchema,
     FileSort,
+    FileLayout,
+    DEFAULT_FILE_LAYOUT,
     type PreferencesDefaults,
     ThemeMode
 } from '$lib/models';
@@ -52,16 +54,14 @@ export class DriveController {
     uploadPanelOpen = $state(false);
     uploadJobs = $state<UploadJob[]>([]);
     private uploadSources: readonly File[] = [];
-    message = $state('');
-    galleryMessage = $state('');
+    feedbackMessage = $state('');
+    libraryLoadFailed = $state(false);
     fileAction = $state<FileAction | null>(null);
     searchTerm = $state('');
     typeFilter = $state('');
     modifiedDays = $state('');
     accountMenuOpen = $state(false);
     themeMode = $state<ThemeMode>(ThemeMode.Auto);
-    themeError = $state('');
-    settingsError = $state('');
     confirmOpen = $state(false);
     confirmTarget = $state<ConfirmTarget | null>(null);
     files = $derived(groupChunks(this.uploads));
@@ -123,6 +123,25 @@ export class DriveController {
         return this.preferences?.fileSort ?? this.defaults.fileSort;
     }
 
+    get fileLayout(): FileLayout {
+        return this.preferences?.fileLayout ?? DEFAULT_FILE_LAYOUT;
+    }
+
+    set fileLayout(layout: FileLayout) {
+        const preferences = this.preferences;
+        if (!preferences) {
+            this.feedbackMessage = 'Could not save the layout preference in this browser.';
+            return;
+        }
+
+        preferences.saveFileLayout(layout).match({
+            Ok: () => {},
+            Err: (error) => {
+                this.feedbackMessage = error.message;
+            }
+        });
+    }
+
     get concurrentWorkers(): number {
         return this.preferences?.concurrentWorkers ?? this.defaults.concurrentWorkers;
     }
@@ -134,16 +153,16 @@ export class DriveController {
     chooseRefreshInterval(seconds: number) {
         const preferences = this.preferences;
         if (!preferences) {
-            this.settingsError = 'Could not save preferences in this browser.';
+            this.feedbackMessage = 'Could not save preferences in this browser.';
             return;
         }
 
         preferences.saveRefreshInterval(seconds).match({
             Ok: () => {
-                this.settingsError = '';
+                this.feedbackMessage = '';
             },
             Err: (error) => {
-                this.settingsError = error.message;
+                this.feedbackMessage = error.message;
             }
         });
     }
@@ -151,16 +170,16 @@ export class DriveController {
     chooseConcurrentWorkers(workers: number) {
         const preferences = this.preferences;
         if (!preferences) {
-            this.settingsError = 'Could not save preferences in this browser.';
+            this.feedbackMessage = 'Could not save preferences in this browser.';
             return;
         }
 
         preferences.saveConcurrentWorkers(workers).match({
             Ok: () => {
-                this.settingsError = '';
+                this.feedbackMessage = '';
             },
             Err: (error) => {
-                this.settingsError = error.message;
+                this.feedbackMessage = error.message;
             }
         });
     }
@@ -168,16 +187,16 @@ export class DriveController {
     resetRefreshInterval() {
         const preferences = this.preferences;
         if (!preferences) {
-            this.settingsError = 'Could not reset preferences in this browser.';
+            this.feedbackMessage = 'Could not reset preferences in this browser.';
             return;
         }
 
         preferences.resetRefreshInterval().match({
             Ok: () => {
-                this.settingsError = '';
+                this.feedbackMessage = '';
             },
             Err: (error) => {
-                this.settingsError = error.message;
+                this.feedbackMessage = error.message;
             }
         });
     }
@@ -185,16 +204,16 @@ export class DriveController {
     resetConcurrentWorkers() {
         const preferences = this.preferences;
         if (!preferences) {
-            this.settingsError = 'Could not reset preferences in this browser.';
+            this.feedbackMessage = 'Could not reset preferences in this browser.';
             return;
         }
 
         preferences.resetConcurrentWorkers().match({
             Ok: () => {
-                this.settingsError = '';
+                this.feedbackMessage = '';
             },
             Err: (error) => {
-                this.settingsError = error.message;
+                this.feedbackMessage = error.message;
             }
         });
     }
@@ -202,14 +221,14 @@ export class DriveController {
     set fileSort(order: FileSort) {
         const preferences = this.preferences;
         if (!preferences) {
-            this.galleryMessage = 'Could not save the sort preference in this browser.';
+            this.feedbackMessage = 'Could not save the sort preference in this browser.';
             return;
         }
 
         preferences.saveFileSort(order).match({
             Ok: () => {},
             Err: (error) => {
-                this.galleryMessage = error.message;
+                this.feedbackMessage = error.message;
             }
         });
     }
@@ -219,16 +238,16 @@ export class DriveController {
         this.themeMode = mode;
 
         if (!this.preferences) {
-            this.themeError = 'Could not save the theme preference in this browser.';
+            this.feedbackMessage = 'Could not save the theme preference in this browser.';
             return;
         }
 
         this.preferences.saveTheme(mode).match({
             Ok: () => {
-                this.themeError = '';
+                this.feedbackMessage = '';
             },
             Err: (error) => {
-                this.themeError = error.message;
+                this.feedbackMessage = error.message;
             }
         });
     }
@@ -242,7 +261,7 @@ export class DriveController {
                 this.preferences = preferences;
             },
             Err: (error) => {
-                this.message = error.message;
+                this.feedbackMessage = error.message;
             }
         });
 
@@ -266,6 +285,7 @@ export class DriveController {
             this.nextPageToken = '';
             this.loadedPages = 0;
             this.libraryPageTokens.clear();
+            this.libraryLoadFailed = false;
         }
 
         if (!email || !token) {
@@ -274,7 +294,7 @@ export class DriveController {
         }
 
         this.libraryLoading = true;
-        this.galleryMessage = '';
+        this.feedbackMessage = '';
 
         const loaded = await readLibraryPage(email, token, pageToken);
 
@@ -282,6 +302,7 @@ export class DriveController {
 
         loaded.match({
             Ok: (data) => {
+                this.libraryLoadFailed = false;
                 const found: UploadedChunk[] = data.items.map((item) => ({
                     ...item,
                     email
@@ -295,14 +316,16 @@ export class DriveController {
                 this.nextPageToken = data.nextPageToken;
                 if (data.nextPageToken && this.libraryPageTokens.has(data.nextPageToken)) {
                     this.nextPageToken = '';
-                    this.galleryMessage =
+                    this.libraryLoadFailed = true;
+                    this.feedbackMessage =
                         'Google Photos repeated a library page. Refresh to try again.';
                 }
                 if (this.nextPageToken) this.libraryPageTokens.add(this.nextPageToken);
                 this.loadedPages++;
             },
             Err: (error) => {
-                this.galleryMessage = error.message;
+                this.libraryLoadFailed = true;
+                this.feedbackMessage = error.message;
             }
         });
         this.libraryLoading = false;
@@ -323,15 +346,16 @@ export class DriveController {
 
         refreshed.match({
             Ok: (snapshot) => {
+                this.libraryLoadFailed = false;
                 this.uploads = snapshot.items.map((item) => ({ ...item, email }));
                 this.nextPageToken = snapshot.nextPageToken;
                 this.loadedPages = snapshot.pages;
                 this.libraryPageTokens.clear();
                 if (snapshot.nextPageToken) this.libraryPageTokens.add(snapshot.nextPageToken);
-                this.galleryMessage = '';
             },
             Err: (error) => {
-                this.galleryMessage = error.message;
+                this.libraryLoadFailed = true;
+                this.feedbackMessage = error.message;
             }
         });
 
@@ -342,19 +366,20 @@ export class DriveController {
         if (this.connecting || this.busy || this.fileAction) return;
         const preferences = this.preferences;
         if (!preferences) {
-            this.message = 'Browser storage is unavailable. Enable it to save your credentials.';
+            this.feedbackMessage =
+                'Browser storage is unavailable. Enable it to save your credentials.';
             return;
         }
         this.newEmail = this.newEmail.trim();
         this.newToken = this.newToken.trim();
 
         if (!NewAccountSchema.safeParse({ email: this.newEmail, token: this.newToken }).success) {
-            this.message = 'Enter your Google account email and an OAuth2 or AAS token.';
+            this.feedbackMessage = 'Enter your Google account email and an OAuth2 or AAS token.';
             return;
         }
 
         this.connecting = true;
-        this.message = '';
+        this.feedbackMessage = '';
         const email = this.newEmail;
         const inputToken = this.newToken;
         const verified = await validateAccount(email, inputToken);
@@ -363,7 +388,7 @@ export class DriveController {
         const token = verified.match({
             Ok: (value) => value,
             Err: (error) => {
-                this.message = error.message;
+                this.feedbackMessage = error.message;
                 return null;
             }
         });
@@ -378,7 +403,7 @@ export class DriveController {
                 this.adding = false;
             },
             Err: (error) => {
-                this.message = error.message;
+                this.feedbackMessage = error.message;
             }
         });
     }
@@ -395,6 +420,7 @@ export class DriveController {
         this.libraryPageTokens.clear();
         this.libraryRequest++;
         this.libraryLoading = false;
+        this.libraryLoadFailed = false;
 
         if (this.busy || this.fileAction) {
             this.accountReloadPending = true;
@@ -405,8 +431,7 @@ export class DriveController {
         this.uploadJobs = [];
         this.uploadSources = [];
         this.uploadPanelOpen = false;
-        this.message = '';
-        this.galleryMessage = '';
+        this.feedbackMessage = '';
         void this.loadFiles();
     }
 
@@ -428,7 +453,7 @@ export class DriveController {
         saved.match({
             Ok: () => {},
             Err: (error) => {
-                this.message = error.message;
+                this.feedbackMessage = error.message;
             }
         });
     }
@@ -443,7 +468,7 @@ export class DriveController {
         removed.match({
             Ok: () => {},
             Err: (error) => {
-                this.message = error.message;
+                this.feedbackMessage = error.message;
             }
         });
     }
@@ -475,7 +500,7 @@ export class DriveController {
                     )
             )
         ) {
-            this.galleryMessage = 'The file changed. Review its current chunks before deleting.';
+            this.feedbackMessage = 'The file changed. Review its current chunks before deleting.';
             return;
         }
 
@@ -487,12 +512,12 @@ export class DriveController {
 
         const token = this.accounts[item.email];
         if (item.email !== this.selectedEmail || !token) {
-            this.galleryMessage = 'Select the file’s connected account before continuing.';
+            this.feedbackMessage = 'Select the file’s connected account before continuing.';
             return;
         }
 
         this.fileAction = { fileId: item.fileId, kind: action };
-        this.galleryMessage = '';
+        this.feedbackMessage = '';
 
         if (action === FileActionKind.Delete) {
             const deleted = await deleteFile(
@@ -512,7 +537,7 @@ export class DriveController {
             deleted.match({
                 Ok: () => {},
                 Err: (error) => {
-                    this.galleryMessage = error.message;
+                    this.feedbackMessage = error.message;
                 }
             });
 
@@ -533,11 +558,11 @@ export class DriveController {
                     link.click();
                     setTimeout(() => URL.revokeObjectURL(url), 60_000);
                 } catch {
-                    this.galleryMessage = 'Could not save the downloaded file.';
+                    this.feedbackMessage = 'Could not save the downloaded file.';
                 }
             },
             Err: (error) => {
-                this.galleryMessage = error.message;
+                this.feedbackMessage = error.message;
             }
         });
 
@@ -581,7 +606,7 @@ export class DriveController {
         if (!token) return;
 
         this.uploadPanelOpen = true;
-        this.message = '';
+        this.feedbackMessage = '';
         this.busy = true;
 
         const uploaded = await uploadFiles(
@@ -594,6 +619,10 @@ export class DriveController {
                 this.uploadJobs = this.uploadJobs.map((current) =>
                     current.id === id ? { ...job, id } : current
                 );
+
+                if (job.status === UploadJobStatus.Error) {
+                    this.feedbackMessage = job.message;
+                }
             },
             (saved) => {
                 if (this.selectedEmail !== email) return;
@@ -610,6 +639,7 @@ export class DriveController {
         uploaded.match({
             Ok: () => {},
             Err: (error) => {
+                this.feedbackMessage = error.message;
                 this.uploadJobs = this.uploadJobs.map((job) =>
                     (retryId !== undefined && job.id !== retryId) ||
                     job.status === UploadJobStatus.Complete ||

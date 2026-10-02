@@ -8,6 +8,8 @@
     import {
         MAX_REFRESH_INTERVAL_SECONDS,
         MAX_CONCURRENT_WORKERS,
+        RefreshIntervalSchema,
+        ConcurrentWorkersSchema,
         type ThemeMode
     } from '$lib/models';
 
@@ -15,7 +17,6 @@
         refreshIntervalSeconds: number;
         concurrentWorkers: number;
         theme: ThemeMode;
-        error: string;
         onrefreshinterval: (seconds: number) => void;
         onworkers: (workers: number) => void;
         onresetrefreshinterval: () => void;
@@ -26,7 +27,6 @@
         refreshIntervalSeconds,
         concurrentWorkers,
         theme,
-        error,
         onrefreshinterval,
         onworkers,
         onresetrefreshinterval,
@@ -35,11 +35,34 @@
 
     let refreshDraft = $state<string | number | null>(untrack(() => refreshIntervalSeconds));
     let workersDraft = $state<string | number | null>(untrack(() => concurrentWorkers));
+    let refreshTouched = $state(false);
+    let workersTouched = $state(false);
+    let refreshInput = $state<HTMLInputElement | HTMLTextAreaElement>();
+    let workersInput = $state<HTMLInputElement | HTMLTextAreaElement>();
+    const refreshValidation = $derived(
+        RefreshIntervalSchema.safeParse(
+            refreshDraft === '' || refreshDraft === null ? undefined : Number(refreshDraft),
+            { error: () => `Enter a whole number from 0 to ${MAX_REFRESH_INTERVAL_SECONDS}.` }
+        )
+    );
+    const workersValidation = $derived(
+        ConcurrentWorkersSchema.safeParse(
+            workersDraft === '' || workersDraft === null ? undefined : Number(workersDraft),
+            { error: () => `Enter a whole number from 1 to ${MAX_CONCURRENT_WORKERS}.` }
+        )
+    );
+    const refreshIssues = $derived(
+        refreshTouched && !refreshValidation.success ? refreshValidation.error.issues : undefined
+    );
+    const workersIssues = $derived(
+        workersTouched && !workersValidation.success ? workersValidation.error.issues : undefined
+    );
 
     watch(
         () => refreshIntervalSeconds,
         (seconds) => {
             refreshDraft = seconds;
+            refreshTouched = false;
         }
     );
 
@@ -47,6 +70,7 @@
         () => concurrentWorkers,
         (workers) => {
             workersDraft = workers;
+            workersTouched = false;
         }
     );
 </script>
@@ -63,13 +87,16 @@
     <div class="mt-4 grid max-w-180 gap-8 pb-16">
         <form
             class="grid gap-3"
+            novalidate
             onsubmit={(event) => {
                 event.preventDefault();
-                const value = new FormData(event.currentTarget).get('refreshInterval');
+                refreshTouched = true;
+                if (!refreshValidation.success) {
+                    refreshInput?.focus();
+                    return;
+                }
 
-                if (typeof value !== 'string') return;
-
-                onrefreshinterval(Number(value));
+                onrefreshinterval(refreshValidation.data);
             }}
         >
             <div>
@@ -87,6 +114,9 @@
                         name="refreshInterval"
                         type="number"
                         bind:value={refreshDraft}
+                        bind:inputElement={refreshInput}
+                        issues={refreshIssues}
+                        onblur={() => (refreshTouched = true)}
                         min="0"
                         max={MAX_REFRESH_INTERVAL_SECONDS}
                         step="1"
@@ -104,6 +134,7 @@
                     onclick={() => {
                         onresetrefreshinterval();
                         refreshDraft = refreshIntervalSeconds;
+                        refreshTouched = false;
                     }}>Reset</Button
                 >
             </div>
@@ -111,13 +142,16 @@
 
         <form
             class="grid gap-3"
+            novalidate
             onsubmit={(event) => {
                 event.preventDefault();
-                const value = new FormData(event.currentTarget).get('workers');
+                workersTouched = true;
+                if (!workersValidation.success) {
+                    workersInput?.focus();
+                    return;
+                }
 
-                if (typeof value !== 'string') return;
-
-                onworkers(Number(value));
+                onworkers(workersValidation.data);
             }}
         >
             <div>
@@ -135,6 +169,9 @@
                         name="workers"
                         type="number"
                         bind:value={workersDraft}
+                        bind:inputElement={workersInput}
+                        issues={workersIssues}
+                        onblur={() => (workersTouched = true)}
                         min="1"
                         max={MAX_CONCURRENT_WORKERS}
                         step="1"
@@ -152,16 +189,13 @@
                     onclick={() => {
                         onresetworkers();
                         workersDraft = concurrentWorkers;
+                        workersTouched = false;
                     }}
                 >
                     Reset
                 </Button>
             </div>
         </form>
-
-        {#if error}
-            <p role="alert" class="text-sm text-error">{error}</p>
-        {/if}
     </div>
 
     <AppFooter {theme} />

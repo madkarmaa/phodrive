@@ -1,14 +1,12 @@
 <script lang="ts">
-    import { Button, Card } from 'noph-ui';
-    import { FileActionKind } from '$lib/models';
+    import { Card } from 'noph-ui';
+    import type { FileActionKind } from '$lib/models';
 
     import type { FileGroup } from '$lib/file-groups';
     import { fileType } from '$lib/file-groups';
-    import LocalizedDate from '$components/LocalizedDate.svelte';
+    import FileActions from '$components/FileActions.svelte';
     import IconDescription from '~icons/material-symbols/description';
     import IconDescriptionOutline from '~icons/material-symbols/description-outline';
-    import IconDownload from '~icons/material-symbols/download';
-    import IconDelete from '~icons/material-symbols/delete-outline';
 
     interface Props {
         item: FileGroup;
@@ -22,12 +20,15 @@
 </script>
 
 <Card type="text" variant="filled" class="file-card">
-    <div class="flex h-12 min-w-0 items-center gap-3.5 px-5">
-        <IconDescription aria-hidden="true" class="size-5.5 shrink-0 text-primary" />
-        <h3 class="min-w-0 truncate text-[15px] font-medium" title={item.name}>{item.name}</h3>
+    <div class="flex h-12 min-w-0 items-center gap-3 px-3">
+        <IconDescription aria-hidden="true" class="size-5 shrink-0 text-primary" />
+        <h3 class="min-w-0 flex-1 truncate text-sm font-medium" title={item.name}>{item.name}</h3>
     </div>
 
-    <div class="mx-2.5 grid h-55 place-items-center rounded-md bg-preview" aria-hidden="true">
+    <div
+        class="file-preview mx-2 mb-2 grid place-items-center rounded bg-preview"
+        aria-hidden="true"
+    >
         <div class="relative size-22 text-primary">
             <IconDescriptionOutline class="size-22" />
             <span
@@ -37,39 +38,25 @@
         </div>
     </div>
 
-    <div class="flex min-h-12 items-center justify-between gap-1 px-3 py-1 text-xs text-muted">
-        <span>
-            {#if item.complete}
-                <LocalizedDate timestamp={item.at} />
-            {:else}
-                {item.chunks.length}/{item.chunkCount ?? '?'} chunks
-            {/if}
-        </span>
-        <div class="flex items-center">
-            <Button
-                variant="text"
-                size="xs"
-                disabled={disabled || !item.complete}
-                onclick={() => ondownload(item)}
-            >
-                {#snippet start()}<IconDownload aria-hidden="true" />{/snippet}
-                {working === FileActionKind.Download ? 'Working…' : 'Download'}
-            </Button>
-            <Button variant="text" size="xs" {disabled} onclick={() => ondelete(item)}>
-                {#snippet start()}<IconDelete aria-hidden="true" />{/snippet}
-                {working === FileActionKind.Delete ? 'Working…' : 'Delete'}
-            </Button>
-        </div>
+    <div class="flex justify-end px-2 pb-2">
+        <FileActions {item} {disabled} {working} {ondownload} {ondelete} />
     </div>
+
+    {#if !item.complete}
+        <p class="m-0 px-3 pb-2 text-xs text-muted">
+            {item.chunks.length}/{item.chunkCount ?? '?'} chunks
+        </p>
+    {/if}
 </Card>
 
 <style>
     :global(:root .file-card.np-card-container) {
         width: 100%;
+        container-type: inline-size;
         min-width: 0;
         overflow: hidden;
         --np-filled-card-container-color: var(--app-card);
-        --np-filled-card-container-shape: 14px;
+        --np-filled-card-container-shape: 12px;
     }
 
     :global(:root .file-card.np-card-container .np-card-content) {
@@ -78,10 +65,8 @@
         min-width: 0;
         width: 100%;
     }
-    :global(:root .file-card.np-card-container .np-button) {
-        font-size: 12px;
-        --np-button-padding: 7px;
-        --np-button-gap: 4px;
-        --np-button-icon-size: 16px;
+    .file-preview {
+        height: calc(100cqi - 96px);
+        min-height: 150px;
     }
 </style>

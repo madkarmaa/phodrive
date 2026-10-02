@@ -1,5 +1,7 @@
 import {
     FileSort,
+    FileLayout,
+    DEFAULT_FILE_LAYOUT,
     ThemeMode,
     DEFAULT_CONCURRENT_WORKERS,
     DEFAULT_FILE_SORT,
@@ -18,6 +20,8 @@ import {
     CONCURRENT_WORKERS_SERIALIZER,
     FILE_SORT_SERIALIZER,
     FILE_SORT_KEY,
+    FILE_LAYOUT_KEY,
+    FILE_LAYOUT_SERIALIZER,
     REFRESH_INTERVAL_SERIALIZER,
     REFRESH_INTERVAL_KEY,
     SELECTED_ACCOUNT_SERIALIZER,
@@ -72,6 +76,21 @@ const DEPLOYMENT_DEFAULTS: PreferencesDefaults = {
     refreshIntervalSeconds: 120,
     concurrentWorkers: 4
 };
+
+test('file layout rejects invalid stored values and persists the selected view', () => {
+    storage.setItem(FILE_LAYOUT_KEY, 'invalid-layout');
+    const preferences = new BrowserPreferences();
+
+    expect(preferences.fileLayout).toBe(DEFAULT_FILE_LAYOUT);
+    expect(FILE_LAYOUT_SERIALIZER.deserialize('null')).toBeUndefined();
+
+    expect(preferences.saveFileLayout(FileLayout.Grid).isOk()).toBe(true);
+    expect(storage.getItem(FILE_LAYOUT_KEY)).toBe(FileLayout.Grid);
+    expect(new BrowserPreferences().fileLayout).toBe(FileLayout.Grid);
+
+    expect(preferences.saveFileLayout(FileLayout.List).isOk()).toBe(true);
+    expect(new BrowserPreferences().fileLayout).toBe(FileLayout.List);
+});
 
 test('stored accounts retain valid entries and reject malformed data without logging credentials', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
