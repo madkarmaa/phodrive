@@ -20,7 +20,7 @@ bun --bun run dev
 
 With plain Node.js and npm, use `npm install` and `npm run dev`.
 
-Open `http://127.0.0.1:5173`. Add a Google account email and the one-time `oauth2_4/` token from [Google Embedded Setup](https://accounts.google.com/EmbeddedSetup).
+Open `http://127.0.0.1:5173`. Add a Google account email and the one-time `oauth2_4/` token from the [Google Embedded Setup](https://accounts.google.com/EmbeddedSetup) cookies. In developer tools, open **Application → Cookies → https://accounts.google.com** and copy the cookie value starting with `oauth2_4/`.
 
 Phodrive exchanges it for an `aas_et/` token on the local server, verifies that Google accepts the email and AAS token, then saves only the AAS token in browser local storage. Existing AAS tokens can also be entered directly and are checked before saving.
 

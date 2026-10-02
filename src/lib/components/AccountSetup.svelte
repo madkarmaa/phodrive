@@ -87,7 +87,11 @@
                     rel="noreferrer">Google Embedded Setup</Button
                 > and sign in.
             </li>
-            <li>Copy the one-time <code>oauth2_4/…</code> token from developer tools.</li>
+            <li>
+                In developer tools, open Application → Cookies →
+                <code>https://accounts.google.com</code> and copy the cookie value starting with
+                <code>oauth2_4/…</code>.
+            </li>
             <li>
                 Paste it above with your email. An existing <code>aas_et/…</code> token also works.
             </li>
