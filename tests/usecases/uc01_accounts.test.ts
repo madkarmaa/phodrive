@@ -57,7 +57,12 @@ test('whitespace and malformed credentials stop before account validation', asyn
 
 test('rejected or expired token leaves account storage unchanged and shows a safe error', async () => {
     vi.mocked(validateAccount).mockReturnValue(
-        Ok(undefined).andThenAsync(async () => Err(new Error('AAS authentication failed')))
+        Ok(undefined).andThenAsync(async () =>
+            Err({
+                code: 'ACCOUNT_CONNECTION_FAILED',
+                message: 'AAS authentication failed'
+            } as const)
+        )
     );
     const drive = createDrive();
 

@@ -1,3 +1,4 @@
+import type { ApplicationError } from '$lib/errors';
 import { Ok, type AsyncResult } from 'results-ts';
 import { exchangeOAuth2ForAas } from '$server/aas';
 import { photosFetch, type Fetcher } from '$server/fetcher';
@@ -12,14 +13,18 @@ export function connectGoogleAccount(
     email: string,
     inputToken: string,
     fetcher: Fetcher = photosFetch
-): AsyncResult<string, Error> {
+): AsyncResult<string, ApplicationError> {
     const exchanged = inputToken.startsWith('oauth2_')
-        ? exchangeOAuth2ForAas(email, inputToken, fetcher).mapErr(() => new Error(EXCHANGE_ERROR))
+        ? exchangeOAuth2ForAas(email, inputToken, fetcher).mapErr(
+              () => ({ code: 'ACCOUNT_EXCHANGE_FAILED', message: EXCHANGE_ERROR }) as const
+          )
         : Ok(inputToken);
 
     return exchanged.andThenAsync((token) =>
         validateAasAccount(email, token, fetcher)
             .map(() => token)
-            .mapErr(() => new Error(VALIDATION_ERROR))
+            .mapErr(
+                () => ({ code: 'ACCOUNT_VALIDATION_FAILED', message: VALIDATION_ERROR }) as const
+            )
     );
 }

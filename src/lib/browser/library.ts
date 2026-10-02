@@ -1,3 +1,4 @@
+import type { ApplicationError } from '$lib/errors';
 import { Err, Ok, type AsyncResult } from 'results-ts';
 import { LibraryResponseSchema, type LibraryResponse, type RemoteBmp } from '$lib/models';
 import { schemaResult } from '$lib/schema-result';
@@ -9,7 +10,7 @@ export function readLibraryPage(
     email: string,
     token: string,
     pageToken = ''
-): AsyncResult<LibraryResponse, Error> {
+): AsyncResult<LibraryResponse, ApplicationError> {
     return apiJson(
         '/api/library',
         {
@@ -26,7 +27,7 @@ export function readLibrarySnapshot(
     email: string,
     token: string,
     pageCount: number
-): AsyncResult<LibrarySnapshot, Error> {
+): AsyncResult<LibrarySnapshot, ApplicationError> {
     return Ok(undefined).andThenAsync(async () => {
         const items = new Map<string, RemoteBmp>();
         const pageTokens = new Set<string>();
@@ -38,9 +39,10 @@ export function readLibrarySnapshot(
             const received = await readLibraryPage(email, token, nextPageToken);
             const snapshot = received.andThen((page) => {
                 if (page.nextPageToken && pageTokens.has(page.nextPageToken)) {
-                    return Err(
-                        new Error('Google Photos repeated a library page. Refresh to try again.')
-                    );
+                    return Err({
+                        code: 'REPEATED_LIBRARY_PAGE',
+                        message: 'Google Photos repeated a library page. Refresh to try again.'
+                    } as const);
                 }
 
                 for (const item of page.items) items.set(item.mediaKey, item);

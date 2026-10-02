@@ -140,7 +140,7 @@ function mediaFromCommit(response: Buffer, scotty: Buffer): Result<string, Serve
                 return integer(item, 2).map((status) => ({ item, status }));
             })
         )
-        .andThen(({ item, status }) => {
+        .andThen(({ item, status }): Result<string, ServerError> => {
             if (status === 10 && !item.some((field) => field.number === 3))
                 return Err(SERVER_ERRORS.COMMIT_REJECTED);
             if (status !== 0) return Err(SERVER_ERRORS.UNKNOWN_COMMIT_STATUS);
@@ -553,7 +553,7 @@ function preparedDownloadUrl(
 }
 
 function readPrefix(response: Response): AsyncResult<Buffer, ServerError> {
-    return Ok(undefined).andThenAsync(async () => {
+    return Ok(undefined).andThenAsync<Buffer, ServerError>(async () => {
         const reader = response.body?.getReader();
         if (!reader) return Err(SERVER_ERRORS.MISSING_DOWNLOAD_BODY);
 

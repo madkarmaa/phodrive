@@ -1,3 +1,4 @@
+import type { ApplicationError } from '$lib/errors';
 import {
     UploadEventType,
     UploadJobStatus,
@@ -34,15 +35,18 @@ export function createUploadJobs(files: readonly File[]): UploadJob[] {
     }));
 }
 
-function invalidProgress(): Result<never, Error> {
-    return Err(new Error('Invalid upload progress response.'));
+function invalidProgress(): Result<never, ApplicationError> {
+    return Err({
+        code: 'INVALID_UPLOAD_PROGRESS',
+        message: 'Invalid upload progress response.'
+    } as const);
 }
 
 function updateProgress(
     job: UploadJob,
     file: File,
     progress: UploadProgress
-): Result<UploadJob, Error> {
+): Result<UploadJob, ApplicationError> {
     const previous = job.progress;
     if (progress.phase === UploadPhase.Receiving) return invalidProgress();
     if (
@@ -67,7 +71,7 @@ function completeJob(
     file: File,
     confirmed: Map<number, UploadedChunk>,
     result: UploadResponse
-): Result<UploadJob, Error> {
+): Result<UploadJob, ApplicationError> {
     const progress = job.progress;
     const chunks = [...confirmed.values()].sort((a, b) => a.chunkIndex - b.chunkIndex);
     if (
@@ -92,7 +96,7 @@ export function createUploadEventHandler(
     email: string,
     onJob: (job: UploadJob) => void,
     onChunk: (chunk: UploadedChunk) => void
-): (event: UploadEvent) => Result<void, Error> {
+): (event: UploadEvent) => Result<void, ApplicationError> {
     const confirmed = jobs.map(() => new Map<number, UploadedChunk>());
 
     function publish(job: UploadJob): void {
@@ -101,7 +105,8 @@ export function createUploadEventHandler(
     }
 
     return (event) => {
-        if (event.type === UploadEventType.Error) return Err(new Error(event.error));
+        if (event.type === UploadEventType.Error)
+            return Err({ code: 'UPLOAD_FAILED', message: event.error } as const);
         if (event.type === UploadEventType.Complete) {
             const unfinished = jobs.some(
                 (job) =>

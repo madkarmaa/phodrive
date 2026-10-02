@@ -66,7 +66,12 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 });
 
 vi.mock('$server/photos', () => ({
-    downloadBmp: vi.fn(() => Err(new Error('Photos must not be contacted in this test'))),
+    downloadBmp: vi.fn(() =>
+        Err({
+            code: 'REQUEST_FAILED',
+            message: 'Photos must not be contacted in this test'
+        } as const)
+    ),
     moveToTrash: vi.fn()
 }));
 

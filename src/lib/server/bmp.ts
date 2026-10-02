@@ -232,14 +232,19 @@ export function decodeSplitHeader(
                 ...name
             }))
         )
-        .andThen(({ payloadOffset, ...header }) => {
-            if (header.payloadSize > totalSize - payloadOffset) return invalid();
+        .andThen(
+            ({
+                payloadOffset,
+                ...header
+            }): Result<{ header: SplitHeader; payloadOffset: number }, ServerError> => {
+                if (header.payloadSize > totalSize - payloadOffset) return invalid();
 
-            const parsed = SplitHeaderSchema.safeParse(header);
-            if (!parsed.success) return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
+                const parsed = SplitHeaderSchema.safeParse(header);
+                if (!parsed.success) return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
 
-            return Ok({ header: parsed.data, payloadOffset });
-        });
+                return Ok({ header: parsed.data, payloadOffset });
+            }
+        );
 }
 
 /** Parse a complete chunk and reject damaged payload bounds or nonzero padding. */

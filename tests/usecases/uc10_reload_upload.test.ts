@@ -47,7 +47,10 @@ test('leaving an upload settles the active operation, cleans temporary files, an
                 secondUploadStarted = true;
                 await secondUploadGate;
                 activeSettled = true;
-                return Err(new Error('Upload transfer failed (HTTP 429)'));
+                return Err({
+                    code: 'REQUEST_FAILED',
+                    message: 'Upload transfer failed (HTTP 429)'
+                } as const);
             }
 
             confirmed.push({

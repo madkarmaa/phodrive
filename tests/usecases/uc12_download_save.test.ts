@@ -176,9 +176,10 @@ test('browser save failures show an error and always clear the active file actio
 
 test('failed download is surfaced and clears the active file action', async () => {
     vi.spyOn(browserFiles, 'downloadFile').mockImplementation(() =>
-        Err(new Error('Could not receive the downloaded file.')).andThenAsync(async (file) =>
-            Ok(file)
-        )
+        Err({
+            code: 'REQUEST_FAILED',
+            message: 'Could not receive the downloaded file.'
+        } as const).andThenAsync(async (file) => Ok(file))
     );
 
     const drive = new DriveController();

@@ -1,3 +1,4 @@
+import type { ApplicationError } from '$lib/errors';
 import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
 import type { AsyncResult } from 'results-ts';
@@ -59,7 +60,7 @@ function page(items: RemoteBmp[], nextPageToken: string): LibraryResponse {
     return LibraryResponseSchema.parse({ items, nextPageToken });
 }
 
-function apiResult(response: LibraryResponse): AsyncResult<unknown, Error> {
+function apiResult(response: LibraryResponse): AsyncResult<unknown, ApplicationError> {
     return Ok(undefined).andThenAsync(async () => Ok(response));
 }
 

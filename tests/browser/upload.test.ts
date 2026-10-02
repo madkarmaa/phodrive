@@ -83,5 +83,8 @@ test('upload streams reject malformed, oversized, and truncated events', async (
 test('server errors preserve their safe message', async () => {
     serve(frame({ type: UploadEventType.Error, error: 'Upload transfer failed (HTTP 429)' }));
     const failed = await uploadRequest(new FormData(), () => Ok(undefined));
-    expect(failed.unwrapErr().message).toContain('429');
+    expect(failed.unwrapErr()).toEqual({
+        code: 'UPLOAD_FAILED',
+        message: 'Upload transfer failed (HTTP 429)'
+    });
 });

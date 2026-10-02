@@ -48,7 +48,7 @@ function saveFile(
     name: string,
     path: string
 ): AsyncResult<ReceivedFile, ServerError> {
-    return Ok(undefined).andThenAsync(async () => {
+    return Ok(undefined).andThenAsync<ReceivedFile, ServerError>(async () => {
         const hash = createHash('sha256');
         let size = 0;
         const hashing = new Transform({

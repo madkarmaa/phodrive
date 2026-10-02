@@ -25,7 +25,8 @@ test('Phodrive exchanges OAuth2 for an AAS token with the Google auth form', asy
 test('OAuth2 exchange rejects a response without an AAS token', async () => {
     const fakeFetch: Fetcher = async () => new Response('Error=BadAuthentication\n');
     const exchanged = await exchangeOAuth2ForAas('test@example.com', 'oauth2_4/test', fakeFetch);
-    expect(exchanged.match({ Ok: () => '', Err: (error) => error.message })).toBe(
-        'OAuth2 exchange failed'
-    );
+    expect(exchanged.unwrapErr()).toEqual({
+        code: 'OAUTH_EXCHANGE_FAILED',
+        message: 'OAuth2 exchange failed'
+    });
 });

@@ -77,7 +77,7 @@ async function expectTemporaryDirectoriesRemoved(): Promise<void> {
 }
 
 test('incomplete groups and a failed remote chunk return an error without a response', async () => {
-    const { input } = setup();
+    const { input, bmps } = setup();
     const incomplete = await downloadFile({ ...input, chunks: input.chunks.slice(1) });
     expect(incomplete.isErr()).toBe(true);
     expect(incomplete.unwrapErr().message).toContain('remaining');
@@ -85,14 +85,18 @@ test('incomplete groups and a failed remote chunk return an error without a resp
 
     vi.mocked(downloadBmp).mockImplementation((_email, _token, key) =>
         key === 'part-1'
-            ? Err(new Error('remote chunk unavailable')).andThenAsync(async () =>
-                  Ok(Buffer.alloc(0))
-              )
-            : Ok(Buffer.alloc(0)).andThenAsync(async (bmp) => Ok(bmp))
+            ? Err({
+                  code: 'REQUEST_FAILED',
+                  message: 'remote chunk unavailable'
+              } as const).andThenAsync(async () => Ok(Buffer.alloc(0)))
+            : Ok(bmps[0]).andThenAsync(async (bmp) => Ok(bmp))
     );
     const failed = await downloadFile(input);
     expect(failed.isErr()).toBe(true);
-    expect(failed.unwrapErr()).toBeInstanceOf(Error);
+    expect(failed.unwrapErr()).toEqual({
+        code: 'REQUEST_FAILED',
+        message: 'remote chunk unavailable'
+    });
     await expectTemporaryDirectoriesRemoved();
 });
 

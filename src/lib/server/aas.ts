@@ -1,3 +1,4 @@
+import type { ApplicationError } from '$lib/errors';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import { photosFetch, type Fetcher } from '$server/fetcher';
 
@@ -8,10 +9,13 @@ export function exchangeOAuth2ForAas(
     email: string,
     oauth2: string,
     fetcher: Fetcher = photosFetch
-): AsyncResult<string, Error> {
-    return Ok(undefined).andThenAsync(async () => {
+): AsyncResult<string, ApplicationError> {
+    return Ok(undefined).andThenAsync<string, ApplicationError>(async () => {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !oauth2.startsWith('oauth2_'))
-            return Err(new Error('Enter a valid email and OAuth2 token'));
+            return Err({
+                code: 'INVALID_OAUTH_CREDENTIALS',
+                message: 'Enter a valid email and OAuth2 token'
+            } as const);
 
         const form = new URLSearchParams({
             lang: 'en',
@@ -41,16 +45,26 @@ export function exchangeOAuth2ForAas(
                 body: form
             });
         } catch {
-            return Err(new Error('OAuth2 exchange failed'));
+            return Err({
+                code: 'OAUTH_EXCHANGE_FAILED',
+                message: 'OAuth2 exchange failed'
+            } as const);
         }
 
-        if (response.status !== 200) return Err(new Error('OAuth2 exchange failed'));
+        if (response.status !== 200)
+            return Err({
+                code: 'OAUTH_EXCHANGE_FAILED',
+                message: 'OAuth2 exchange failed'
+            } as const);
 
         let body: string;
         try {
             body = await response.text();
         } catch {
-            return Err(new Error('OAuth2 exchange failed'));
+            return Err({
+                code: 'OAUTH_EXCHANGE_FAILED',
+                message: 'OAuth2 exchange failed'
+            } as const);
         }
 
         const fields = Object.fromEntries(
@@ -67,7 +81,11 @@ export function exchangeOAuth2ForAas(
         );
         const aas = fields.token;
 
-        if (!aas?.startsWith('aas_et/')) return Err(new Error('OAuth2 exchange failed'));
+        if (!aas?.startsWith('aas_et/'))
+            return Err({
+                code: 'OAUTH_EXCHANGE_FAILED',
+                message: 'OAuth2 exchange failed'
+            } as const);
 
         return Ok(aas);
     });

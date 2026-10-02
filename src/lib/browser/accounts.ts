@@ -1,3 +1,4 @@
+import type { ApplicationError } from '$lib/errors';
 import { Err, Ok, type AsyncResult } from 'results-ts';
 import { AccountConnectionSchema } from '$lib/models';
 import { schemaResult } from '$lib/schema-result';
@@ -6,7 +7,10 @@ import { apiJson } from '$browser/api';
 const ACCOUNT_API_URL = '/api/accounts';
 const CONNECTION_ERROR = 'Google could not validate this account. Try again.';
 
-export function validateAccount(email: string, token: string): AsyncResult<string, Error> {
+export function validateAccount(
+    email: string,
+    token: string
+): AsyncResult<string, ApplicationError> {
     return apiJson(
         ACCOUNT_API_URL,
         {
@@ -18,6 +22,8 @@ export function validateAccount(email: string, token: string): AsyncResult<strin
     )
         .andThen((body) => schemaResult(AccountConnectionSchema, body, CONNECTION_ERROR))
         .andThen((response) =>
-            'error' in response ? Err(new Error(response.error)) : Ok(response.token)
+            'error' in response
+                ? Err({ code: 'ACCOUNT_CONNECTION_FAILED', message: response.error } as const)
+                : Ok(response.token)
         );
 }

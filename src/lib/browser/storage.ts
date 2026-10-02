@@ -1,3 +1,4 @@
+import type { ApplicationError } from '$lib/errors';
 import { PersistedState } from 'runed';
 import { Err, Ok, type Result } from 'results-ts';
 import {
@@ -32,12 +33,15 @@ type Accounts = Record<string, string>;
 const STORAGE_ERROR = 'Browser storage is unavailable. Enable it to save your preferences.';
 
 /** Handle malformed JSON here: Runed's default parser logs the raw stored value. */
-function parseStoredJson(raw: string): Result<unknown, Error> {
+function parseStoredJson(raw: string): Result<unknown, ApplicationError> {
     try {
         const value: unknown = JSON.parse(raw);
         return Ok(value);
     } catch {
-        return Err(new Error('Browser storage contains invalid JSON.'));
+        return Err({
+            code: 'INVALID_STORED_JSON',
+            message: 'Browser storage contains invalid JSON.'
+        } as const);
     }
 }
 
@@ -111,30 +115,32 @@ export const SELECTED_ACCOUNT_SERIALIZER = {
     }
 };
 
-function readState<T>(state: PersistedState<T>): Result<T, Error> {
+function readState<T>(state: PersistedState<T>): Result<T, ApplicationError> {
     try {
         return Ok(state.current);
     } catch {
-        return Err(new Error(STORAGE_ERROR));
+        return Err({ code: 'STORAGE_UNAVAILABLE', message: STORAGE_ERROR } as const);
     }
 }
 
 /** Runed catches write failures internally, so verify persistence before reporting success. */
-function writeState<T>(state: PersistedState<T>, value: T): Result<void, Error> {
+function writeState<T>(state: PersistedState<T>, value: T): Result<void, ApplicationError> {
     try {
         state.current = value;
     } catch {
-        return Err(new Error(STORAGE_ERROR));
+        return Err({ code: 'STORAGE_UNAVAILABLE', message: STORAGE_ERROR } as const);
     }
 
     return readState(state).andThen((saved) =>
         JSON.stringify(saved) === JSON.stringify(value)
             ? Ok(undefined)
-            : Err(new Error(STORAGE_ERROR))
+            : Err({ code: 'STORAGE_UNAVAILABLE', message: STORAGE_ERROR } as const)
     );
 }
 
-function resetState<T>(state: PersistedState<T | null | undefined>): Result<void, Error> {
+function resetState<T>(
+    state: PersistedState<T | null | undefined>
+): Result<void, ApplicationError> {
     return readState(state).andThen((previous) => {
         // Runed ignores removal events. Publish an unset marker so other tabs update too.
         const unset = writeState(state, null);
@@ -148,11 +154,15 @@ function resetState<T>(state: PersistedState<T | null | undefined>): Result<void
                 state.connect();
             }
         } catch {
-            return writeState(state, previous).andThen(() => Err(new Error(STORAGE_ERROR)));
+            return writeState(state, previous).andThen(() =>
+                Err({ code: 'STORAGE_UNAVAILABLE', message: STORAGE_ERROR } as const)
+            );
         }
 
         return readState(state).andThen((saved) =>
-            saved === undefined ? Ok(undefined) : Err(new Error(STORAGE_ERROR))
+            saved === undefined
+                ? Ok(undefined)
+                : Err({ code: 'STORAGE_UNAVAILABLE', message: STORAGE_ERROR } as const)
         );
     });
 }
@@ -234,67 +244,65 @@ export class BrowserPreferences {
         });
     }
 
-    saveAccounts(accounts: Accounts, selected: string): Result<void, Error> {
+    saveAccounts(accounts: Accounts, selected: string): Result<void, ApplicationError> {
         return writeState(this.accountsState, accounts).andThen(() =>
             writeState(this.selectedState, selected)
         );
     }
 
-    selectAccount(email: string): Result<void, Error> {
+    selectAccount(email: string): Result<void, ApplicationError> {
         return writeState(this.selectedState, email);
     }
 
-    saveTheme(mode: ThemeMode): Result<void, Error> {
+    saveTheme(mode: ThemeMode): Result<void, ApplicationError> {
         return writeState(this.themeState, mode);
     }
 
-    saveFileSort(order: FileSort): Result<void, Error> {
+    saveFileSort(order: FileSort): Result<void, ApplicationError> {
         return writeState(this.fileSortState, order);
     }
 
-    saveRefreshInterval(seconds: number): Result<void, Error> {
+    saveRefreshInterval(seconds: number): Result<void, ApplicationError> {
         const parsed = RefreshIntervalSchema.safeParse(seconds);
         if (!parsed.success) {
-            return Err(
-                new Error(
-                    `Refresh interval must be a whole number from 0 to ${MAX_REFRESH_INTERVAL_SECONDS} seconds.`
-                )
-            );
+            return Err({
+                code: 'INVALID_REFRESH_INTERVAL',
+                message: `Refresh interval must be a whole number from 0 to ${MAX_REFRESH_INTERVAL_SECONDS} seconds.`
+            } as const);
         }
 
         return writeState(this.refreshIntervalState, parsed.data);
     }
 
-    saveConcurrentWorkers(workers: number): Result<void, Error> {
+    saveConcurrentWorkers(workers: number): Result<void, ApplicationError> {
         const parsed = ConcurrentWorkersSchema.safeParse(workers);
         if (!parsed.success) {
-            return Err(
-                new Error(
-                    `Concurrent workers must be a whole number from 1 to ${MAX_CONCURRENT_WORKERS}.`
-                )
-            );
+            return Err({
+                code: 'INVALID_CONCURRENT_WORKERS',
+                message: `Concurrent workers must be a whole number from 1 to ${MAX_CONCURRENT_WORKERS}.`
+            } as const);
         }
 
         return writeState(this.concurrentWorkersState, parsed.data);
     }
 
-    resetRefreshInterval(): Result<void, Error> {
+    resetRefreshInterval(): Result<void, ApplicationError> {
         return resetState(this.refreshIntervalState);
     }
 
-    resetConcurrentWorkers(): Result<void, Error> {
+    resetConcurrentWorkers(): Result<void, ApplicationError> {
         return resetState(this.concurrentWorkersState);
     }
 }
 
 export function createBrowserPreferences(
     defaults: PreferencesDefaults = DEFAULT_PREFERENCES_DEFAULTS
-): Result<BrowserPreferences, Error> {
+): Result<BrowserPreferences, ApplicationError> {
     let preferences: BrowserPreferences;
     try {
         preferences = new BrowserPreferences(defaults);
     } catch {
-        return Err(new Error(STORAGE_ERROR));
+        return Err({ code: 'STORAGE_UNAVAILABLE', message: STORAGE_ERROR } as const);
     }
 
     return Ok(preferences);
