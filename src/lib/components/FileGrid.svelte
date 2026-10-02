@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Button } from 'noph-ui';
+    import { Button, LoadingIndicator } from 'noph-ui';
     import { fade } from 'svelte/transition';
     import { flip } from 'svelte/animate';
     import { prefersReducedMotion } from 'svelte/motion';
@@ -63,7 +63,7 @@
     {:else}
         <div class="grid justify-items-center gap-3 px-6 py-22.5 text-center text-sm text-muted">
             {#if loading}
-                <p>Loading Google Photos files…</p>
+                <LoadingIndicator aria-label="Loading Google Photos files" />
             {:else if message}
                 <p>Use Refresh to try loading your files again.</p>
             {:else if filtered && hasFiles}
@@ -78,8 +78,14 @@
 
     {#if hasMore}
         <div class="mt-6 flex justify-center">
-            <Button variant="outlined" disabled={loading || disabled} onclick={onmore}>
-                {loading ? 'Loading…' : 'Load more'}
+            <Button
+                variant="outlined"
+                {loading}
+                loadingAriaLabel="Loading more files"
+                {disabled}
+                onclick={onmore}
+            >
+                Load more
             </Button>
         </div>
     {/if}

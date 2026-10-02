@@ -133,6 +133,7 @@
         --_bar-height: 48px;
         --np-search-container-color: var(--app-search);
         --np-search-pane-margin: 0px;
+        --np-search-view-margin: 0px;
     }
 
     @media (width < 800px) {
@@ -165,7 +166,6 @@
         }
 
         :global(:root .drive-search.np-search:focus-within) {
-            --np-search-view-margin: 0px;
             --np-search-width: 100%;
         }
 
