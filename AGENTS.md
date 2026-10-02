@@ -22,7 +22,7 @@
 
 - Name Zod schema values in `PascalCase` (for example `AccountSchema`), even though other important constants use `UPPER_CASE_SNAKE_CASE`. Use Zod to validate external JSON and derive model types from schemas.
 
-- Style the site with [m3-svelte](https://github.com/KTibow/m3-svelte) components and Material 3 colors. Tailwind may handle layout. Use [unplugin-icons](https://github.com/unplugin/unplugin-icons) with the Material Symbols Iconify pack for UI icons. Follow Google Drive's shell, search bar, sidebar, file grid, and profile popup as visual references.
+- Style the site with [Noph UI](https://noph.dev/) components and Material 3 colors. Follow the lookup guide in `.agents/skills/noph-ui/SKILL.md` and consult the official component documentation before implementation. Tailwind may handle layout. Use [unplugin-icons](https://github.com/unplugin/unplugin-icons) with the Material Symbols Iconify pack for UI icons. Follow Google Drive's shell, search bar, sidebar, file grid, and profile popup as visual references.
 
 - Test the site through Chrome MCP, including a live upload when credentials are available. Connect only to the user's already open Chrome. Never launch Chrome yourself, headless or visible. If Chrome is unavailable, stop browser work and ask the user to open it. Do not expose token values in tool output or browser snapshots.
 
