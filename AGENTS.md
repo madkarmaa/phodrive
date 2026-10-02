@@ -2,7 +2,7 @@
 
 - Use Bun for development tooling, but keep the project engine agnostic so it also runs with plain Node.js and npm.
 
-- Keep the application, tests, and scripts platform and JavaScript runtime agnostic: support Windows, macOS, and Linux, and both Bun and Node.js/npm. Use portable filesystem APIs and commands, account for OS differences in file permissions and handle cleanup, and avoid runtime-specific APIs, shell-specific syntax, or hardcoded `node_modules` executable paths. Invoke tools through their commands or `bunx`.
+- Keep the application, tests, and scripts platform and JavaScript runtime agnostic: support Windows, macOS, and Linux, and both Bun and Node.js/npm. Use portable filesystem APIs and commands, and avoid runtime-specific APIs, shell-specific syntax, or hardcoded `node_modules` executable paths.
 
 - When a suitable library already exists for a task, install and use it instead of reimplementing that functionality. Prefer a focused dependency and use its documented API.
 
