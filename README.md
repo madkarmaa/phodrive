@@ -11,21 +11,22 @@ Use Google Photos as a cloud storage provider by spoofing a Pixel XL device to g
 
 ## Run locally
 
-Use Node.js 22.19 or newer, or Bun. The commands work on Windows, macOS, and Linux.
+Use Node.js 22.19 or newer, or Bun.
 
 ```sh
 bun install
 bun --bun run dev
 ```
 
-With plain Node.js and npm, use `npm install` and `npm run dev`.
-
-Open `http://127.0.0.1:5173`. Add a Google account email and the one-time `oauth2_4/` token from the [Google Embedded Setup](https://accounts.google.com/EmbeddedSetup) cookies. In developer tools, open **Application → Cookies → https://accounts.google.com** and copy the cookie value starting with `oauth2_4/`.
+1. Open `http://127.0.0.1:5173`
+2. Add a Google account email and the one-time `oauth2_4/` token from the [Google Embedded Setup](https://accounts.google.com/EmbeddedSetup) cookies
+3. In developer tools, open **Application → Cookies → https://accounts.google.com** and copy the cookie value starting with `oauth2_4/`.
 
 Phodrive exchanges it for an `aas_et/` token on the local server, verifies that Google accepts the email and AAS token, then saves only the AAS token in browser local storage. Existing AAS tokens can also be entered directly and are checked before saving.
 
 > [!NOTE]
-> Credentials are stored only in your browser. The server uses them for each request and does not save them. Files use private temporary server storage while processing and are removed when the operation finishes.
+> Credentials are stored only in your browser. The server uses them for each request and does not save them.
+> Files use private temporary server storage while processing and are removed when the operation finishes.
 
 ### Deployment defaults
 
@@ -60,11 +61,7 @@ bun --bun run build
 bun run start:bun
 ```
 
-With plain Node.js and npm, use `npm run build` and `npm start`.
-
 Open `http://127.0.0.1:3000` for the production build.
-
-The server binds to `127.0.0.1`. `BODY_SIZE_LIMIT=Infinity` lets the server receive original files above [SvelteKit’s default 512 KiB request limit](https://svelte.dev/docs/kit/adapter-node#Environment-variables-BODY_SIZE_LIMIT).
 
 Use `src/server.ts` to launch the production build. It creates the HTTP server with incoming request deadlines disabled and uses SvelteKit's generated handler. Google requests have no connection, header, body, or overall timeout so slow networks can finish transfers.
 
