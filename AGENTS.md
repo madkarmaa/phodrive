@@ -1,5 +1,7 @@
 # Development standards
 
+- Keep README content concise and focused on installing, running, and using the app. Do not add unnecessary information, internal commit/release workflow documentation, or other maintainer process details.
+
 - Use Bun for development tooling, but keep the project engine agnostic so it also runs with plain Node.js and npm.
 
 - Keep the application, tests, and scripts platform and JavaScript runtime agnostic: support Windows, macOS, and Linux, and both Bun and Node.js/npm. Use portable filesystem APIs and commands, and avoid runtime-specific APIs, shell-specific syntax, or hardcoded `node_modules` executable paths.
