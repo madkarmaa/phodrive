@@ -51,7 +51,9 @@ test('whitespace and malformed credentials stop before account validation', asyn
     await drive.saveAccount();
 
     expect(validateAccount).not.toHaveBeenCalled();
-    expect(drive.feedbackMessage).toBe('Enter your Google account email and an OAuth2 or AAS token.');
+    expect(drive.feedbackMessage).toBe(
+        'Enter your Google account email and an OAuth2 or AAS token.'
+    );
     expect(drive.accounts).toEqual({});
 });
 
