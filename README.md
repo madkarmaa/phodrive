@@ -72,11 +72,8 @@ Use `src/server.ts` to launch the production build. It creates the HTTP server w
 
 ## Run with Docker
 
-> Install [Buildx](https://github.com/docker/buildx#installing) if your Docker installation does not include it.
-
 ```sh
-docker build --pull -t phodrive .
-docker run --rm --init --name phodrive -p 127.0.0.1:3000:3000 phodrive
+docker run --pull always --rm --init --name phodrive -p 127.0.0.1:3000:3000 ghcr.io/madkarmaa/phodrive:latest
 ```
 
 ## Verify
