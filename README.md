@@ -11,7 +11,7 @@ Use Google Photos as a cloud storage provider by spoofing a Pixel XL device to g
 
 ## Run locally
 
-Use Node.js 22.19 or newer, or Bun.
+Use Node.js 22.22.2 (22.x) or 24.15 or newer, or Bun.
 
 ```sh
 bun install
@@ -88,6 +88,42 @@ bun run check
 bun run test
 bun run build
 ```
+
+## Commits and releases
+
+Use [Conventional Commits](https://www.conventionalcommits.org/), for example
+`feat: add file search` or `fix: handle an expired token`. Installing dependencies runs
+Husky setup and SvelteKit sync. The `commit-msg` hook validates commit messages with
+commitlint, and the **Commit lint** workflow checks commits in pull requests targeting `main`.
+
+Releases run only when manually started from **GitHub → Actions → Release → Run workflow**.
+Select `main`; runs on other branches are skipped. The workflow installs dependencies with
+Bun, checks types, runs tests, builds the app, and then runs semantic-release with Node.js.
+
+semantic-release determines the next version from commits since the previous release:
+`fix` creates a patch, `feat` creates a minor, and `!` or a `BREAKING CHANGE:` footer creates
+a major release. Other commit types do not trigger a release unless they contain a breaking
+change. With no previous release tag, the first release is `1.0.0`; with no releasable changes,
+the workflow finishes without creating a release.
+
+Each release updates `CHANGELOG.md` and the version in `package.json`, commits them as
+`chore(release): <version> [skip ci]`, tags the commit as `v<version>`, and publishes a GitHub
+release containing the generated release notes. It then builds the Docker image from that
+release commit and pushes it to `ghcr.io/madkarmaa/phodrive` with the full version, minor,
+major, and `latest` tags (for example `1.2.3`, `1.2`, `1`, and `latest`). Image publishing is
+skipped when no new release is created. The private app is not published to npm.
+
+The workflow uses the built-in `GITHUB_TOKEN` with `contents: write` for releasing and
+`packages: write` for the container registry; no additional registry secret is needed.
+Branch protection must allow that token to push the release commit to `main`.
+
+To run a published image:
+
+```sh
+docker run --rm --init --name phodrive -p 127.0.0.1:3000:3000 ghcr.io/madkarmaa/phodrive:latest
+```
+
+The same scripts work with npm (`npm install`, `npm run commitlint`, and `npm run release`).
 
 ## Attribution
 
