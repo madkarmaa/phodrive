@@ -11,7 +11,7 @@
     },
     "type": "module",
     "engines": {
-        "node": ">=22.19.0"
+        "node": "^22.22.2 || >=24.15.0"
     },
     "imports": {
         "#build-handler": {
@@ -26,23 +26,38 @@
         "start": "cross-env HOST=127.0.0.1 PORT=3000 ORIGIN=http://127.0.0.1:3000 BODY_SIZE_LIMIT=Infinity node src/server.ts",
         "start:bun": "bunx --bun cross-env HOST=127.0.0.1 PORT=3000 ORIGIN=http://127.0.0.1:3000 BODY_SIZE_LIMIT=Infinity bun src/server.ts",
         "test": "vitest run",
-        "prepare": "svelte-kit sync || echo ''",
+        "prepare": "husky && svelte-kit sync",
+        "commitlint": "commitlint",
+        "release": "semantic-release",
         "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
         "lint": "prettier --check .",
         "format": "prettier --write ."
     },
     "devDependencies": {
+        "@commitlint/cli": "^21.2.3",
+        "@commitlint/config-conventional": "^21.2.3",
         "@iconify-json/material-symbols": "^1.2.93",
+        "@semantic-release/changelog": "^7.0.0",
+        "@semantic-release/commit-analyzer": "^13.0.1",
+        "@semantic-release/git": "^11.0.1",
+        "@semantic-release/github": "^12.0.10",
+        "@semantic-release/npm": "^13.2.0",
+        "@semantic-release/release-notes-generator": "^14.1.1",
         "@sveltejs/adapter-node": "^5.5.7",
         "@sveltejs/kit": "^2.70.3",
         "@sveltejs/vite-plugin-svelte": "^7.3.1",
         "@tailwindcss/vite": "^4.3.3",
         "@types/node": "^26.6.3",
         "@types/varint": "^6.0.3",
+        "conventional-changelog-conventionalcommits": "^9.3.1",
+        "conventional-commits-filter": "^6.0.1",
+        "conventional-commits-parser": "^7.1.2",
+        "husky": "^9.1.7",
         "prettier": "^3.9.9",
         "prettier-plugin-svelte": "^4.1.1",
         "prettier-plugin-tailwindcss": "^0.8.1",
+        "semantic-release": "^25.0.9",
         "svelte": "^5.57.1",
         "svelte-check": "^4.7.6",
         "tailwindcss": "^4.3.3",

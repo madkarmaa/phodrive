@@ -1,0 +1,39 @@
+name: Commit lint
+
+on:
+    pull_request:
+        branches: [main]
+
+permissions:
+    contents: read
+
+jobs:
+    commitlint:
+        runs-on: ubuntu-latest
+        env:
+            HUSKY: '0'
+        steps:
+            - name: Check out pull request commits
+              uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version: '24'
+                  package-manager-cache: false
+
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: '1.4.2'
+
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Lint pull request commits
+              run: bun run commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
+              env:
+                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
