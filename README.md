@@ -63,7 +63,7 @@ bun run start:bun
 
 Open `http://127.0.0.1:3000` for the production build.
 
-Use `src/server.ts` to launch the production build. It creates the HTTP server with incoming request deadlines disabled and uses SvelteKit's generated handler. Google requests have no connection, header, body, or overall timeout so slow networks can finish transfers.
+The build compiles `src/server.ts` to `build/server.js`, which the start commands launch with incoming request deadlines disabled using SvelteKit's generated handler. Google requests have no connection, header, body, or overall timeout so slow networks can finish transfers.
 
 > [!WARNING]
 > Do not expose this server to other machines.

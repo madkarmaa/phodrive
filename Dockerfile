@@ -26,8 +26,7 @@ ENV NODE_ENV=production \
 COPY --from=production-dependencies --chown=bun:bun /app/node_modules ./node_modules
 COPY --from=build --chown=bun:bun /app/build ./build
 COPY --from=build --chown=bun:bun /app/package.json ./package.json
-COPY --from=build --chown=bun:bun /app/src/server.ts ./src/server.ts
 COPY --from=build --chown=bun:bun /app/LICENSE* ./
 USER bun
 EXPOSE 3000
-CMD ["bun", "src/server.ts"]
+CMD ["bun", "build/server.js"]

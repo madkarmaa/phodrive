@@ -4,6 +4,7 @@
 !bun.lock
 !vite.config.ts
 !tsconfig.json
+!tsconfig.server.json
 !src
 !src/**
 !static
