@@ -1,8 +1,19 @@
 import { createHash } from 'node:crypto';
+import { MAX_CHUNK_PAYLOAD_BYTES } from '$server/bmp';
 
-/** Stable across retries; different names keep independent chunks even for identical contents. */
-export function fileIdentity(name: string, fileHash: string): string {
-    return createHash('sha256').update(fileHash).update('\0').update(name).digest('hex');
+/** Stable across retries; names and split layouts keep independent chunk groups. */
+export function fileIdentity(
+    name: string,
+    fileHash: string,
+    chunkPayloadBytes = MAX_CHUNK_PAYLOAD_BYTES
+): string {
+    return createHash('sha256')
+        .update(fileHash)
+        .update('\0')
+        .update(name)
+        .update('\0')
+        .update(String(chunkPayloadBytes))
+        .digest('hex');
 }
 
 export function chunkFileName(

@@ -27,7 +27,7 @@ test('plans exact chunk boundary ranges, final flags, zero-byte files, and 200 M
         [MAX_CHUNK_PAYLOAD_BYTES - 1],
         [MAX_CHUNK_PAYLOAD_BYTES],
         [MAX_CHUNK_PAYLOAD_BYTES, 1],
-        [MAX_CHUNK_PAYLOAD_BYTES, MAX_CHUNK_PAYLOAD_BYTES, MAX_CHUNK_PAYLOAD_BYTES, 8_000_001]
+        [195_000_000, 5_000_001]
     ];
 
     for (const [index, size] of sizes.entries()) {

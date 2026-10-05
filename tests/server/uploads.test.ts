@@ -116,7 +116,7 @@ test('streamed original files larger than the Photos limit are accepted without 
     expect(input.files[0].size).toBe(total);
     expect(input.files[0].fileHash).toBe(hash.digest('hex'));
     const plan = planUpload(input.files[0]).unwrap();
-    expect(plan.headers).toHaveLength(4);
+    expect(plan.headers).toHaveLength(2);
     expect(plan.sizes.every((size) => size < MAX_PHOTOS_BMP_BYTES)).toBe(true);
 });
 
@@ -161,7 +161,7 @@ test('server reads and encodes actual split ranges with stable hash, original na
     expect(final?.progress.phase).toBe(UploadPhase.Uploading);
     if (final?.progress.phase === UploadPhase.Uploading)
         expect(final.progress.completed + final.progress.reused).toBe(final.progress.total);
-    expect(planUpload({ ...input.files[0], size: 250_000_000 }).unwrap().headers).toHaveLength(4);
+    expect(planUpload({ ...input.files[0], size: 250_000_000 }).unwrap().headers).toHaveLength(2);
 });
 
 test('one transfer pool bounds a selection, retains confirmations after failure and completes other files', async () => {

@@ -4,7 +4,7 @@ import Varint from 'varint';
 import { SplitHeaderSchema, type SplitHeader } from '$lib/models';
 
 export const MAX_PHOTOS_BMP_BYTES = 200_000_000;
-export const MAX_CHUNK_PAYLOAD_BYTES = 64_000_000;
+export const MAX_CHUNK_PAYLOAD_BYTES = 195_000_000;
 
 const BMP_HEADER_BYTES = 54;
 const SPLIT_MAGIC = new TextEncoder().encode('BMSPLIT\x01');
