@@ -22,8 +22,6 @@ bun --bun run dev
 2. Add a Google account email and the one-time `oauth2_4/` token from the [Google Embedded Setup](https://accounts.google.com/EmbeddedSetup) cookies
 3. In developer tools, open **Application → Cookies → https://accounts.google.com** and copy the cookie value starting with `oauth2_4/`.
 
-Phodrive exchanges it for an `aas_et/` token on the local server, verifies that Google accepts the email and AAS token, then saves only the AAS token in browser local storage. Existing AAS tokens can also be entered directly and are checked before saving.
-
 > [!NOTE]
 > Credentials are stored only in your browser. The server uses them for each request and does not save them.
 > Files use private temporary server storage while processing and are removed when the operation finishes.
@@ -62,8 +60,6 @@ bun run start:bun
 ```
 
 Open `http://127.0.0.1:3000` for the production build.
-
-The build compiles `src/server.ts` to `build/server.js`, which the start commands launch with incoming request deadlines disabled using SvelteKit's generated handler. Google requests have no connection, header, body, or overall timeout so slow networks can finish transfers.
 
 > [!WARNING]
 > Do not expose this server to other machines.
