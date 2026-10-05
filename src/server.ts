@@ -1,13 +1,21 @@
 import { createServer } from 'node:http';
 import { handler } from '#build-handler';
+import { parseServerEnvironment } from './lib/server/environment.js';
 
-const HOST = process.env.HOST ?? '127.0.0.1';
-const PORT = Number(process.env.PORT ?? 3000);
+const environment = parseServerEnvironment(process.env);
 
 export const server = createServer({ requestTimeout: 0, headersTimeout: 0 }, handler);
 
-server.listen(PORT, HOST, () => {
-    console.log(`Listening on http://${HOST}:${PORT}`);
+environment.match({
+    Ok: ({ HOST, PORT }) => {
+        server.listen(PORT, HOST, () => {
+            console.log(`Listening on http://${HOST}:${PORT}`);
+        });
+    },
+    Err: (message) => {
+        console.error(message);
+        process.exitCode = 1;
+    }
 });
 
 function shutdown() {
