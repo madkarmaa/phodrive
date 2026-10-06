@@ -33,6 +33,8 @@ bun --bun run dev
 2. Add a Google account email and the one-time `oauth2_4/` token from the [Google Embedded Setup](https://accounts.google.com/EmbeddedSetup) cookies
 3. In developer tools, open **Application → Cookies → https://accounts.google.com** and copy the cookie value starting with `oauth2_4/`.
 
+![How to get the token](./docs/screenshots/token.png)
+
 > [!NOTE]
 > Credentials are stored only in your browser. The server uses them for each request and does not save them.
 > Files use private temporary server storage while processing and are removed when the operation finishes.
@@ -105,7 +107,7 @@ The Photos library request mask is based on [xob0t/gpmc](https://github.com/xob0
 
 The OAuth2-to-AAS exchange is adapted from [xhyrom/sniff's `oauth2aas`](https://github.com/xhyrom/sniff/tree/main/oauth2aas) (Apache-2.0).
 
-The OAuth2 exchange's DroidGuard compatibility field follows [simon-weber/gpsoauth](https://github.com/simon-weber/gpsoauth) (MIT; see [LICENSE.gpsoauth](./LICENSE.gpsoauth)).
+The OAuth2 exchange's DroidGuard compatibility field follows [simon-weber/gpsoauth](https://github.com/simon-weber/gpsoauth) (MIT).
 
 ## AI use
 
