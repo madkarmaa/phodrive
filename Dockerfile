@@ -1,8 +1,11 @@
-FROM oven/bun:1.4.2 AS base
+ARG BUN_VERSION=1.4.2
+
+# Compile architecture-neutral JavaScript and assets without emulation.
+FROM --platform=$BUILDPLATFORM oven/bun:${BUN_VERSION} AS build-base
 # Keep Bun invocation explicit and omit the image's node alias.
 RUN rm -rf /usr/local/bun-node-fallback-bin
 
-FROM base AS dependencies
+FROM build-base AS dependencies
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -10,6 +13,9 @@ RUN bun install --frozen-lockfile --ignore-scripts
 FROM dependencies AS build
 COPY . .
 RUN bun --bun run prepare && bun --bun run build
+
+FROM oven/bun:${BUN_VERSION} AS base
+RUN rm -rf /usr/local/bun-node-fallback-bin
 
 FROM base AS production-dependencies
 WORKDIR /app
