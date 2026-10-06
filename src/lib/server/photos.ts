@@ -19,6 +19,7 @@ import { pageRequest, parseLibraryPage, type LibraryCandidate } from '$server/li
 import { decodeSplitHeader } from '$server/bmp';
 import { photosFetch, type Fetcher } from '$server/fetcher';
 import { LIBRARY_STATE_REQUEST } from '$server/library-requests';
+import { parsePhotoDownloadUrl } from '$server/photos-download';
 
 const AUTH_URL = 'https://android.googleapis.com/auth';
 const UPLOAD_URL = 'https://photos.googleapis.com/data/upload/uploadmedia/interactive';
@@ -540,8 +541,10 @@ export function downloadBmp(
                 commonHeaders
             }))
         )
-        .andThenAsync(({ url, commonHeaders }) =>
-            send(
+        .andThenAsync(async ({ url, commonHeaders }) => {
+            if (url === null) return Err(SERVER_ERRORS.INVALID_DOWNLOAD_CONTENT_TYPE);
+
+            return await send(
                 fetcher,
                 url,
                 {
@@ -550,8 +553,8 @@ export function downloadBmp(
                     headers: commonHeaders
                 },
                 'Download'
-            )
-        )
+            );
+        })
         .andThen((response) => {
             if (!response.headers.get('content-type')?.startsWith('image/'))
                 return Err(SERVER_ERRORS.INVALID_DOWNLOAD_CONTENT_TYPE);
@@ -572,7 +575,7 @@ function preparedDownloadUrl(
     sha1: string,
     rpcHeaders: Record<string, string>,
     fetcher: Fetcher
-): AsyncResult<URL, ServerError> {
+): AsyncResult<URL | null, ServerError> {
     const request = message(
         bytesField(1, bytesField(1, bytesField(1, mediaKey))),
         bytesField(2, DOWNLOAD_MASK)
@@ -590,7 +593,7 @@ function preparedDownloadUrl(
         'Prepare download'
     ).andThenAsync((response) =>
         readBody(response, 'Prepare download').andThen((metadata) =>
-            downloadUrl(metadata, mediaKey, sha1)
+            parsePhotoDownloadUrl(metadata, mediaKey, sha1)
         )
     );
 }
@@ -661,9 +664,15 @@ function probeLibraryItem(
     fetcher: Fetcher
 ): AsyncResult<RemoteBmp | null, ServerError> {
     return preparedDownloadUrl(candidate.mediaKey, candidate.sha1, rpcHeaders, fetcher)
-        .andThenAsync((url) => fetchPrefix(url, commonHeaders, fetcher))
-        .map((prefix) =>
-            decodeSplitHeader(prefix, candidate.size).match({
+        .andThenAsync(async (url) => {
+            if (url === null) return Ok(null);
+
+            return await fetchPrefix(url, commonHeaders, fetcher);
+        })
+        .map((prefix) => {
+            if (prefix === null) return null;
+
+            return decodeSplitHeader(prefix, candidate.size).match({
                 Ok: ({ header }) => ({
                     ...candidate,
                     fileHash: header.fileHash,
@@ -674,47 +683,8 @@ function probeLibraryItem(
                     size: header.payloadSize
                 }),
                 Err: () => null
-            })
-        );
-}
-
-function parseSignedDownloadUrl(text: string): Result<URL, ServerError> {
-    let signed: URL;
-    try {
-        signed = new URL(text);
-    } catch {
-        return Err(SERVER_ERRORS.INVALID_DOWNLOAD_URL);
-    }
-
-    if (
-        signed.protocol !== 'https:' ||
-        signed.hostname !== 'lh3.googleusercontent.com' ||
-        signed.port ||
-        signed.username ||
-        signed.password ||
-        signed.hash
-    )
-        return Err(SERVER_ERRORS.INVALID_DOWNLOAD_URL);
-
-    return Ok(signed);
-}
-
-function downloadUrl(metadata: Buffer, mediaKey: string, sha1: string): Result<URL, ServerError> {
-    return nested(metadata, 1, 1)
-        .andThen(utf8)
-        .andThen((remoteKey) => {
-            if (remoteKey !== mediaKey) return Err(SERVER_ERRORS.DOWNLOAD_MEDIA_MISMATCH);
-
-            return nested(metadata, 1, 2, 13, 1);
-        })
-        .andThen((remoteSha1) => {
-            if (remoteSha1.toString('hex') !== sha1)
-                return Err(SERVER_ERRORS.DOWNLOAD_FINGERPRINT_MISMATCH);
-
-            return nested(metadata, 1, 5, 2, 5);
-        })
-        .andThen(utf8)
-        .andThen(parseSignedDownloadUrl);
+            });
+        });
 }
 
 export function moveToTrash(

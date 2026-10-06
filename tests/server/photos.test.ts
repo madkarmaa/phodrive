@@ -221,6 +221,7 @@ test.each([false, true])(
         const originals = new Map([
             ['renamed-first', first],
             ['renamed-last', last],
+            ['ordinary-video', ordinary],
             ['ordinary-photo', ordinary]
         ]);
         const fingerprint = (data: Buffer) => createHash('sha1').update(data).digest();
@@ -241,6 +242,7 @@ test.each([false, true])(
             Buffer.concat([
                 bytes(1, 'empty-page'),
                 item('renamed-first', 'vacation.jpg'),
+                item('ordinary-video', 'clip.mp4'),
                 item('ordinary-photo', 'family.jpg')
             ])
         );
@@ -292,13 +294,19 @@ test.each([false, true])(
                     Buffer.concat([
                         bytes(1, key),
                         bytes(2, bytes(13, bytes(1, fingerprint(data)))),
-                        bytes(5, bytes(2, bytes(5, `https://lh3.googleusercontent.com/p/${key}=d`)))
+                        bytes(
+                            5,
+                            key === 'ordinary-video'
+                                ? Buffer.concat([num(1, 2), bytes(3, bytes(5, 'video-download'))])
+                                : bytes(2, bytes(5, `https://lh3.googleusercontent.com/p/${key}=d`))
+                        )
                     ])
                 );
                 return new Response(Uint8Array.from(metadata));
             }
 
             const key = url.split('/').pop()?.replace('=d', '') ?? '';
+            expect(key).not.toBe('ordinary-video');
             const data = originals.get(key);
             if (!data) throw new Error('Missing test photo');
             expect(new Headers(init?.headers).get('range')).toBe('bytes=0-65535');
