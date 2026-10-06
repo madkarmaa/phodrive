@@ -8,6 +8,7 @@
     import lightLogo from '$assets/favicon-light.svg';
     import IconRefresh from '~icons/material-symbols/refresh';
     import IconMenu from '~icons/material-symbols/menu';
+    import IconPerson from '~icons/material-symbols/person';
 
     interface Props {
         search?: string;
@@ -118,7 +119,11 @@
             command="toggle-popover"
             commandfor="account-menu"
         >
-            <span>{email.slice(0, 1).toUpperCase() || 'P'}</span>
+            {#if email}
+                <span>{email.slice(0, 1).toUpperCase()}</span>
+            {:else}
+                <IconPerson aria-hidden="true" />
+            {/if}
         </IconButton>
     {/snippet}
 </AppBar>
