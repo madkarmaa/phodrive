@@ -3,6 +3,8 @@ import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import { photosFetch, type Fetcher } from '$server/fetcher';
 
 const AUTH_URL = 'https://android.clients.google.com/auth';
+// Matches the compatibility value used by gpsoauth's token exchange.
+const DROIDGUARD_RESULTS = 'dummy123';
 
 /** Adapted and modified from xhyrom/sniff's oauth2aas to exchange OAuth2 tokens for AAS. */
 export function exchangeOAuth2ForAas(
@@ -29,7 +31,8 @@ export function exchangeOAuth2ForAas(
             callerPkg: 'com.google.android.gms',
             add_account: '1',
             Token: oauth2,
-            callerSig: '38918a453d07199354f8b19af05ec6562ced5788'
+            callerSig: '38918a453d07199354f8b19af05ec6562ced5788',
+            droidguard_results: DROIDGUARD_RESULTS
         });
 
         let response: Response;

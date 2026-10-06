@@ -12,6 +12,7 @@ test('Phodrive exchanges OAuth2 for an AAS token with the Google auth form', asy
         expect(form.get('Token')).toBe('oauth2_4/test+token');
         expect(form.get('callerPkg')).toBe('com.google.android.gms');
         expect(form.get('service')).toBe('ac2dm');
+        expect(form.get('droidguard_results')).toBe('dummy123');
         return new Response('token=aas_et/test\n');
     };
     const exchanged = await exchangeOAuth2ForAas(
