@@ -39,14 +39,6 @@
     }
 </script>
 
-<svelte:head>
-    <title>Phodrive - files in Google Photos</title>
-    <meta
-        name="description"
-        content="Convert a file into a reversible BMP and upload it to Google Photos."
-    />
-</svelte:head>
-
 <div
     class="grid min-h-screen grid-cols-[256px_minmax(0,1fr)] grid-rows-[64px_minmax(calc(100vh-64px),auto)] max-[800px]:grid-cols-1 max-[800px]:grid-rows-[72px_minmax(calc(100vh-72px),auto)]"
 >
