@@ -72,6 +72,8 @@ Open `http://127.0.0.1:3000` for the production build.
 docker run --pull always --rm --init --name phodrive -p 127.0.0.1:3000:3000 ghcr.io/madkarmaa/phodrive:latest
 ```
 
+Open `http://localhost:3000` or `http://127.0.0.1:3000`. The server derives the upload origin from the request host and port, including a different published port. To override it, pass `-e ORIGIN=http://localhost:3000` with the exact origin used in your browser.
+
 ## Verify
 
 Tests use [Vitest](https://vitest.dev/).

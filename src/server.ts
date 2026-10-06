@@ -1,10 +1,22 @@
 import { createServer } from 'node:http';
-import { handler } from '#build-handler';
 import { parseServerEnvironment } from './lib/server/environment.js';
+
+const INTERNAL_PROTOCOL_HEADER = 'x-phodrive-protocol';
+
+// Adapter-node otherwise assumes HTTPS when deriving the origin from Host.
+process.env.PROTOCOL_HEADER ||= INTERNAL_PROTOCOL_HEADER;
+const { handler } = await import('#build-handler');
 
 const environment = parseServerEnvironment(process.env);
 
-export const server = createServer({ requestTimeout: 0, headersTimeout: 0 }, handler);
+export const server = createServer(
+    { requestTimeout: 0, headersTimeout: 0 },
+    (request, response) => {
+        // This server receives HTTP directly; never trust a client-supplied internal protocol.
+        request.headers[INTERNAL_PROTOCOL_HEADER] = 'http';
+        handler(request, response);
+    }
+);
 
 environment.match({
     Ok: ({ HOST, PORT }) => {

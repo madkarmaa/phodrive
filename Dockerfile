@@ -21,7 +21,6 @@ WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
-    ORIGIN=http://127.0.0.1:3000 \
     BODY_SIZE_LIMIT=Infinity
 COPY --from=production-dependencies --chown=bun:bun /app/node_modules ./node_modules
 COPY --from=build --chown=bun:bun /app/build ./build
