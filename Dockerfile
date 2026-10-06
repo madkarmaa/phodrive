@@ -22,16 +22,19 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production --ignore-scripts
 
-FROM base AS runtime
+FROM node:24.21.0-bookworm-slim AS runtime
 WORKDIR /app
+
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
     BODY_SIZE_LIMIT=Infinity
-COPY --from=production-dependencies --chown=bun:bun /app/node_modules ./node_modules
-COPY --from=build --chown=bun:bun /app/build ./build
-COPY --from=build --chown=bun:bun /app/package.json ./package.json
-COPY --from=build --chown=bun:bun /app/LICENSE* ./
-USER bun
+
+COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/build ./build
+COPY --from=build --chown=node:node /app/package.json ./package.json
+COPY --from=build --chown=node:node /app/LICENSE* ./
+
+USER node
 EXPOSE 3000
-CMD ["bun", "build/server.js"]
+CMD ["node", "build/server.js"]
