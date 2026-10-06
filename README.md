@@ -92,7 +92,7 @@ The Photos library request mask is based on [xob0t/gpmc](https://github.com/xob0
 
 The OAuth2-to-AAS exchange is adapted from [xhyrom/sniff's `oauth2aas`](https://github.com/xhyrom/sniff/tree/main/oauth2aas) (Apache-2.0).
 
-The OAuth2 exchange's DroidGuard compatibility field follows [simon-weber/gpsoauth](https://github.com/simon-weber/gpsoauth) (MIT).
+The OAuth2 exchange's DroidGuard compatibility field follows [simon-weber/gpsoauth](https://github.com/simon-weber/gpsoauth) (MIT; see [LICENSE.gpsoauth](./LICENSE.gpsoauth)).
 
 ## AI use
 
