@@ -9,6 +9,17 @@ Use Google Photos as a cloud storage provider by spoofing a Pixel XL device to g
 > [!CAUTION]
 > Using this project may violate Google’s terms or policies and could result in your Google account being restricted or banned.
 
+<table>
+    <tr>
+        <td><img src="./docs/screenshots/home-desktop-light.png" alt="Phodrive homepage on desktop in light mode" width="640" /></td>
+        <td><img src="./docs/screenshots/home-mobile-light.png" alt="Phodrive homepage on mobile in light mode" width="185" /></td>
+    </tr>
+    <tr>
+        <td><img src="./docs/screenshots/home-desktop-dark.png" alt="Phodrive homepage on desktop in dark mode" width="640" /></td>
+        <td><img src="./docs/screenshots/home-mobile-dark.png" alt="Phodrive homepage on mobile in dark mode" width="185" /></td>
+    </tr>
+</table>
+
 ## Run locally
 
 Use Node.js 22.22.2 (22.x) or 24.15 or newer, or Bun.
