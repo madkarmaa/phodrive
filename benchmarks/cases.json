@@ -15,6 +15,7 @@
     "download-stream",
     "protocol-page",
     "group-chunks",
+    "group-many-files",
     "sort-files",
     "upload-tiny",
     "upload-many",

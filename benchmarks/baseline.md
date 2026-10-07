@@ -1,6 +1,6 @@
 # True Performance Baseline
 
-Measured 2026-10-07 against production source `86cba81d19ca4a64c955815da9bac1619615744a`, before any production edits. Runtime v24.21.0; linux 7.2.9-1-cachyos; 13th Gen Intel(R) Core(TM) i7-13650HX. Normal machine settings; sequential isolated child processes; two warmups and five samples per fixed workload. Reproduce with `bun run perf --output=/absolute/path/baseline.json`; see [methodology](README.md).
+Measured 2026-10-07 against production source `86cba81d19ca4a64c955815da9bac1619615744a`, before any production edits. Runtime v24.21.0; linux 7.2.9-1-cachyos; 13th Gen Intel(R) Core(TM) i7-13650HX. Normal machine settings; sequential isolated child processes; two warmups and five samples per fixed workload. Reproduce with `bun run perf --output=/absolute/path/baseline.json`; see [methodology](./README.md).
 
 The initial pilot was discarded before freezing this baseline: tiny/small hashing was batched into 200 operations to reduce timer noise, transport progress callbacks were restored, and failure throughput was removed because aborted operations consume unequal byte counts. The table below uses only the corrected suite. No production code changed during this correction.
 
@@ -44,3 +44,11 @@ Browser SHA-256 reads bounded 1 MiB slices and caches only immutable File identi
 Metadata planning is CPU/allocation-bound without reading file contents. Prefix generation allocates temporary arrays and encodes names twice. Protobuf parsing repeatedly copies nested byte fields. Grouping scans and copies growing per-file chunk arrays. Date sorting computes a locale comparison even when timestamps decide the result. These are measured candidate opportunities, not yet optimization claims.
 
 RSS includes startup, fixtures and warmups, and all browser/server/fake-provider work runs in one process. Fixture creation can dominate the OS lifetime peak, particularly boundary datasets. Sampled heap/external memory is not a precise allocation counter. This baseline makes no claim about Google network throughput or standalone browser/server memory. Baseline correctness: `bun run check`, all 169 tests, and `bun run build` passed.
+
+## Additional common-case coverage
+
+Before accepting chunk-group indexing, `group-many-files` was added to test ten passes over 10,000 distinct one-chunk files plus 2,500 duplicate confirmations. It uses the same grouping fixture generator and does not change any original case. Its baseline was measured in a detached worktree at `45d73b6` (production still exactly `86cba81d`), with the same two warmups/five samples and machine/runtime. This is additional original-source coverage, not a replacement baseline.
+
+| Benchmark        | Median ms |    Min–max ms | Process peak RSS MiB |
+| ---------------- | --------: | ------------: | -------------------: |
+| group-many-files |    44.756 | 40.103–46.340 |                356.9 |

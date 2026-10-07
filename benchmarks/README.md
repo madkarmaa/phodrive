@@ -10,4 +10,6 @@ Uploads execute the actual browser preparation, chunk scheduling, FormData, serv
 
 Memory metrics are **whole-process** measurements, including fixtures, framework startup, warmups, and normal garbage collection. The in-process browser/server fixture holds File/Blob backing stores; it does not model separate browser/server process RSS. `maxRSS` is the OS lifetime high-water mark. Heap/external values are maxima sampled every 5 ms and at sample boundaries, not allocation totals or exact instantaneous peaks. No forced GC or special compiler/CPU flags are used. Compare repeated runs on the same machine/runtime, and treat small/noisy changes conservatively. Throughput counts original input bytes (except protocol parsing, which counts encoded pages); metadata-only and failure cases have no byte throughput.
 
-See [baseline.md](baseline.md) for the immutable baseline and [iterations.md](iterations.md) for accepted and rejected changes.
+See [baseline.md](./baseline.md) for the immutable baseline and [iterations.md](./iterations.md) for accepted and rejected changes.
+
+`group-many-files` additionally measures ten passes over 10,000 one-chunk files plus 2,500 duplicates, guarding the common case against indexing overhead. Its original-source baseline is documented separately.

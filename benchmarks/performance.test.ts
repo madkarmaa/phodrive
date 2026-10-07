@@ -219,15 +219,16 @@ async function workload(): Promise<{ run: () => Promise<void> | void; bytes: num
             }
         };
     }
-    if (name === 'group-chunks' || name === 'sort-files') {
+    if (name === 'group-chunks' || name === 'group-many-files' || name === 'sort-files') {
+        const manyFiles = name !== 'group-chunks';
         const entries: UploadedChunk[] = Array.from(
-            { length: name === 'sort-files' ? 10_000 : 4096 },
+            { length: manyFiles ? 10_000 : 4096 },
             (_, i) => ({
                 email: 'bench@example.com',
                 fileHash: 'ab'.repeat(32),
-                fileId: name === 'sort-files' ? String(i) : String(i % 8),
-                chunkIndex: name === 'sort-files' ? 0 : Math.floor(i / 8),
-                isLast: name === 'sort-files' || i >= 4088,
+                fileId: manyFiles ? String(i) : String(i % 8),
+                chunkIndex: manyFiles ? 0 : Math.floor(i / 8),
+                isLast: manyFiles || i >= 4088,
                 originalName: `file-${i}`,
                 size: 1,
                 at: (i * 997) % 10007,
@@ -240,13 +241,13 @@ async function workload(): Promise<{ run: () => Promise<void> | void; bytes: num
             bytes: 0,
             run: () => {
                 for (let i = 0; i < 10; i++) {
-                    if (name === 'group-chunks')
+                    if (name.startsWith('group-'))
                         assert.equal(
                             groupChunks([
                                 ...entries,
                                 ...entries.filter((_, index) => index % 4 === 0)
                             ]).length,
-                            8
+                            manyFiles ? 10_000 : 8
                         );
                     else
                         assert.equal(

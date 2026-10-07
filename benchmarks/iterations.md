@@ -69,3 +69,23 @@ Memory impact and interpretation: Library parsing improves 14.1%, below the 20% 
 Correctness: check, 172 tests, build and perf:check pass; nonzero backing offsets, malformed siblings and duplicate-field checks covered.
 
 Decision: **KEEP**.
+
+## Iteration 4a: Index every file group eagerly
+
+Change: Index every file group eagerly.
+
+Hypothesis: Replace quadratic chunk scans and array copies with per-file maps.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark        | Baseline | Previous | Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| ---------------- | -------: | -------: | ------: | ---------------------------------: | ------------------------------: |
+| group-chunks     |  112.526 |  112.526 |  10.430 |                    +90.7% / +90.7% |                   149.8 → 111.0 |
+| sort-files       |   43.038 |   43.038 |  45.166 |                      -4.9% / -4.9% |                   112.4 → 114.5 |
+| group-many-files |   44.756 |   44.756 |  52.174 |                    -16.6% / -16.6% |                   356.9 → 374.4 |
+
+Memory impact and interpretation: Large groups improve 90.7% and RSS drops 149.8 to 111.0 MiB. However many one-chunk groups regress 16.6% (44.76 to 52.17 ms) and RSS rises 356.9 to 374.4 MiB. Do not accept this form; allocate an index only when a group actually has multiple chunk positions.
+
+Correctness: check, 173 tests, build and perf:check pass.
+
+Decision: **REJECT**.
