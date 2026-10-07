@@ -190,3 +190,21 @@ Memory impact and interpretation: The device switched to battery before this tab
 Correctness: check, 176 tests, build passed; native digest equivalence, cache/progress, fallback and single-attempt read failure covered.
 
 Decision: **KEEP**.
+
+## Iteration 9: Avoid filtered arrays during required protobuf field lookup
+
+Change: Avoid filtered arrays during required protobuf field lookup.
+
+Hypothesis: A single scan can preserve duplicate and missing-field validation while eliminating a temporary array per lookup.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark     | Baseline | Previous | Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| ------------- | -------: | -------: | ------: | ---------------------------------: | ------------------------------: |
+| protocol-page |   49.150 |   42.230 |  72.983 |                    -48.5% / -72.8% |                   114.5 → 112.4 |
+
+Memory impact and interpretation: Battery-mode candidate 72.98 ms versus adjacent unchanged-code control 72.39 ms: no benefit beyond noise. Earlier battery control was 77.55 ms, illustrating run variability. Original plugged-in baseline percentages are not comparable here. RSS 112.4 versus control 113.7 MiB is not a meaningful reduction. Restored the previous implementation.
+
+Correctness: check, all 176 tests, build and perf:check passed.
+
+Decision: **REJECT**.
