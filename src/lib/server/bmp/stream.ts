@@ -36,7 +36,9 @@ export class SplitBmpReader {
             const initialized = await bmp.readHeader(length, expected);
             if (initialized.isErr()) {
                 const closed = await bmp.close();
+
                 closed.inspectErr((error) => console.error(error.message));
+
                 return initialized.map(() => bmp);
             }
 
@@ -52,6 +54,7 @@ export class SplitBmpReader {
 
                 this.received += next.value.byteLength;
                 this.hash.update(next.value);
+
                 return Ok(next.value);
             } catch {
                 return Err(SERVER_ERRORS.COULD_NOT_READ_THE_DOWNLOADED_FILE);
@@ -76,6 +79,7 @@ export class SplitBmpReader {
                     prefix.set(part, this.offset);
                     this.offset += part.length;
                     this.pending = block.subarray(part.length);
+
                     return Ok(undefined);
                 });
                 if (copied.isErr()) return copied;
@@ -99,6 +103,7 @@ export class SplitBmpReader {
                         return Err(SERVER_ERRORS.DOWNLOAD_CHUNK_MISMATCH);
 
                     this.payloadEnd = payloadOffset + header.payloadSize;
+
                     return Ok(undefined);
                 }
             );
@@ -123,6 +128,7 @@ export class SplitBmpReader {
 
                         this.closed = true;
                         this.reader.releaseLock();
+
                         return Ok(null);
                     }
                     if (this.received > this.totalSize)
@@ -134,6 +140,7 @@ export class SplitBmpReader {
                         return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
 
                     this.offset += block.length;
+
                     return Ok(payload);
                 });
                 const ready = processed.match({
@@ -150,11 +157,13 @@ export class SplitBmpReader {
     close(): AsyncResult<void, ServerError> {
         return Ok(undefined).andThenAsync(async () => {
             if (this.closed) return Ok(undefined);
+
             this.closed = true;
             this.pending = new Uint8Array(0);
 
             try {
                 await this.reader.cancel();
+
                 return Ok(undefined);
             } catch {
                 return Err(SERVER_ERRORS.COULD_NOT_CLOSE_THE_DOWNLOADED_FILE);

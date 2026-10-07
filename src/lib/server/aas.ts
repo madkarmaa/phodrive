@@ -1,5 +1,5 @@
 import type { ApplicationError } from '$lib/errors';
-import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
+import { Err, Ok, type AsyncResult } from 'results-ts';
 import { photosFetch, type Fetcher } from '$server/fetcher';
 
 const AUTH_URL = 'https://android.clients.google.com/auth';
@@ -36,6 +36,7 @@ export function exchangeOAuth2ForAas(
         });
 
         let response: Response;
+
         try {
             response = await fetcher(AUTH_URL, {
                 method: 'POST',
@@ -61,6 +62,7 @@ export function exchangeOAuth2ForAas(
             } as const);
 
         let body: string;
+
         try {
             body = await response.text();
         } catch {
@@ -76,6 +78,7 @@ export function exchangeOAuth2ForAas(
                 .filter((line) => line.includes('='))
                 .map((line) => {
                     const equal = line.indexOf('=');
+
                     return [
                         line.slice(0, equal).trim().toLowerCase(),
                         line.slice(equal + 1).trim()

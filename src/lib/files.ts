@@ -51,12 +51,14 @@ export function groupChunks(items: UploadedChunk[]): FileGroup[] {
 
     return [...groups.values()].map((group) => {
         group.chunks.sort((first, second) => first.chunkIndex - second.chunkIndex);
+
         const last = group.chunks.find((chunk) => chunk.isLast);
         group.chunkCount = last ? last.chunkIndex + 1 : null;
         group.complete =
             group.chunkCount !== null &&
             group.chunks.length === group.chunkCount &&
             group.chunks.every((chunk, index) => chunk.chunkIndex === index);
+
         return group;
     });
 }
@@ -77,3 +79,23 @@ export function sortFiles(files: readonly FileGroup[], order: FileSort): FileGro
 }
 
 export type FileAction = { fileId: string; kind: FileActionKind };
+
+const DAY_MS = 86_400_000;
+
+export function filterFiles(
+    files: readonly FileGroup[],
+    searchTerm: string,
+    type: string,
+    modifiedDays: string
+): FileGroup[] {
+    const query = searchTerm.toLocaleLowerCase();
+    const modifiedSince = Date.now() - Number(modifiedDays) * DAY_MS;
+
+    return files.filter((file) => {
+        if (!file.name.toLocaleLowerCase().includes(query)) return false;
+        if (type && fileType(file.name) !== type) return false;
+        if (modifiedDays) return file.at >= modifiedSince;
+
+        return true;
+    });
+}

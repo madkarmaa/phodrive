@@ -1,5 +1,5 @@
-import { BMP_ERRORS } from '$lib/bmp-errors';
-import type { BmpError } from '$lib/bmp-errors';
+import { BMP_ERRORS } from '$lib/bmp/errors';
+import type { BmpError } from '$lib/bmp/errors';
 import { Err, Ok, type Result } from 'results-ts';
 import Varint from 'varint';
 import { SplitHeaderSchema, type SplitHeader } from '$lib/models';
@@ -8,9 +8,9 @@ export const MAX_PHOTOS_BMP_BYTES = 200_000_000;
 export const MAX_CHUNK_PAYLOAD_BYTES = 195_000_000;
 export const MAX_SPLIT_HEADER_BYTES = 65_536;
 
-const BMP_HEADER_BYTES = 54;
-const SPLIT_MAGIC = new TextEncoder().encode('BMSPLIT\x01');
-const FILE_HASH_BYTES = 32;
+export const BMP_HEADER_BYTES = 54;
+export const SPLIT_MAGIC = new TextEncoder().encode('BMSPLIT\x01');
+export const FILE_HASH_BYTES = 32;
 
 function hashBytes(hash: string): Uint8Array {
     return Uint8Array.from({ length: FILE_HASH_BYTES }, (_, position) =>
@@ -107,6 +107,7 @@ export function encodeSplitPrefix(input: SplitHeader): Result<
                 ];
                 if (input.chunkIndex === 0)
                     fields.push(Uint8Array.from(Varint.encode(name.length)), name);
+
                 for (const bytes of fields) {
                     prefix.set(bytes, offset);
                     offset += bytes.length;

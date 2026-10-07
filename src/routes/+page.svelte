@@ -5,7 +5,7 @@
     import type { PageData } from './$types';
     import { fade } from 'svelte/transition';
     import { prefersReducedMotion } from 'svelte/motion';
-    import { DriveController } from '$browser/drive.svelte';
+    import { DriveController } from '$browser/drive/index.svelte';
     import AppHeader from '$components/AppHeader.svelte';
     import AccountMenu from '$components/AccountMenu.svelte';
     import AccountSetup from '$components/AccountSetup.svelte';
@@ -59,18 +59,18 @@
     />
 
     <AppHeader
-        bind:search={drive.searchTerm}
+        bind:search={drive.library.searchTerm}
         email={drive.selectedEmail}
-        theme={drive.themeMode}
+        theme={drive.settings.themeMode}
         menuOpen={drive.accountMenuOpen}
         {navigationOpen}
         onnavigation={() => (navigationOpen = true)}
-        refreshing={drive.libraryLoading}
-        refreshDisabled={!drive.selectedEmail || actionsDisabled || drive.libraryLoading}
+        refreshing={drive.library.loading}
+        refreshDisabled={!drive.selectedEmail || actionsDisabled || drive.library.loading}
         onrefresh={() => {
-            void drive.refreshFiles();
+            void drive.library.refresh();
         }}
-        ontheme={(mode) => drive.chooseTheme(mode)}
+        ontheme={(mode) => drive.settings.chooseTheme(mode)}
         bind:accountButton
     />
 
@@ -93,7 +93,7 @@
     <UploadSidebar
         bind:open={navigationOpen}
         connected={!!drive.selectedEmail}
-        disabled={actionsDisabled || drive.libraryLoading}
+        disabled={actionsDisabled || drive.library.loading}
         {view}
         onnavigate={(nextView) => (view = nextView)}
         onconnect={addAccount}
@@ -106,13 +106,13 @@
         {#if drive.ready && view === AppView.Settings}
             <SettingsPanel
                 defaults={data.preferencesDefaults}
-                refreshIntervalSeconds={drive.refreshIntervalSeconds}
-                concurrentWorkers={drive.concurrentWorkers}
-                theme={drive.themeMode}
-                onrefreshinterval={(seconds) => drive.chooseRefreshInterval(seconds)}
-                onworkers={(workers) => drive.chooseConcurrentWorkers(workers)}
-                onresetrefreshinterval={() => drive.resetRefreshInterval()}
-                onresetworkers={() => drive.resetConcurrentWorkers()}
+                refreshIntervalSeconds={drive.settings.refreshIntervalSeconds}
+                concurrentWorkers={drive.settings.concurrentWorkers}
+                theme={drive.settings.themeMode}
+                onrefreshinterval={(seconds) => drive.settings.chooseRefreshInterval(seconds)}
+                onworkers={(workers) => drive.settings.chooseConcurrentWorkers(workers)}
+                onresetrefreshinterval={() => drive.settings.resetRefreshInterval()}
+                onresetworkers={() => drive.settings.resetConcurrentWorkers()}
             />
         {:else if drive.ready && (!drive.selectedEmail || drive.adding)}
             <div in:fade={{ duration: prefersReducedMotion.current ? 0 : 160 }}>
@@ -144,34 +144,40 @@
             >
                 <div class="workspace-heading">
                     <h1 id="files-heading">
-                        My files <span class="text-subtle">({drive.visibleUploads.length})</span>
+                        My files <span class="text-subtle"
+                            >({drive.library.visibleFiles.length})</span
+                        >
                     </h1>
-                    <LayoutToggle bind:layout={drive.fileLayout} />
+                    <LayoutToggle bind:layout={drive.settings.fileLayout} />
                 </div>
 
                 <FileFilters
-                    types={drive.availableTypes}
-                    bind:type={drive.typeFilter}
-                    bind:days={drive.modifiedDays}
-                    bind:sort={drive.fileSort}
+                    types={drive.library.availableTypes}
+                    bind:type={drive.library.typeFilter}
+                    bind:days={drive.library.modifiedDays}
+                    bind:sort={drive.settings.fileSort}
                 />
                 <FileDrop
                     disabled={actionsDisabled ||
-                        drive.libraryLoading ||
+                        drive.library.loading ||
                         drive.confirmOpen ||
                         drive.accountMenuOpen}
                     onupload={upload}
                 >
                     <FileGrid
-                        files={drive.visibleUploads}
-                        layout={drive.fileLayout}
-                        bind:sort={drive.fileSort}
-                        loading={drive.libraryLoading}
-                        loadFailed={drive.libraryLoadFailed}
-                        filtered={!!(drive.searchTerm || drive.typeFilter || drive.modifiedDays)}
-                        hasFiles={!!drive.files.length}
-                        hasMore={!!drive.nextPageToken}
-                        disabled={actionsDisabled || drive.libraryLoading}
+                        files={drive.library.visibleFiles}
+                        layout={drive.settings.fileLayout}
+                        bind:sort={drive.settings.fileSort}
+                        loading={drive.library.loading}
+                        loadFailed={drive.library.loadFailed}
+                        filtered={!!(
+                            drive.library.searchTerm ||
+                            drive.library.typeFilter ||
+                            drive.library.modifiedDays
+                        )}
+                        hasFiles={!!drive.library.files.length}
+                        hasMore={!!drive.library.nextPageToken}
+                        disabled={actionsDisabled || drive.library.loading}
                         action={drive.fileAction}
                         ondownload={(item) => {
                             void drive.actOnFile(item, FileActionKind.Download);
@@ -181,7 +187,7 @@
                             drive.confirmOpen = true;
                         }}
                         onmore={() => {
-                            void drive.loadFiles(false);
+                            void drive.library.load(false);
                         }}
                     />
                 </FileDrop>
@@ -194,7 +200,7 @@
     bind:open={drive.uploadPanelOpen}
     busy={drive.busy}
     jobs={drive.uploadJobs}
-    retryDisabled={actionsDisabled || drive.libraryLoading || !drive.selectedEmail}
+    retryDisabled={actionsDisabled || drive.library.loading || !drive.selectedEmail}
     onretry={(id) => {
         void drive.retryUpload(id);
     }}

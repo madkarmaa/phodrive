@@ -1,8 +1,8 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
 import { UploadStatus } from '$lib/models';
-import { receiveUpload } from '$server/upload-input';
-import { uploadStream } from '$server/upload-stream';
+import { receiveUpload } from '$server/upload/input';
+import { uploadStream } from '$server/upload/stream';
 import * as photos from '$server/photos';
 import { uploadForm } from '../helpers/upload';
 

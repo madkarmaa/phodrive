@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { ThemeMode, UploadEventType, UploadJobStatus, UploadRequestSchema } from '$lib/models';
 import { browserUploadResponse } from '../helpers/upload';
-import { DriveController } from '$browser/drive.svelte';
+import { DriveController } from '$browser/drive/index.svelte';
 
 const { storage } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -30,7 +30,7 @@ const { storage } = vi.hoisted(() => {
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
 vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/automatic-refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {
@@ -73,7 +73,7 @@ test('truncated batch marks only unfinished work failed; retry submits that file
         UploadJobStatus.Error
     ]);
     expect(drive.uploadJobs[1]?.message).toContain('connection ended');
-    const partial = drive.uploads.find((chunk) => chunk.originalName === 'retry.bin');
+    const partial = drive.library.chunks.find((chunk) => chunk.originalName === 'retry.bin');
     expect(partial).toBeDefined();
 
     const completedBeforeRetry = drive.uploadJobs[0];
@@ -88,8 +88,8 @@ test('truncated batch marks only unfinished work failed; retry submits that file
         status: UploadJobStatus.Complete
     });
     expect(metadata[1]).toBe(metadata[0]);
-    expect(drive.uploads).toHaveLength(2);
-    expect(drive.uploads.find((chunk) => chunk.originalName === 'retry.bin')?.fileId).toBe(
+    expect(drive.library.chunks).toHaveLength(2);
+    expect(drive.library.chunks.find((chunk) => chunk.originalName === 'retry.bin')?.fileId).toBe(
         partial?.fileId
     );
 });

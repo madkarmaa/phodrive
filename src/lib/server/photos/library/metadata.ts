@@ -1,7 +1,7 @@
 import type { ServerError } from '$server/errors';
 import { Ok, type Result } from 'results-ts';
 import { MAX_PHOTOS_BMP_BYTES } from '$server/bmp';
-import { LIBRARY_PAGE_REQUEST } from '$server/library-requests';
+import { LIBRARY_PAGE_REQUEST } from '$server/photos/library/requests';
 import {
     bytes,
     parse,
@@ -110,6 +110,7 @@ export function parseLibraryPage(
             }
 
             const next = optional(fields, 1);
+
             return {
                 items,
                 nextPageToken:

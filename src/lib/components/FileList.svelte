@@ -2,7 +2,7 @@
     import { Button } from 'noph-ui';
     import prettyBytes from 'pretty-bytes';
     import { FileSort } from '$lib/models';
-    import { fileKey, type FileGroup, type FileAction } from '$lib/file-groups';
+    import { fileKey, type FileGroup, type FileAction } from '$lib/files';
     import LocalizedDate from '$components/LocalizedDate.svelte';
     import FileActions from '$components/FileActions.svelte';
     import IconDescription from '~icons/material-symbols/description';

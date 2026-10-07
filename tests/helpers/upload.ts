@@ -7,7 +7,7 @@ import {
     type UploadEvent
 } from '$lib/models';
 import { encodeSplitBmp, decodeSplitBmp } from '$server/bmp';
-import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp-format';
+import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp/format';
 import { fileIdentity } from '$server/chunks';
 import { bytesField, message, nested, numberField } from '$server/protobuf';
 import type { Fetcher } from '$server/fetcher';

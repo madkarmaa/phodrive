@@ -3,8 +3,9 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import { UploadRequestSchema, type ChunkUploadRequest, type SplitHeader } from '$lib/models';
-import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp-format';
-import { schemaResult } from '$lib/schema-result';
+import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp/format';
+import { chunkCount, chunkHeader } from '$lib/upload';
+import { schemaResult } from '$lib/validation';
 import { fileIdentity } from '$server/chunks';
 import { SERVER_ERRORS, type ServerError } from '$server/errors';
 
@@ -23,6 +24,7 @@ export interface ReceivedUpload extends ChunkUploadRequest {
 
 function parseMetadata(text: string): Result<ChunkUploadRequest, ServerError> {
     let value: unknown;
+
     try {
         value = JSON.parse(text);
     } catch {
@@ -35,43 +37,44 @@ function parseMetadata(text: string): Result<ChunkUploadRequest, ServerError> {
 }
 
 function chunkMetadata(input: ChunkUploadRequest) {
-    const count = Math.max(1, Math.ceil(input.file.size / MAX_CHUNK_PAYLOAD_BYTES));
+    const count = chunkCount(input.file.size);
     if (input.chunkIndex >= count) return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
 
-    const header: SplitHeader = {
-        fileHash: input.file.fileHash,
-        fileId: fileIdentity(input.file.name, input.file.fileHash),
-        chunkIndex: input.chunkIndex,
-        flags: input.chunkIndex === count - 1 ? 1 : 0,
-        payloadSize: Math.min(
-            MAX_CHUNK_PAYLOAD_BYTES,
-            input.file.size - input.chunkIndex * MAX_CHUNK_PAYLOAD_BYTES
-        ),
-        fileName: input.chunkIndex === 0 ? input.file.name : undefined
-    };
+    const header = chunkHeader(
+        input.file,
+        fileIdentity(input.file.name, input.file.fileHash),
+        input.chunkIndex
+    );
+
     return encodeSplitPrefix(header).map((bmp) => ({ header, bmp, chunkCount: count }));
 }
 
 function payloadStream(stream: BusboyFileStream): ReadableStream<Uint8Array> {
     const iterator = stream[Symbol.asyncIterator]();
+
     return new ReadableStream<Uint8Array>(
         {
             async pull(controller) {
                 let next: IteratorResult<unknown>;
+
                 try {
                     next = await iterator.next();
                 } catch {
                     controller.error(SERVER_ERRORS.FILE_RECEIVE_FAILED);
+
                     return;
                 }
                 if (next.done) {
                     controller.close();
+
                     return;
                 }
                 if (!(next.value instanceof Uint8Array)) {
                     controller.error(SERVER_ERRORS.FILE_RECEIVE_FAILED);
+
                     return;
                 }
+
                 controller.enqueue(next.value);
             },
             cancel() {
@@ -84,10 +87,12 @@ function payloadStream(stream: BusboyFileStream): ReadableStream<Uint8Array> {
 
 async function* requestBytes(body: ReadableStream<Uint8Array>) {
     const reader = body.getReader();
+
     try {
         while (true) {
             const next = await reader.read();
             if (next.done) return;
+
             yield next.value;
         }
     } finally {
@@ -105,6 +110,7 @@ export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, Ser
 
         let parser: InstanceType<typeof Busboy>;
         let source: Readable;
+
         try {
             parser = new Busboy({
                 headers: { 'content-type': contentType },
@@ -146,8 +152,10 @@ export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, Ser
         parser.on('field', (key, value, nameTruncated, valueTruncated) => {
             if (key !== 'metadata' || metadata || receivedFile || nameTruncated || valueTruncated) {
                 fail(SERVER_ERRORS.INVALID_UPLOAD_REQUEST);
+
                 return;
             }
+
             parseMetadata(value).match({
                 Ok: (input) => {
                     metadata = input;
@@ -162,12 +170,15 @@ export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, Ser
             if (key !== 'chunk' || !metadata || receivedFile || failure) {
                 stream.resume();
                 fail(SERVER_ERRORS.INVALID_UPLOAD_REQUEST);
+
                 return;
             }
+
             receivedFile = true;
             active = stream;
             stream.on('error', () => fail(SERVER_ERRORS.FILE_RECEIVE_FAILED));
             stream.on('limit', () => fail(SERVER_ERRORS.FILE_TOO_LARGE));
+
             const input = metadata;
             chunkMetadata(input).match({
                 Err: fail,
@@ -186,6 +197,7 @@ export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, Ser
                                     source.destroy();
                                     parser.destroy();
                                     await completed;
+
                                     return Ok(undefined);
                                 })
                         })
@@ -193,6 +205,7 @@ export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, Ser
                 }
             });
         });
+
         const completed = pipeline(source, parser)
             .then((): Result<void, ServerError> =>
                 failure
@@ -208,6 +221,7 @@ export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, Ser
                 request.signal.removeEventListener('abort', onAbort);
                 result.inspectErr((error) => settle(Err(error)));
                 if (!receivedFile) settle(Err(SERVER_ERRORS.FILES_REQUIRED));
+
                 return result;
             });
         if (request.signal.aborted) onAbort();

@@ -48,6 +48,7 @@ async function dispatchRequest(
                   const chunk = await reader.read();
                   if (chunk.done) {
                       controller.close();
+
                       return;
                   }
 

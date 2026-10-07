@@ -1,7 +1,7 @@
 import { ConfirmKind, FileSort, ThemeMode, type RemoteBmp } from '$lib/models';
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
-import { DriveController } from '$browser/drive.svelte';
+import { DriveController } from '$browser/drive/index.svelte';
 import { BrowserPreferences } from '$browser/storage';
 import * as filesApi from '$browser/files';
 import * as libraryApi from '$browser/library';
@@ -70,7 +70,7 @@ function preferences(): BrowserPreferences {
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
 vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/automatic-refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 vi.mock('$browser/storage', async (importOriginal) => {
     const actual = await importOriginal<typeof import('$browser/storage')>();
     return {
@@ -100,7 +100,7 @@ test('confirming a file after switching accounts refuses the old account target'
         chunks: [chunk(HASH_A, FIRST, 0, 'alpha-chunk')],
         complete: true
     };
-    drive.uploads = [
+    drive.library.chunks = [
         chunk(HASH_A, FIRST, 0, 'alpha-chunk'),
         chunk(HASH_B, SECOND, 0, 'beta-chunk')
     ];
@@ -138,7 +138,7 @@ test('refresh removing a chunk invalidates the stale file confirmation', async (
         isLast: true,
         originalName: undefined
     };
-    drive.uploads = [chunkZero, chunkOne];
+    drive.library.chunks = [chunkZero, chunkOne];
     drive.confirmTarget = {
         kind: ConfirmKind.File,
         item: {
@@ -153,7 +153,7 @@ test('refresh removing a chunk invalidates the stale file confirmation', async (
         }
     };
     drive.confirmOpen = true;
-    await drive.refreshFiles();
+    await drive.library.refresh();
 
     expect(load).toHaveBeenCalled();
     drive.confirmAction();

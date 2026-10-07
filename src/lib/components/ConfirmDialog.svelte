@@ -1,7 +1,7 @@
 <script lang="ts">
     import { ConfirmKind } from '$lib/models';
     import { Button, Dialog } from 'noph-ui';
-    import type { ConfirmTarget } from '$browser/drive.svelte';
+    import type { ConfirmTarget } from '$browser/drive/index.svelte';
 
     interface Props {
         open?: boolean;

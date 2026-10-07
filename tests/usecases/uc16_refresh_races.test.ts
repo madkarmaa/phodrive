@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
 import { ThemeMode } from '$lib/models';
-import { DriveController } from '$browser/drive.svelte';
+import { DriveController } from '$browser/drive/index.svelte';
 import { readLibraryPage, readLibrarySnapshot } from '$browser/library';
 
 const { storage } = vi.hoisted(() => {
@@ -29,7 +29,7 @@ const { storage } = vi.hoisted(() => {
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
 vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
 vi.mock('$browser/library', () => ({ readLibraryPage: vi.fn(), readLibrarySnapshot: vi.fn() }));
-vi.mock('$browser/automatic-refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();
@@ -82,10 +82,10 @@ test('switching accounts during pending library requests ignores stale responses
     drive.initialize();
     drive.ready = false;
 
-    const firstLoad = drive.loadFiles();
-    expect(drive.libraryLoading).toBe(true);
+    const firstLoad = drive.library.load();
+    expect(drive.library.loading).toBe(true);
     drive.selectAccount('second@example.com');
-    const secondLoad = drive.loadFiles();
+    const secondLoad = drive.library.load();
     await vi.waitFor(() => expect(readLibraryPage).toHaveBeenCalledTimes(2));
     expect(vi.mocked(readLibraryPage).mock.calls.map(([email]) => email)).toEqual([
         'first@example.com',
@@ -97,10 +97,10 @@ test('switching accounts during pending library requests ignores stale responses
 
     firstAccountPage.resolve(Ok({ items: [chunk('first-stale')], nextPageToken: '' }));
     await firstLoad;
-    await vi.waitFor(() => expect(drive.libraryLoading).toBe(false));
+    await vi.waitFor(() => expect(drive.library.loading).toBe(false));
 
     expect(drive.selectedEmail).toBe('second@example.com');
-    expect(drive.uploads.map(({ mediaKey, email }) => [mediaKey, email])).toEqual([
+    expect(drive.library.chunks.map(({ mediaKey, email }) => [mediaKey, email])).toEqual([
         ['second-current', 'second@example.com']
     ]);
 });
@@ -120,17 +120,17 @@ test('manual refresh replaces completed initial data and clears the loading stat
     drive.ready = false;
 
     drive.ready = true;
-    const initialLoad = drive.loadFiles();
+    const initialLoad = drive.library.load();
     initialPage.resolve(Ok({ items: [chunk('initial')], nextPageToken: '' }));
     await initialLoad;
-    expect(drive.libraryLoading).toBe(false);
+    expect(drive.library.loading).toBe(false);
 
-    const olderRefresh = drive.refreshFiles();
-    expect(drive.libraryLoading).toBe(true);
+    const olderRefresh = drive.library.refresh();
+    expect(drive.library.loading).toBe(true);
     firstRefresh.resolve(Ok({ items: [chunk('refreshed')], nextPageToken: '', pages: 1 }));
     await olderRefresh;
 
-    expect(drive.libraryLoading).toBe(false);
-    expect(drive.uploads.map(({ mediaKey }) => mediaKey)).toEqual(['refreshed']);
+    expect(drive.library.loading).toBe(false);
+    expect(drive.library.chunks.map(({ mediaKey }) => mediaKey)).toEqual(['refreshed']);
     expect(drive.feedbackMessage).toBe('');
 });

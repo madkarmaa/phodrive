@@ -2,7 +2,7 @@ import { createSHA1, createSHA256, sha256, type IHasher } from 'hash-wasm';
 import { Err, Ok, type AsyncResult } from 'results-ts';
 import type { ApplicationError } from '$lib/errors';
 import type { SplitHeader } from '$lib/models';
-import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp-format';
+import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp/format';
 
 export const HASH_BLOCK_BYTES = 1024 * 1024;
 const ZERO_BLOCK = new Uint8Array(64 * 1024);
@@ -12,6 +12,7 @@ function createHasher(factory: () => Promise<IHasher>): AsyncResult<IHasher, App
     return Ok(undefined).andThenAsync(async () => {
         try {
             const hasher = await factory();
+
             return Ok(hasher);
         } catch {
             return Err({
@@ -30,6 +31,7 @@ function hashBlob(
     return Ok(undefined).andThenAsync(async () => {
         for (let offset = 0; offset < blob.size; offset += HASH_BLOCK_BYTES) {
             let bytes: ArrayBuffer;
+
             try {
                 bytes = await blob.slice(offset, offset + HASH_BLOCK_BYTES).arrayBuffer();
             } catch {
@@ -41,6 +43,7 @@ function hashBlob(
             hash.update(new Uint8Array(bytes));
             onProgress(Math.min(offset + HASH_BLOCK_BYTES, blob.size));
         }
+
         return Ok(undefined);
     });
 }
@@ -53,6 +56,7 @@ export function hashFile(
     const cached = FILE_HASHES.get(file);
     if (cached) {
         onProgress(file.size);
+
         return Ok(cached).andThenAsync(async (hash) => Ok(hash));
     }
 
@@ -60,6 +64,7 @@ export function hashFile(
         hashBlob(file, hash, onProgress).map(() => {
             const digest = hash.digest('hex');
             FILE_HASHES.set(file, digest);
+
             return digest;
         })
     );
@@ -72,6 +77,7 @@ export function uploadIdentity(
     return Ok(undefined).andThenAsync(async () => {
         try {
             const identity = await sha256(`${fileHash}\0${name}\0${MAX_CHUNK_PAYLOAD_BYTES}`);
+
             return Ok(identity);
         } catch {
             return Err({
@@ -90,9 +96,11 @@ export function hashUploadChunk(
     return encodeSplitPrefix(header).andThenAsync(({ prefix, totalSize, paddingSize }) =>
         createHasher(createSHA1).andThenAsync((hash) => {
             hash.update(prefix);
+
             return hashBlob(payload, hash, () => {}).map(() => {
                 for (let offset = 0; offset < paddingSize; offset += ZERO_BLOCK.length)
                     hash.update(ZERO_BLOCK.subarray(0, paddingSize - offset));
+
                 return { sha1: hash.digest('hex'), size: totalSize };
             });
         })

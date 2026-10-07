@@ -5,8 +5,8 @@ import { downloadFile } from '$server/files';
 import { downloadBmp } from '$server/photos';
 import { bmpResponse, downloadFixture } from '../helpers/download';
 import { uploadForm } from '../helpers/upload';
-import { encodeUploadBmp } from '$server/upload-bmp';
-import { receiveUpload } from '$server/upload-input';
+import { encodeUploadBmp } from '$server/upload/bmp';
+import { receiveUpload } from '$server/upload/input';
 
 vi.mock('node:fs/promises', async (importOriginal) => {
     const actual = await importOriginal<typeof import('node:fs/promises')>();

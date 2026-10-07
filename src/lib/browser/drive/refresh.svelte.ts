@@ -30,6 +30,7 @@ export function useAutomaticRefresh(
     watch([seconds, enabled], ([delay, active]) => {
         if (!active || delay === 0) {
             interval.pause();
+
             return;
         }
 

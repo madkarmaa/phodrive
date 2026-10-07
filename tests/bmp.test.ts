@@ -9,7 +9,7 @@ import {
     splitBmpByteLength
 } from '$server/bmp';
 import { chunkFileName } from '$server/chunks';
-import { groupChunks } from '$lib/file-groups';
+import { groupChunks } from '$lib/files';
 import { SplitHeaderSchema, type SplitHeader, type RemoteBmp } from '$lib/models';
 
 const ORIGINAL = Uint8Array.from({ length: 1031 }, (_, index) => index % 251);

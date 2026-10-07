@@ -1,6 +1,6 @@
 import { UploadEventType, type UploadEvent } from '$lib/models';
-import type { ReceivedUpload } from '$server/upload-input';
-import { uploadFiles } from '$server/uploads';
+import type { ReceivedUpload } from '$server/upload/input';
+import { uploadFiles } from '$server/upload';
 
 /** Coalesce progress so a paused browser cannot grow the server's event queue. */
 export function uploadStream(input: ReceivedUpload): Response {
@@ -11,10 +11,12 @@ export function uploadStream(input: ReceivedUpload): Response {
     const encoder = new TextEncoder();
     const flush = (controller: ReadableStreamDefaultController<Uint8Array>) => {
         if (!open || !controller.desiredSize || controller.desiredSize < 0) return;
+
         const event = progress ?? confirmations.shift();
         if (event) {
             progress = null;
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+
             return;
         }
         if (finished) {
@@ -28,11 +30,14 @@ export function uploadStream(input: ReceivedUpload): Response {
                 if (!open) return;
                 if (event.type === UploadEventType.Progress) progress = event;
                 else confirmations.push(event);
+
                 flush(controller);
             };
             const run = async () => {
                 const uploaded = await uploadFiles(input, emit);
+
                 const cancelled = await input.cancel();
+
                 uploaded
                     .andThen(() => cancelled)
                     .match({
@@ -49,10 +54,13 @@ export function uploadStream(input: ReceivedUpload): Response {
             open = false;
             progress = null;
             confirmations.length = 0;
+
             const cancelled = await input.cancel();
+
             cancelled.inspectErr((error) => console.error(error.message));
         }
     });
+
     return new Response(body, {
         headers: {
             'content-type': 'text/event-stream',

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { pageRequest, parseLibraryPage } from '$server/library-metadata';
-import { LIBRARY_PAGE_REQUEST } from '$server/library-requests';
+import { pageRequest, parseLibraryPage } from '$server/photos/library/metadata';
+import { LIBRARY_PAGE_REQUEST } from '$server/photos/library/requests';
 import { bytesField, message, nested } from '$server/protobuf';
 
 test('library pagination sends the resume token at field 1.4 and preserves the metadata mask', () => {

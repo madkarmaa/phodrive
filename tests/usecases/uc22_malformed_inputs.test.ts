@@ -2,8 +2,8 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { readJson } from '$server/request';
 import { parse } from '$server/protobuf';
 import { decodeSplitBmp } from '$server/bmp';
-import { receiveUpload } from '$server/upload-input';
-import { encodeUploadBmp } from '$server/upload-bmp';
+import { receiveUpload } from '$server/upload/input';
+import { encodeUploadBmp } from '$server/upload/bmp';
 import { uploadForm } from '../helpers/upload';
 
 afterEach(() => vi.restoreAllMocks());

@@ -3,7 +3,7 @@
     import { ElementRect } from 'runed';
     import type { Snippet } from 'svelte';
     import { MediaQuery } from 'svelte/reactivity';
-    import { droppedFiles } from '$browser/file-drop';
+    import { droppedFiles } from '$browser/files/drop';
     import IconUpload from '~icons/material-symbols/cloud-upload';
     import IconFolder from '~icons/material-symbols/folder-outline';
 

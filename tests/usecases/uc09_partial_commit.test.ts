@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
 import { ThemeMode, UploadJobStatus, UploadStatus } from '$lib/models';
-import type { UploadedChunk } from '$lib/file-groups';
-import { DriveController } from '$browser/drive.svelte';
+import type { UploadedChunk } from '$lib/files';
+import { DriveController } from '$browser/drive/index.svelte';
 import * as filesApi from '$browser/files';
 import { findBmpBySha1, uploadBmp } from '$server/photos';
 import type { Fetcher } from '$server/fetcher';
@@ -35,7 +35,7 @@ const { storage } = vi.hoisted(() => {
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
 vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/automatic-refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();
@@ -59,10 +59,6 @@ function varint(value: number): Buffer {
 function bytes(field: number, value: Uint8Array | string): Buffer {
     const body = Buffer.from(value);
     return Buffer.concat([varint(field * 8 + 2), varint(body.length), body]);
-}
-
-function number(field: number, value: number): Buffer {
-    return Buffer.concat([varint(field * 8), varint(value)]);
 }
 
 function confirmedChunk(name: string, index: number): UploadedChunk {
@@ -157,12 +153,12 @@ test('partial confirmations survive one failed file while others finish; retry i
         UploadJobStatus.Complete,
         UploadJobStatus.Complete
     ]);
-    expect(drive.uploads.map((chunk) => chunk.originalName)).toEqual([
+    expect(drive.library.chunks.map((chunk) => chunk.originalName)).toEqual([
         'other.bin',
         'complete.bin',
         'partial.bin'
     ]);
-    const partial = drive.uploads.find((chunk) => chunk.originalName === 'partial.bin');
+    const partial = drive.library.chunks.find((chunk) => chunk.originalName === 'partial.bin');
     expect(partial?.chunkIndex).toBe(0);
     expect(upload).toHaveBeenCalledTimes(1);
 
@@ -175,7 +171,9 @@ test('partial confirmations survive one failed file while others finish; retry i
         UploadJobStatus.Complete,
         UploadJobStatus.Complete
     ]);
-    expect(drive.uploads.filter((chunk) => chunk.originalName === 'partial.bin')).toHaveLength(2);
+    expect(
+        drive.library.chunks.filter((chunk) => chunk.originalName === 'partial.bin')
+    ).toHaveLength(2);
 });
 
 test('a commit timeout is not automatically retried, and an explicit dedup lookup can resolve it', async () => {
@@ -195,7 +193,7 @@ test('a commit timeout is not automatically retried, and an explicit dedup looku
     let transferCount = 0;
     let commitCount = 0;
 
-    const fakeFetch: Fetcher = async (input, init) => {
+    const fakeFetch: Fetcher = async (input) => {
         requestCount++;
         const url = String(input);
 

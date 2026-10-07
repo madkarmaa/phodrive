@@ -1,14 +1,17 @@
 import type { ApplicationError } from '$lib/errors';
 import { FileActionKind, ConcurrentWorkersSchema, FileDeleteResponseSchema } from '$lib/models';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import type { FileGroup, UploadedChunk } from '$lib/file-groups';
-import { schemaResult } from '$lib/schema-result';
+import type { FileGroup, UploadedChunk } from '$lib/files';
+import { schemaResult } from '$lib/validation';
 import { apiJson, request } from '$browser/api';
-export { createUploadJobs, type UploadJob } from '$browser/upload-jobs';
+
+export { createUploadJobs, type UploadJob } from '$browser/upload/jobs';
 
 export type { UploadProgress } from '$lib/models';
+export { uploadFiles } from '$browser/upload';
 
-export { uploadFiles } from '$browser/upload-files';
+const FILES_API_URL = '/api/files';
+const DOWNLOAD_URL_LIFETIME_MS = 60_000;
 
 function fileRequest(
     item: FileGroup,
@@ -41,7 +44,7 @@ export function deleteFile(
     return schemaResult(ConcurrentWorkersSchema, workers, 'Invalid concurrent worker count.')
         .andThenAsync((concurrency) =>
             apiJson(
-                '/api/files',
+                FILES_API_URL,
                 fileRequest(item, FileActionKind.Delete, token, concurrency),
                 'Delete failed'
             )
@@ -57,6 +60,7 @@ export function deleteFile(
                         code: 'INVALID_DELETE_RESPONSE',
                         message: 'Invalid delete response.'
                     } as const);
+
                 onDeleted(known);
             }
 
@@ -73,12 +77,13 @@ export function downloadFile(item: FileGroup, token: string): AsyncResult<Blob, 
             } as const);
 
         return request(
-            '/api/files',
+            FILES_API_URL,
             fileRequest(item, FileActionKind.Download, token, 1),
             'Download failed'
         ).andThenAsync(async (response) => {
             try {
                 const file = await response.blob();
+
                 return Ok(file);
             } catch {
                 return Err({
@@ -88,4 +93,30 @@ export function downloadFile(item: FileGroup, token: string): AsyncResult<Blob, 
             }
         });
     });
+}
+
+/** Keep the object URL alive long enough for the browser to start saving the blob. */
+export function saveDownloadedFile(file: Blob, name: string): Result<void, ApplicationError> {
+    let url: string | undefined;
+
+    try {
+        url = URL.createObjectURL(file);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        link.click();
+
+        return Ok(undefined);
+    } catch {
+        return Err({
+            code: 'DOWNLOAD_SAVE_FAILED',
+            message: 'Could not save the downloaded file.'
+        } as const);
+    } finally {
+        if (url) {
+            const objectUrl = url;
+            setTimeout(() => URL.revokeObjectURL(objectUrl), DOWNLOAD_URL_LIFETIME_MS);
+        }
+    }
 }

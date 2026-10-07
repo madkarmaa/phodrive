@@ -2,8 +2,8 @@
     import { Card } from 'noph-ui';
     import type { FileActionKind } from '$lib/models';
 
-    import type { FileGroup } from '$lib/file-groups';
-    import { fileType } from '$lib/file-groups';
+    import type { FileGroup } from '$lib/files';
+    import { fileType } from '$lib/files';
     import FileActions from '$components/FileActions.svelte';
     import IconDescription from '~icons/material-symbols/description';
     import IconDescriptionOutline from '~icons/material-symbols/description-outline';

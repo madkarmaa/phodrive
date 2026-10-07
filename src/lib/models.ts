@@ -112,6 +112,7 @@ export const SplitHeaderSchema = z
         if (header.chunkIndex === 0 && header.fileName === undefined) {
             return false;
         }
+
         return true;
     });
 

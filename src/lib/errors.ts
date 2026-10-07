@@ -4,6 +4,7 @@ export type ApplicationError = {
         | 'ACCOUNT_CONNECTION_FAILED'
         | 'DELETE_FAILED'
         | 'DOWNLOAD_RECEIVE_FAILED'
+        | 'DOWNLOAD_SAVE_FAILED'
         | 'INCOMPLETE_DOWNLOAD_CHUNKS'
         | 'INVALID_CONCURRENT_WORKERS'
         | 'INVALID_DELETE_RESPONSE'

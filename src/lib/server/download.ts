@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Err, Ok, type AsyncResult } from 'results-ts';
 import type { FileRequest, RemoteBmp, SplitHeader } from '$lib/models';
-import { SplitBmpReader } from '$server/bmp-stream';
+import { SplitBmpReader } from '$server/bmp/stream';
 import { MAX_SPLIT_HEADER_BYTES, splitHeaderByteLength } from '$server/bmp';
 import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import { downloadBmp } from '$server/photos';
@@ -48,12 +48,14 @@ export function streamDownload(
 
         const cleanup = async () => {
             if (closed) return;
+
             closed = true;
             abort.abort();
             requestSignal?.removeEventListener('abort', onAbort);
 
             if (active) {
                 const cancelled = await active.close();
+
                 cancelled.inspectErr((error) => console.error(error.message));
                 active = null;
             }
@@ -61,6 +63,7 @@ export function streamDownload(
         const onAbort = () => {
             if (!closed)
                 responseController?.error(SERVER_ERRORS.COULD_NOT_READ_THE_DOWNLOADED_FILE);
+
             void cleanup();
         };
         requestSignal?.addEventListener('abort', onAbort, { once: true });
@@ -71,13 +74,16 @@ export function streamDownload(
         const first = await openChunk(input, chunks[0], abort.signal);
         if (first.isErr()) {
             await cleanup();
+
             return first.map(() => new Response());
         }
+
         first.inspect((reader) => {
             active = reader;
         });
         if (closed) {
             const cancelled = await first.andThenAsync((reader) => reader.close());
+
             return cancelled.andThen(() => Err(SERVER_ERRORS.COULD_NOT_READ_THE_DOWNLOADED_FILE));
         }
 
@@ -94,14 +100,17 @@ export function streamDownload(
                                 await cleanup();
                                 if (!valid) {
                                     controller.error(SERVER_ERRORS.FILE_INTEGRITY_FAILED);
+
                                     return;
                                 }
 
                                 controller.close();
+
                                 return;
                             }
 
                             const opened = await openChunk(input, chunks[index], abort.signal);
+
                             opened.inspect((reader) => {
                                 active = reader;
                             });
@@ -109,12 +118,15 @@ export function streamDownload(
                                 const cancelled = await opened.andThenAsync((reader) =>
                                     reader.close()
                                 );
+
                                 cancelled.inspectErr((error) => console.error(error.message));
+
                                 return;
                             }
                             if (opened.isErr()) {
                                 opened.inspectErr((error) => controller.error(error));
                                 await cleanup();
+
                                 return;
                             }
                         }
@@ -125,6 +137,7 @@ export function streamDownload(
                         if (next.isErr()) {
                             next.inspectErr((error) => controller.error(error));
                             await cleanup();
+
                             return;
                         }
 
@@ -133,11 +146,13 @@ export function streamDownload(
                                 if (payload === null) {
                                     active = null;
                                     index++;
+
                                     return false;
                                 }
 
                                 hash.update(payload);
                                 controller.enqueue(payload);
+
                                 return true;
                             },
                             Err: () => false

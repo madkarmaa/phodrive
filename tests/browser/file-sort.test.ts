@@ -1,6 +1,6 @@
 import { FileSort } from '$lib/models';
 import { expect, test } from 'vitest';
-import { sortFiles, type FileGroup } from '$lib/file-groups';
+import { sortFiles, type FileGroup } from '$lib/files';
 
 function file(name: string, at: number): FileGroup {
     return {

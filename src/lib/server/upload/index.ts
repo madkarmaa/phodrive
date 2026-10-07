@@ -3,19 +3,17 @@ import {
     UploadEventType,
     UploadPhase,
     UploadStatus,
-    type SplitHeader,
     type UploadEvent,
     type UploadFile
 } from '$lib/models';
 import { SERVER_ERRORS, type ServerError } from '$server/errors';
-import { MAX_CHUNK_PAYLOAD_BYTES, splitBmpByteLength } from '$lib/bmp-format';
+import { planChunks, type UploadPlan } from '$lib/upload';
 import { chunkFileName, fileIdentity } from '$server/chunks';
 import { photosFetchWithProgress, type Fetcher } from '$server/fetcher';
 import { uploadBmpStream } from '$server/photos';
-import { encodeUploadBmp } from '$server/upload-bmp';
-import type { ReceivedUpload } from '$server/upload-input';
+import { encodeUploadBmp } from '$server/upload/bmp';
+import type { ReceivedUpload } from '$server/upload/input';
 
-type UploadPlan = { headers: SplitHeader[]; sizes: number[] };
 const PROGRESS_INTERVAL_MS = 100;
 
 export function planUpload(file: UploadFile): Result<UploadPlan, ServerError> {
@@ -27,30 +25,7 @@ export function planUpload(file: UploadFile): Result<UploadPlan, ServerError> {
     )
         return Err(SERVER_ERRORS.INVALID_FILE_NAME_OR_SIZE);
 
-    const count = Math.max(1, Math.ceil(file.size / MAX_CHUNK_PAYLOAD_BYTES));
-    const fileId = fileIdentity(file.name, file.fileHash);
-    const headers: SplitHeader[] = [];
-    const sizes: number[] = [];
-    for (let index = 0; index < count; index++) {
-        const header: SplitHeader = {
-            fileHash: file.fileHash,
-            fileId,
-            chunkIndex: index,
-            flags: index === count - 1 ? 1 : 0,
-            payloadSize: Math.min(
-                MAX_CHUNK_PAYLOAD_BYTES,
-                file.size - index * MAX_CHUNK_PAYLOAD_BYTES
-            ),
-            fileName: index === 0 ? file.name : undefined
-        };
-        const projected = splitBmpByteLength(header);
-        if (projected.isErr()) return projected;
-
-        projected.inspect((size) => sizes.push(size));
-        headers.push(header);
-    }
-
-    return Ok({ headers, sizes });
+    return planChunks(file, fileIdentity(file.name, file.fileHash));
 }
 
 /** One incoming split is encoded and forwarded directly, with no disk or whole-chunk buffer. */
@@ -65,6 +40,7 @@ export function uploadFiles(
         const report = (completed: number, reused = 0, force = false) => {
             const now = performance.now();
             if (!force && now - lastProgress < PROGRESS_INTERVAL_MS) return;
+
             lastProgress = now;
             emit({
                 type: UploadEventType.Progress,
@@ -78,6 +54,7 @@ export function uploadFiles(
             });
         };
         report(0, 0, true);
+
         const uploaded = await uploadBmpStream(
             input.email,
             input.token,
@@ -113,6 +90,7 @@ export function uploadFiles(
             });
             emit({ type: UploadEventType.FileComplete, id: 0, result });
         });
+
         return Ok(undefined);
     });
 }

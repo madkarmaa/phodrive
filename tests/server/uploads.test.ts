@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import { afterEach, expect, test, vi } from 'vitest';
-import { receiveUpload } from '$server/upload-input';
-import { encodeUploadBmp } from '$server/upload-bmp';
-import { uploadFiles, planUpload } from '$server/uploads';
-import { uploadStream } from '$server/upload-stream';
+import { receiveUpload } from '$server/upload/input';
+import { encodeUploadBmp } from '$server/upload/bmp';
+import { uploadFiles, planUpload } from '$server/upload';
+import { uploadStream } from '$server/upload/stream';
 import { decodeSplitBmp, MAX_CHUNK_PAYLOAD_BYTES } from '$server/bmp';
 import { UploadEventType, UploadStatus, UploadPhase, type UploadEvent } from '$lib/models';
 import { uploadForm, photosUploadHarness } from '../helpers/upload';
@@ -158,7 +158,7 @@ test('paused downstream progress is coalesced rather than retaining every event'
     const fixture = uploadForm();
     const received = await receiveUpload(fixture.request());
     const input = received.unwrap();
-    const uploads = await import('$server/uploads');
+    const uploads = await import('$server/upload');
     let finished = false;
     vi.spyOn(uploads, 'uploadFiles').mockImplementation((_input, emit) =>
         encodeUploadBmp(input)

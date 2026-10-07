@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { FileActionKind, ThemeMode, type RemoteBmp } from '$lib/models';
-import { DriveController } from '$browser/drive.svelte';
+import { DriveController } from '$browser/drive/index.svelte';
 
 const { storage } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -29,7 +29,7 @@ const { storage } = vi.hoisted(() => {
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
 vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/automatic-refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 afterAll(() => vi.unstubAllGlobals());
 afterEach(() => vi.restoreAllMocks());
@@ -83,18 +83,18 @@ test('partial delete retains exact confirmations, retries remaining chunks, and 
 
     const drive = new DriveController();
     drive.initialize();
-    drive.uploads = [
+    drive.library.chunks = [
         { ...first, email: 'owner@example.com' },
         { ...remaining, email: 'owner@example.com' },
         { ...unrelated, email: 'other@example.com' }
     ];
 
-    const selected = drive.files.find((item) => item.fileHash === first.fileHash);
+    const selected = drive.library.files.find((item) => item.fileHash === first.fileHash);
     if (!selected) throw new Error('Expected selected file group.');
     await drive.actOnFile(selected, FileActionKind.Delete);
 
-    const afterPartial = drive.uploads;
-    const retryGroup = drive.files.find((item) => item.fileHash === first.fileHash);
+    const afterPartial = drive.library.chunks;
+    const retryGroup = drive.library.files.find((item) => item.fileHash === first.fileHash);
     if (!retryGroup) throw new Error('Expected remaining selected chunks to form a retry group.');
     await drive.actOnFile(retryGroup, FileActionKind.Delete);
 
@@ -107,6 +107,6 @@ test('partial delete retains exact confirmations, retries remaining chunks, and 
         'owner@example.com:remaining-media-key',
         'other@example.com:shared-media-key'
     ]);
-    expect(drive.uploads).toEqual([{ ...unrelated, email: 'other@example.com' }]);
+    expect(drive.library.chunks).toEqual([{ ...unrelated, email: 'other@example.com' }]);
     expect(drive.feedbackMessage).toBe('');
 });

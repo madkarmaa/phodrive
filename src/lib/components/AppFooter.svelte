@@ -3,7 +3,7 @@
     import { onMount } from 'svelte';
     import { MediaQuery } from 'svelte/reactivity';
     import { ThemeMode } from '$lib/models';
-    import { APP_NAME, APP_VERSION, APP_MOTTO, APP_REPOSITORY_URL } from '$lib/app-info';
+    import { APP_NAME, APP_VERSION, APP_MOTTO, APP_REPOSITORY_URL } from '$lib/app';
     import darkLogo from '$assets/favicon.svg';
     import lightLogo from '$assets/favicon-light.svg';
     import IconCode from '~icons/material-symbols/code';

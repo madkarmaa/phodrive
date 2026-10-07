@@ -7,7 +7,7 @@ import {
     type UploadProgress,
     type UploadResponse
 } from '$lib/models';
-import type { UploadedChunk } from '$lib/file-groups';
+import type { UploadedChunk } from '$lib/files';
 import { Err, Ok, type Result } from 'results-ts';
 
 export interface UploadJob {
@@ -112,6 +112,7 @@ export function createUploadEventHandler(
                 (job) =>
                     job.status !== UploadJobStatus.Complete && job.status !== UploadJobStatus.Error
             );
+
             return unfinished ? invalidProgress() : Ok(undefined);
         }
 
@@ -151,6 +152,7 @@ export function createUploadEventHandler(
 
                 saved.set(chunk.chunkIndex, chunk);
                 onChunk(chunk);
+
                 return Ok(undefined);
             }
 

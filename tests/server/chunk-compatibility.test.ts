@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
-import { groupChunks, type UploadedChunk } from '$lib/file-groups';
+import { groupChunks, type UploadedChunk } from '$lib/files';
 import { FileActionKind } from '$lib/models';
 import {
     decodeSplitBmp,
@@ -12,7 +12,7 @@ import {
 import { fileIdentity } from '$server/chunks';
 import { downloadFile } from '$server/files';
 import { downloadBmp } from '$server/photos';
-import { planUpload } from '$server/uploads';
+import { planUpload } from '$server/upload';
 import { bmpResponse } from '../helpers/download';
 
 vi.mock('$server/photos', () => ({ downloadBmp: vi.fn(), uploadBmp: vi.fn() }));

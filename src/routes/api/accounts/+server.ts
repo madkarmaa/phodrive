@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { NewAccountSchema } from '$lib/models';
-import { schemaResult } from '$lib/schema-result';
+import { schemaResult } from '$lib/validation';
 import { connectGoogleAccount } from '$server/accounts';
 import { readJson } from '$server/request';
 import type { z } from 'zod';
@@ -10,6 +10,7 @@ const RESPONSE_HEADERS = { 'cache-control': 'no-store' };
 
 export const POST: RequestHandler = async ({ request }) => {
     const body = await readJson(request);
+
     const parsed = body.andThen((value) =>
         schemaResult(NewAccountSchema, value, 'Invalid account')
     );

@@ -1,7 +1,7 @@
 import { ThemeMode, UploadJobStatus, UploadStatus } from '$lib/models';
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Err, Ok } from 'results-ts';
-import { DriveController } from '$browser/drive.svelte';
+import { DriveController } from '$browser/drive/index.svelte';
 import * as filesApi from '$browser/files';
 import * as libraryApi from '$browser/library';
 
@@ -32,7 +32,7 @@ const { storage } = vi.hoisted(() => {
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
 vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/automatic-refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();
@@ -106,7 +106,7 @@ test('retry keeps the original job ID and sends only its file, preserving other 
     drive.busy = true;
     await drive.retryUpload(1);
     drive.busy = false;
-    drive.libraryLoading = true;
+    drive.library.loading = true;
     await drive.retryUpload(1);
 
     expect(upload).toHaveBeenCalledTimes(2);
@@ -129,21 +129,21 @@ test('dismissing a library error preserves failed-load state and repeated errors
 
     const drive = new DriveController();
     drive.initialize();
-    await drive.loadFiles();
+    await drive.library.load();
 
     expect(drive.feedbackMessage).toBe(failure.message);
-    expect(drive.libraryLoadFailed).toBe(true);
+    expect(drive.library.loadFailed).toBe(true);
 
     drive.feedbackMessage = '';
-    expect(drive.libraryLoadFailed).toBe(true);
+    expect(drive.library.loadFailed).toBe(true);
 
-    await drive.refreshFiles();
+    await drive.library.refresh();
     expect(drive.feedbackMessage).toBe(failure.message);
-    expect(drive.libraryLoadFailed).toBe(true);
+    expect(drive.library.loadFailed).toBe(true);
 
     drive.feedbackMessage = '';
-    await drive.refreshFiles();
-    expect(drive.libraryLoadFailed).toBe(false);
+    await drive.library.refresh();
+    expect(drive.library.loadFailed).toBe(false);
     expect(drive.feedbackMessage).toBe('');
-    expect(drive.uploads).toEqual([]);
+    expect(drive.library.chunks).toEqual([]);
 });

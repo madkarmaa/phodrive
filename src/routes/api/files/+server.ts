@@ -2,12 +2,13 @@ import { FileActionKind, FileRequestSchema } from '$lib/models';
 import { json } from '@sveltejs/kit';
 import { downloadFile, deleteFile } from '$server/files';
 import { readJson } from '$server/request';
-import { schemaResult } from '$lib/schema-result';
+import { schemaResult } from '$lib/validation';
 import type { z } from 'zod';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
     const body = await readJson(request);
+
     const parsed = body.andThen((value) =>
         schemaResult(FileRequestSchema, value, 'Invalid request')
     );
@@ -19,6 +20,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     if (input.action === FileActionKind.Download) {
         const downloaded = await downloadFile(input, request.signal);
+
         return downloaded.match({
             Ok: (response) => response,
             Err: (error) =>
@@ -30,6 +32,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     const deleted = await deleteFile(input);
+
     return deleted.match({
         Ok: (result) => json(result, { headers: { 'cache-control': 'no-store' } }),
         Err: (error) =>

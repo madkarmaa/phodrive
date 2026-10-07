@@ -2,18 +2,15 @@ import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import { Err, Ok, type Result } from 'results-ts';
 import Varint from 'varint';
 import { SplitHeaderSchema, type SplitHeader } from '$lib/models';
-import { encodeSplitPrefix } from '$lib/bmp-format';
+import { encodeSplitPrefix, BMP_HEADER_BYTES, SPLIT_MAGIC, FILE_HASH_BYTES } from '$lib/bmp/format';
 export {
     MAX_PHOTOS_BMP_BYTES,
     MAX_CHUNK_PAYLOAD_BYTES,
     MAX_SPLIT_HEADER_BYTES,
     splitHeaderByteLength,
     splitBmpByteLength
-} from '$lib/bmp-format';
+} from '$lib/bmp/format';
 
-const BMP_HEADER_BYTES = 54;
-const SPLIT_MAGIC = new TextEncoder().encode('BMSPLIT\x01');
-const FILE_HASH_BYTES = 32;
 const UTF8 = new TextDecoder('utf-8', { fatal: true });
 
 function hashHex(bytes: Uint8Array): string {
@@ -51,6 +48,7 @@ export function encodeSplitBmp(
 
     return encodeSplitPrefix(input).andThen(({ prefix, totalSize }) => {
         let bmp: Uint8Array<ArrayBuffer>;
+
         try {
             bmp = new Uint8Array(totalSize);
         } catch {
@@ -58,6 +56,7 @@ export function encodeSplitBmp(
         }
         bmp.set(prefix);
         bmp.set(payload, prefix.length);
+
         return Ok(bmp);
     });
 }
@@ -74,8 +73,10 @@ function readSplitName(
             return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
 
         const payloadOffset = length.next + length.value;
+
         try {
             const fileName = UTF8.decode(prefix.subarray(length.next, payloadOffset));
+
             return Ok({ fileName, payloadOffset });
         } catch {
             return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
@@ -116,6 +117,7 @@ export function decodeSplitHeader(
     let offset = BMP_HEADER_BYTES + SPLIT_MAGIC.length;
     const fileHash = hashHex(prefix.subarray(offset, offset + FILE_HASH_BYTES));
     offset += FILE_HASH_BYTES;
+
     const fileId = hashHex(prefix.subarray(offset, offset + FILE_HASH_BYTES));
     offset += FILE_HASH_BYTES;
 
@@ -123,6 +125,7 @@ export function decodeSplitHeader(
         if (index.next >= prefix.length) return invalid();
 
         const flags = prefix[index.next];
+
         return readVarint(prefix, index.next + 1).map((size) => ({
             fileHash,
             fileId,

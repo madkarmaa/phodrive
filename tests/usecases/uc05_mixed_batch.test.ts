@@ -1,6 +1,6 @@
 import { UploadJobStatus } from '$lib/models';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { DriveController } from '$browser/drive.svelte';
+import { DriveController } from '$browser/drive/index.svelte';
 import { createUploadJobs } from '$browser/files';
 import { browserUploadResponse } from '../helpers/upload';
 
@@ -29,7 +29,7 @@ const { storage } = vi.hoisted(() => {
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
 vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/automatic-refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();
@@ -69,8 +69,8 @@ test('mixed tiny-file batch preserves local IDs across invalid names and rejects
         [2, 'tiny.bin', UploadJobStatus.Complete],
         [3, 'also-tiny.bin', UploadJobStatus.Complete]
     ]);
-    expect(drive.uploads).toHaveLength(3);
-    expect(new Set(drive.uploads.map((chunk) => chunk.fileHash)).size).toBe(3);
+    expect(drive.library.chunks).toHaveLength(3);
+    expect(new Set(drive.library.chunks.map((chunk) => chunk.fileHash)).size).toBe(3);
     expect(requests).toHaveBeenCalledTimes(3);
     expect(createUploadJobs(files).map((job) => job.id)).toEqual([0, 1, 2, 3]);
 });

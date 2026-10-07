@@ -2,8 +2,8 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { UploadJobStatus } from '$lib/models';
 import { uploadFiles, type UploadJob } from '$browser/files';
 import { decodeSplitBmp, encodeSplitBmp } from '$server/bmp';
-import { receiveUpload } from '$server/upload-input';
-import { encodeUploadBmp } from '$server/upload-bmp';
+import { receiveUpload } from '$server/upload/input';
+import { encodeUploadBmp } from '$server/upload/bmp';
 import { uploadForm, browserUploadResponse } from '../helpers/upload';
 
 afterEach(() => vi.restoreAllMocks());

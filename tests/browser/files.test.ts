@@ -1,9 +1,15 @@
 import { FileRequestSchema, UploadJobStatus, UploadEventType, type RemoteBmp } from '$lib/models';
 import { afterEach, expect, vi, test } from 'vitest';
 import { createHash } from 'node:crypto';
-import { groupChunks, type UploadedChunk } from '$lib/file-groups';
-import { downloadFile, uploadFiles, deleteFile, type UploadJob } from '$browser/files';
-import { HASH_BLOCK_BYTES, hashFile } from '$browser/upload-hash';
+import { groupChunks, type UploadedChunk } from '$lib/files';
+import {
+    downloadFile,
+    uploadFiles,
+    deleteFile,
+    saveDownloadedFile,
+    type UploadJob
+} from '$browser/files';
+import { HASH_BLOCK_BYTES, hashFile } from '$browser/upload/hash';
 import { browserUploadResponse } from '../helpers/upload';
 
 const PAYLOAD = Uint8Array.of(0, 255, 13, 10, 42);
@@ -218,4 +224,29 @@ test('an interrupted download body returns a receive error instead of a partial 
         code: 'DOWNLOAD_RECEIVE_FAILED',
         message: 'Could not receive the downloaded file.'
     });
+});
+
+test('a failed browser click still releases the downloaded blob URL', () => {
+    vi.useFakeTimers();
+    const url = 'blob:download-cleanup';
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue(url);
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.stubGlobal('document', {
+        createElement: () => ({
+            click: () => {
+                throw new Error('browser rejected download');
+            }
+        })
+    });
+
+    try {
+        const saved = saveDownloadedFile(new Blob(['payload']), 'original.bin');
+
+        expect(saved.unwrapErr().code).toBe('DOWNLOAD_SAVE_FAILED');
+        vi.runAllTimers();
+        expect(revoke).toHaveBeenCalledWith(url);
+    } finally {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+    }
 });

@@ -1,7 +1,7 @@
 import type { ApplicationError } from '$lib/errors';
 import { Err, Ok, type AsyncResult } from 'results-ts';
 import { AccountConnectionSchema } from '$lib/models';
-import { schemaResult } from '$lib/schema-result';
+import { schemaResult } from '$lib/validation';
 import { apiJson } from '$browser/api';
 
 const ACCOUNT_API_URL = '/api/accounts';

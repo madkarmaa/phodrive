@@ -29,6 +29,7 @@ export function parseServerEnvironment(
 
     if (!parsed.success) {
         const invalidVariables = parsed.error.issues.map((issue) => issue.path.join('.'));
+
         return Err(`Invalid server environment: ${invalidVariables.join(', ')}.`);
     }
 

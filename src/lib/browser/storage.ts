@@ -40,6 +40,7 @@ const STORAGE_ERROR = 'Browser storage is unavailable. Enable it to save your pr
 function parseStoredJson(raw: string): Result<unknown, ApplicationError> {
     try {
         const value: unknown = JSON.parse(raw);
+
         return Ok(value);
     } catch {
         return Err({
@@ -231,6 +232,7 @@ export class BrowserPreferences {
             Err: () => ''
         });
         const accounts = this.accounts;
+
         return Object.hasOwn(accounts, preferred) ? preferred : (Object.keys(accounts)[0] ?? '');
     }
 
@@ -328,6 +330,7 @@ export function createBrowserPreferences(
     defaults: PreferencesDefaults = DEFAULT_PREFERENCES_DEFAULTS
 ): Result<BrowserPreferences, ApplicationError> {
     let preferences: BrowserPreferences;
+
     try {
         preferences = new BrowserPreferences(defaults);
     } catch {

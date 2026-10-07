@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import { SERVER_ERRORS, type ServerError } from '$server/errors';
-import type { ReceivedUpload } from '$server/upload-input';
+import type { ReceivedUpload } from '$server/upload/input';
 
 const TRANSFER_BLOCK_BYTES = 64 * 1024;
 
@@ -30,6 +30,7 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
     const cleanup = async () => {
         closed = true;
         pending = new Uint8Array();
+
         try {
             await reader.cancel();
         } catch {
@@ -51,15 +52,18 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
                     phase = 'payload';
                     hash.update(input.bmp.prefix);
                     controller.enqueue(input.bmp.prefix);
+
                     return;
                 }
                 if (phase === 'payload') {
                     if (!pending.length) {
                         let next: ReadableStreamReadResult<Uint8Array>;
+
                         try {
                             next = await reader.read();
                         } catch {
                             await fail(SERVER_ERRORS.FILE_RECEIVE_FAILED);
+
                             return;
                         }
                         if (closed) return;
@@ -67,14 +71,18 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
                             received += next.value.length;
                             if (received > input.header.payloadSize) {
                                 await fail(SERVER_ERRORS.INVALID_CHUNK_SIZE);
+
                                 return;
                             }
+
                             pending = next.value;
                         } else {
                             if (received !== input.header.payloadSize) {
                                 await fail(SERVER_ERRORS.INCOMPLETE_FILE);
+
                                 return;
                             }
+
                             const finished = await input.finished();
                             if (closed) return;
                             if (finished.isErr()) {
@@ -83,8 +91,10 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
                                     Err: (error) => error
                                 });
                                 await fail(error);
+
                                 return;
                             }
+
                             phase = 'padding';
                         }
                     }
@@ -93,6 +103,7 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
                         pending = pending.subarray(block.length);
                         hash.update(block);
                         controller.enqueue(block);
+
                         return;
                     }
                 }
@@ -101,12 +112,15 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
                     padding -= block.length;
                     hash.update(block);
                     controller.enqueue(block);
+
                     return;
                 }
                 if (hash.digest('hex') !== input.sha1) {
                     await fail(SERVER_ERRORS.UPLOAD_INTEGRITY_FAILED);
+
                     return;
                 }
+
                 closed = true;
                 reader.releaseLock();
                 settle(Ok(undefined));
@@ -120,6 +134,7 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
         { highWaterMark: 0 }
     );
     const verified = Ok(undefined).andThenAsync(async () => await verification);
+
     return {
         body,
         verified,
@@ -128,6 +143,7 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
         drain: () =>
             Ok(undefined).andThenAsync(async () => {
                 const bmpReader = body.getReader();
+
                 try {
                     while (true) {
                         const next = await bmpReader.read();
@@ -138,6 +154,7 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
                 } finally {
                     bmpReader.releaseLock();
                 }
+
                 return await verified;
             })
     };

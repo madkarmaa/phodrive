@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { parsePhotoDownloadUrl } from '$server/photos-download';
+import { parsePhotoDownloadUrl } from '$server/photos/download';
 import { bytesField, message, numberField } from '$server/protobuf';
 import { SERVER_ERRORS } from '$server/errors';
 

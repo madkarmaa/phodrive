@@ -1,12 +1,13 @@
 import { expect, test } from 'vitest';
 import { FileSort } from '$lib/models';
 import {
+    filterFiles,
     fileType,
     groupChunks,
     sortFiles,
     type FileGroup,
     type UploadedChunk
-} from '$lib/file-groups';
+} from '$lib/files';
 
 function file(name: string, at: number): FileGroup {
     return {
@@ -76,12 +77,7 @@ test('search and filters match names case-insensitively and handle empty results
         file('notes.txt', Date.now() - 3 * 86_400_000)
     ];
     const search = (term: string, type: string, days: string) =>
-        files.filter(
-            (item) =>
-                item.name.toLocaleLowerCase().includes(term.toLocaleLowerCase()) &&
-                (!type || fileType(item.name) === type) &&
-                (!days || item.at >= Date.now() - Number(days) * 86_400_000)
-        );
+        filterFiles(files, term, type, days);
 
     expect(search('summer', '', '')).toHaveLength(1);
     expect(search('ÉCLAIR', 'PNG', '')).toHaveLength(1);

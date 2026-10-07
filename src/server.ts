@@ -5,6 +5,7 @@ const INTERNAL_PROTOCOL_HEADER = 'x-phodrive-protocol';
 
 // Adapter-node otherwise assumes HTTPS when deriving the origin from Host.
 process.env.PROTOCOL_HEADER ||= INTERNAL_PROTOCOL_HEADER;
+
 const { handler } = await import('#build-handler');
 
 const environment = parseServerEnvironment(process.env);

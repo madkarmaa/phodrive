@@ -3,7 +3,7 @@ import { FileActionKind, type FileRequest, type RemoteBmp } from '$lib/models';
 import pLimit from 'p-limit';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import { moveToTrash } from '$server/photos';
-import { streamDownload } from '$server/download-stream';
+import { streamDownload } from '$server/download';
 
 function validateChunks(input: FileRequest): Result<RemoteBmp[], ServerError> {
     const chunks = input.chunks.toSorted((a, b) => a.chunkIndex - b.chunkIndex);
@@ -47,6 +47,7 @@ export function deleteFile(
         const limit = pLimit(input.workers);
         await limit.map(chunks, async (chunk) => {
             const removed = await moveToTrash(input.email, input.token, chunk.sha1);
+
             removed.match({
                 Ok: () => {
                     deleted.push(chunk);
@@ -58,6 +59,7 @@ export function deleteFile(
         });
 
         const failure = failures[0];
+
         return Ok({
             deleted,
             ...(failure ? { error: failure.message } : {})

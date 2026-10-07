@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Err, Ok } from 'results-ts';
 import { ThemeMode } from '$lib/models';
-import { DriveController } from '$browser/drive.svelte';
+import { DriveController } from '$browser/drive/index.svelte';
 import { validateAccount } from '$browser/accounts';
 
 const { storage } = vi.hoisted(() => {
@@ -27,7 +27,7 @@ const { storage } = vi.hoisted(() => {
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
 vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/automatic-refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();

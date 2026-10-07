@@ -5,7 +5,7 @@ import {
     MAX_REFRESH_INTERVAL_SECONDS,
     ThemeMode
 } from '$lib/models';
-import { DriveController } from '$browser/drive.svelte';
+import { DriveController } from '$browser/drive/index.svelte';
 import {
     BrowserPreferences,
     CONCURRENT_WORKERS_KEY,
@@ -65,55 +65,55 @@ test('controller saves boundary settings and leaves rejected extremes unchanged'
     const controller = new DriveController();
     controller.initialize();
 
-    controller.chooseRefreshInterval(0);
-    expect(controller.refreshIntervalSeconds).toBe(0);
+    controller.settings.chooseRefreshInterval(0);
+    expect(controller.settings.refreshIntervalSeconds).toBe(0);
     expect(storage.getItem(REFRESH_INTERVAL_KEY)).toBe('0');
     expect(controller.feedbackMessage).toBe('');
 
-    controller.chooseRefreshInterval(MAX_REFRESH_INTERVAL_SECONDS);
-    expect(controller.refreshIntervalSeconds).toBe(MAX_REFRESH_INTERVAL_SECONDS);
+    controller.settings.chooseRefreshInterval(MAX_REFRESH_INTERVAL_SECONDS);
+    expect(controller.settings.refreshIntervalSeconds).toBe(MAX_REFRESH_INTERVAL_SECONDS);
 
-    controller.chooseConcurrentWorkers(1);
-    expect(controller.concurrentWorkers).toBe(1);
+    controller.settings.chooseConcurrentWorkers(1);
+    expect(controller.settings.concurrentWorkers).toBe(1);
 
-    controller.chooseConcurrentWorkers(MAX_CONCURRENT_WORKERS);
-    expect(controller.concurrentWorkers).toBe(MAX_CONCURRENT_WORKERS);
+    controller.settings.chooseConcurrentWorkers(MAX_CONCURRENT_WORKERS);
+    expect(controller.settings.concurrentWorkers).toBe(MAX_CONCURRENT_WORKERS);
     expect(controller.feedbackMessage).toBe('');
 
-    controller.chooseRefreshInterval(MAX_REFRESH_INTERVAL_SECONDS + 1);
-    expect(controller.refreshIntervalSeconds).toBe(MAX_REFRESH_INTERVAL_SECONDS);
+    controller.settings.chooseRefreshInterval(MAX_REFRESH_INTERVAL_SECONDS + 1);
+    expect(controller.settings.refreshIntervalSeconds).toBe(MAX_REFRESH_INTERVAL_SECONDS);
     expect(controller.feedbackMessage).toMatch(/whole number/);
 
-    controller.chooseConcurrentWorkers(MAX_CONCURRENT_WORKERS + 1);
-    expect(controller.concurrentWorkers).toBe(MAX_CONCURRENT_WORKERS);
+    controller.settings.chooseConcurrentWorkers(MAX_CONCURRENT_WORKERS + 1);
+    expect(controller.settings.concurrentWorkers).toBe(MAX_CONCURRENT_WORKERS);
     expect(controller.feedbackMessage).toMatch(/whole number/);
 });
 
 test('controller rejects fractional, NaN, infinite, and blank numeric input without changing saved values', () => {
     const controller = new DriveController();
     controller.initialize();
-    controller.chooseRefreshInterval(90);
-    controller.chooseConcurrentWorkers(4);
+    controller.settings.chooseRefreshInterval(90);
+    controller.settings.chooseConcurrentWorkers(4);
 
     for (const seconds of [0.5, Number.NaN, Infinity]) {
-        controller.chooseRefreshInterval(seconds);
-        expect(controller.refreshIntervalSeconds).toBe(90);
+        controller.settings.chooseRefreshInterval(seconds);
+        expect(controller.settings.refreshIntervalSeconds).toBe(90);
         expect(controller.feedbackMessage).not.toBe('');
     }
 
     // An empty number field is submitted as an empty string; Number('') coerces it to 0.
-    controller.chooseRefreshInterval(Number(''));
-    expect(controller.refreshIntervalSeconds).toBe(0);
+    controller.settings.chooseRefreshInterval(Number(''));
+    expect(controller.settings.refreshIntervalSeconds).toBe(0);
     expect(controller.feedbackMessage).toBe('');
 
     for (const workers of [1.5, Number.NaN, Infinity]) {
-        controller.chooseConcurrentWorkers(workers);
-        expect(controller.concurrentWorkers).toBe(4);
+        controller.settings.chooseConcurrentWorkers(workers);
+        expect(controller.settings.concurrentWorkers).toBe(4);
         expect(controller.feedbackMessage).not.toBe('');
     }
 
-    controller.chooseConcurrentWorkers(Number(''));
-    expect(controller.concurrentWorkers).toBe(4);
+    controller.settings.chooseConcurrentWorkers(Number(''));
+    expect(controller.settings.concurrentWorkers).toBe(4);
     expect(controller.feedbackMessage).not.toBe('');
 });
 
@@ -125,16 +125,16 @@ test('reset returns settings to live deployment defaults and preserves other cho
     };
     const controller = new DriveController(defaults);
     controller.initialize();
-    controller.chooseRefreshInterval(0);
-    controller.chooseConcurrentWorkers(16);
+    controller.settings.chooseRefreshInterval(0);
+    controller.settings.chooseConcurrentWorkers(16);
 
-    controller.resetRefreshInterval();
-    expect(controller.refreshIntervalSeconds).toBe(300);
+    controller.settings.resetRefreshInterval();
+    expect(controller.settings.refreshIntervalSeconds).toBe(300);
     expect(storage.getItem(REFRESH_INTERVAL_KEY)).toBeNull();
-    expect(controller.concurrentWorkers).toBe(16);
+    expect(controller.settings.concurrentWorkers).toBe(16);
 
-    controller.resetConcurrentWorkers();
-    expect(controller.concurrentWorkers).toBe(3);
+    controller.settings.resetConcurrentWorkers();
+    expect(controller.settings.concurrentWorkers).toBe(3);
     expect(storage.getItem(CONCURRENT_WORKERS_KEY)).toBeNull();
     expect(controller.feedbackMessage).toBe('');
 });
@@ -142,9 +142,9 @@ test('reset returns settings to live deployment defaults and preserves other cho
 test('theme selection updates the page and persists the chosen mode', () => {
     const controller = new DriveController();
     controller.initialize();
-    controller.chooseTheme(ThemeMode.Dark);
+    controller.settings.chooseTheme(ThemeMode.Dark);
 
-    expect(controller.themeMode).toBe(ThemeMode.Dark);
+    expect(controller.settings.themeMode).toBe(ThemeMode.Dark);
     expect(document.documentElement.setAttribute).toHaveBeenCalledWith('theme', ThemeMode.Dark);
     expect(storage.getItem(THEME_KEY)).toBe(ThemeMode.Dark);
     expect(controller.feedbackMessage).toBe('');
@@ -155,12 +155,12 @@ test('storage write failures are reported by settings and theme actions', () => 
     controller.initialize();
     const setItem = vi.spyOn(storage, 'setItem').mockImplementation(() => {});
 
-    controller.chooseRefreshInterval(120);
+    controller.settings.chooseRefreshInterval(120);
     expect(controller.feedbackMessage).toContain('storage');
 
-    controller.chooseTheme(ThemeMode.Light);
+    controller.settings.chooseTheme(ThemeMode.Light);
     expect(controller.feedbackMessage).toContain('storage');
-    expect(controller.themeMode).toBe(ThemeMode.Light);
+    expect(controller.settings.themeMode).toBe(ThemeMode.Light);
 
     setItem.mockRestore();
     const preferences = new BrowserPreferences();

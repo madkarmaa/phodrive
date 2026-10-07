@@ -1,10 +1,10 @@
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
-import { DriveController } from '$browser/drive.svelte';
+import { DriveController } from '$browser/drive/index.svelte';
 import * as filesApi from '$browser/files';
 import * as libraryApi from '$browser/library';
 import { FileActionKind, ThemeMode, UploadJobStatus, UploadStatus } from '$lib/models';
-import type { UploadedChunk } from '$lib/file-groups';
+import type { UploadedChunk } from '$lib/files';
 import { CONCURRENT_WORKERS_KEY, SELECTED_KEY } from '$browser/storage';
 
 const { storage, tab } = vi.hoisted(() => {
@@ -33,7 +33,7 @@ const OWNER = 'owner@example.com';
 const OTHER = 'other@example.com';
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('$browser/automatic-refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     vi.restoreAllMocks();
@@ -119,7 +119,7 @@ test('large queue stays single-flight, takes current worker preference on retry,
         );
     const drive = new DriveController();
     drive.initialize();
-    drive.uploads = [uploadedChunk('old-account.bin')];
+    drive.library.chunks = [uploadedChunk('old-account.bin')];
 
     const firstUpload = drive.upload(largeSelection);
     await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
@@ -131,7 +131,7 @@ test('large queue stays single-flight, takes current worker preference on retry,
 
     await drive.upload([new File(['overlap'], 'overlap.bin')]);
     await drive.retryUpload(0);
-    const oldAccountFile = drive.files[0];
+    const oldAccountFile = drive.library.files[0];
     if (!oldAccountFile) throw new Error('Expected a synthetic file group.');
     await drive.actOnFile(oldAccountFile, FileActionKind.Delete);
     await drive.actOnFile(oldAccountFile, FileActionKind.Download);
@@ -140,7 +140,7 @@ test('large queue stays single-flight, takes current worker preference on retry,
     expect(download).not.toHaveBeenCalled();
 
     fromOtherTab(CONCURRENT_WORKERS_KEY, '32');
-    await vi.waitFor(() => expect(drive.concurrentWorkers).toBe(32));
+    await vi.waitFor(() => expect(drive.settings.concurrentWorkers).toBe(32));
     gates[0]();
     await firstUpload;
     expect(drive.uploadJobs.filter((job) => job.status === UploadJobStatus.Error)).toHaveLength(1);

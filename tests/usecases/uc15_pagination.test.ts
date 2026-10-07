@@ -4,7 +4,7 @@ import { Ok } from 'results-ts';
 import type { AsyncResult } from 'results-ts';
 import { readLibrarySnapshot } from '$browser/library';
 import * as api from '$browser/api';
-import { DriveController } from '$browser/drive.svelte';
+import { DriveController } from '$browser/drive/index.svelte';
 import {
     ThemeMode,
     LibraryResponseSchema,
@@ -33,7 +33,7 @@ const { storage } = vi.hoisted(() => {
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
 vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/automatic-refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {
@@ -126,12 +126,12 @@ test('load more deduplicates chunks and disables further loading after a cyclic 
         apiResult(page([remoteFile('part-0'), remoteFile('part-1', 1)], 'page-two'))
     );
 
-    await drive.loadFiles();
-    await drive.loadFiles(false);
+    await drive.library.load();
+    await drive.library.load(false);
     expect(drive.feedbackMessage).toContain('repeated a library page');
-    expect(drive.nextPageToken).toBe('');
-    await drive.loadFiles(false);
+    expect(drive.library.nextPageToken).toBe('');
+    await drive.library.load(false);
 
-    expect(drive.uploads.map(({ mediaKey }) => mediaKey)).toEqual(['part-0', 'part-1']);
+    expect(drive.library.chunks.map(({ mediaKey }) => mediaKey)).toEqual(['part-0', 'part-1']);
     expect(apiJson).toHaveBeenCalledTimes(2);
 });

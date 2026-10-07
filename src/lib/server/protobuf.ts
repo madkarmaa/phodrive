@@ -16,6 +16,7 @@ export function numberField(field: number, value: number): Buffer {
 
 export function bytesField(field: number, value: Uint8Array | string): Buffer {
     const bytes = Buffer.from(value);
+
     return Buffer.concat([varint(field * 8 + 2), varint(bytes.length), bytes]);
 }
 
@@ -25,6 +26,7 @@ export function message(...fields: Buffer[]): Buffer {
 
 export function bodyBytes(buffer: Buffer): Uint8Array<ArrayBuffer> {
     const backing = buffer.buffer;
+
     return backing instanceof ArrayBuffer
         ? new Uint8Array(backing, buffer.byteOffset, buffer.byteLength)
         : Uint8Array.from(buffer);
@@ -45,6 +47,7 @@ export function parse(data: Uint8Array): Result<Field[], ServerError> {
                 return Err(SERVER_ERRORS.OVERSIZED_PROTOBUF_INTEGER);
 
             offset += length;
+
             return Ok(value);
         } catch {
             return Err(SERVER_ERRORS.INVALID_PROTOBUF_INTEGER);
@@ -66,6 +69,7 @@ export function parse(data: Uint8Array): Result<Field[], ServerError> {
 
                     const value = Buffer.from(data.subarray(offset, offset + length));
                     offset += length;
+
                     return Ok<Field | null>({ number, value });
                 });
 
@@ -77,6 +81,7 @@ export function parse(data: Uint8Array): Result<Field[], ServerError> {
             return Ok<Field | null>(null);
         });
         if (next.isErr()) return next;
+
         next.inspect((field) => {
             if (field) fields.push(field);
         });

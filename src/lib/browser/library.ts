@@ -1,7 +1,7 @@
 import type { ApplicationError } from '$lib/errors';
 import { Err, Ok, type AsyncResult } from 'results-ts';
 import { LibraryResponseSchema, type LibraryResponse, type RemoteBmp } from '$lib/models';
-import { schemaResult } from '$lib/schema-result';
+import { schemaResult } from '$lib/validation';
 import { apiJson } from '$browser/api';
 
 export type LibrarySnapshot = LibraryResponse & { pages: number };
@@ -36,7 +36,9 @@ export function readLibrarySnapshot(
 
         for (let index = 0; index < Math.max(1, pageCount); index++) {
             pageTokens.add(nextPageToken);
+
             const received = await readLibraryPage(email, token, nextPageToken);
+
             const snapshot = received.andThen((page) => {
                 if (page.nextPageToken && pageTokens.has(page.nextPageToken)) {
                     return Err({
