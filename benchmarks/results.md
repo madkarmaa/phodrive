@@ -130,6 +130,57 @@ Apparent short-case regressions were checked with paired repeats, without replac
 
 Identity generation is unchanged; additional original medians 7.07/7.21/6.99 ms and candidate 6.08/7.48/5.05 ms demonstrate short-case variability. Protobuf-view repeat results and the final revert are documented in iteration 11.
 
+## Ten-run verification
+
+Repeated unchanged source `13799f7` on AC power: ten full 29-case Node suites, followed by ten complete Chrome hashing harnesses. All runs were sequential with no overlapping benchmarks, builds or uploads. Every case retained two warmups and five measured samples. Node v24.21.0, Bun 1.4.2 and Chrome 155 matched the previous environment. AC was connected at every recorded start/end check; the Chrome page remained visible.
+
+All **290 Node case executions / 1,450 measured samples** and **40 Chrome case results / 200 measured samples** passed their correctness checks. No application or benchmark implementation changed. Raw diagnostics remain in ignored storage.
+
+The table reports the median of ten per-run medians, with the full range of those run medians. Improvements compare with the immutable original Node baseline. Small differences in unchanged operations are not causal optimization claims; tiny cases such as identity generation show greater timing variation.
+
+| Benchmark         | Ten-run median ms | Run-median range ms | Improvement vs baseline | Median peak RSS MiB | Maximum peak RSS MiB |
+| ----------------- | ----------------: | ------------------: | ----------------------: | ------------------: | -------------------: |
+| hash-tiny         |             2.784 |         2.609–3.246 |                  +79.0% |                96.0 |                 96.3 |
+| hash-small        |            22.233 |       16.412–40.566 |                  +59.4% |               155.1 |                158.9 |
+| hash-medium       |            33.231 |       33.017–34.249 |                   +1.0% |               175.5 |                176.5 |
+| hash-large        |           241.942 |     240.827–245.264 |                   +1.1% |               433.3 |                433.9 |
+| hash-very-large   |          1364.894 |   1363.112–1368.723 |                   +2.1% |              1578.3 |               1578.9 |
+| hash-many         |             8.158 |         7.038–8.780 |                  +64.3% |               101.6 |                102.2 |
+| identity          |             3.270 |         2.995–5.529 |                   -8.7% |                94.3 |                 94.8 |
+| chunk-hash-small  |            10.122 |        9.509–10.945 |                  +64.6% |                99.5 |                 99.9 |
+| chunk-hash-large  |           386.358 |     384.727–388.940 |                   +5.2% |               829.9 |                830.6 |
+| planning          |            50.918 |       48.821–52.903 |                   +0.3% |               112.9 |                113.5 |
+| prefix            |            54.395 |       53.713–55.116 |                  +35.0% |                96.5 |                 97.9 |
+| bmp-encode        |             7.517 |         7.351–9.551 |                   +3.7% |               565.9 |                598.3 |
+| bmp-stream        |           157.949 |     153.744–159.479 |                   +1.3% |              1025.6 |               1026.0 |
+| download-stream   |            36.727 |       36.637–37.001 |                   +1.2% |               234.9 |                236.0 |
+| protocol-page     |            46.876 |       45.912–48.449 |                   +4.6% |               114.2 |                114.7 |
+| group-chunks      |             9.859 |        9.658–10.197 |                  +91.2% |               110.3 |                110.7 |
+| group-many-files  |            31.611 |       23.227–33.378 |                  +29.4% |               235.7 |                240.2 |
+| sort-files        |            18.636 |       18.412–20.417 |                  +56.7% |               107.1 |                107.4 |
+| upload-tiny       |             5.162 |         4.882–5.470 |                  +13.0% |               100.4 |                103.1 |
+| upload-many       |           307.831 |     302.329–319.546 |                  +25.1% |               338.3 |                342.5 |
+| upload-large      |          2695.462 |   2683.032–2709.137 |                   -0.1% |              1291.6 |               1316.8 |
+| upload-boundaries |          6676.102 |   6652.034–6706.493 |                   +1.0% |              2601.3 |               2602.5 |
+| upload-mixed-1    |          1686.831 |   1682.707–1698.575 |                   +2.9% |               798.6 |                804.3 |
+| upload-mixed-4    |          1663.740 |   1642.743–1669.431 |                   +3.1% |               844.9 |                850.9 |
+| upload-mixed-8    |          1662.512 |   1651.473–1679.431 |                   +1.4% |               846.8 |                853.6 |
+| upload-mixed-32   |          1638.659 |   1628.006–1664.281 |                   +1.7% |               874.8 |                887.1 |
+| upload-duplicate  |            57.068 |       56.543–62.706 |                  +10.4% |               218.6 |                220.0 |
+| upload-retry      |            87.089 |       85.293–93.134 |                   -0.1% |               230.6 |                232.7 |
+| failure-paths     |             7.077 |         6.910–7.481 |                   +8.4% |               144.4 |                145.3 |
+
+The main Node gains are repeatable: many-file upload is 25.1% below baseline, grouping 91.2%, prefix encoding 35.0%, and date sorting 56.7%. Large-file uploads remain effectively unchanged. Native small-file hashing is notably variable (16.4–40.6 ms), so its median is not a guarantee for every run. Single-chunk grouping and full-buffer BMP RSS also vary with normal garbage collection. The previously reported many-file upload memory tradeoff remains; these repetitions do not establish lower end-to-end upload memory.
+
+The browser comparisons use the original and final implementations within each unchanged harness run:
+
+| Browser workload | Original median ms | Final median ms | Reduction | Original run-median range ms | Final run-median range ms | Paired reduction range |
+| ---------------- | -----------------: | --------------: | --------: | ---------------------------: | ------------------------: | ---------------------: |
+| 200 × 64 KiB     |             422.95 |           96.95 |     77.1% |                  401.1–456.2 |                67.0–136.5 |             68.3–84.3% |
+| 500 × 1 KiB      |             309.85 |          215.35 |     30.5% |                  237.7–384.2 |               159.0–322.9 |              5.8–50.3% |
+
+Every paired browser comparison was faster with the final implementation, and every digest/progress validation passed. However, the repeated tiny-file aggregate is **30.5%**, below the earlier single-run **47.0%** estimate, with paired gains ranging from 5.8% to 50.3%. Use the repeated result for expectations; the initial figures above remain recorded evidence, not a guaranteed speedup. Small-file browser hashing repeats at 77.1% lower latency. No live uploads were repeated in this verification phase.
+
 ## Commits
 
 Baseline/suite: `45d73b6`, supplementary one-chunk coverage `46f7ef9`.
