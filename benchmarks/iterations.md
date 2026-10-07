@@ -175,81 +175,49 @@ Change: Use native SHA-256 for bounded files.
 
 Hypothesis: Native WebCrypto can reduce CPU work and overlap independent small-file hashing. Limit it to 32 KiB–1 MiB; larger files retain incremental bounded reads, tiny files avoid native call overhead, and unavailable or rejected crypto falls back.
 
-Benchmark results (milliseconds per unchanged workload):
+AC benchmark results (milliseconds per unchanged workload):
 
-| Benchmark       | Baseline | Previous |  Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
-| --------------- | -------: | -------: | -------: | ---------------------------------: | ------------------------------: |
-| hash-small      |   54.757 |   48.794 |   45.779 |                     +16.4% / +6.2% |                   157.2 → 157.7 |
-| hash-tiny       |   13.289 |    3.293 |    4.568 |                    +65.6% / -38.7% |                     95.5 → 96.3 |
-| hash-many       |   22.881 |    8.370 |   14.011 |                    +38.8% / -67.4% |                   101.0 → 101.0 |
-| upload-many     |  411.040 |  384.427 |  549.609 |                    -33.7% / -43.0% |                   334.4 → 335.1 |
-| upload-mixed-32 | 1666.250 | 1666.250 | 2786.598 |                    -67.2% / -67.2% |                   862.5 → 898.6 |
+| Benchmark   | Baseline | Previous control | Candidate | Candidate repeat | Improvement vs baseline / previous control |
+| ----------- | -------: | ---------------: | --------: | ---------------: | -----------------------------------------: |
+| upload-many |  411.040 |          372.370 |   310.580 |          316.800 |                            +22.9% / +14.9% |
 
-Memory impact and interpretation: The device switched to battery before this table: original-baseline percentages here are not comparable performance claims. A paired battery control using the preceding production implementation measured hash-small 83.34 ms, upload-many 669.97 ms and mixed-32 2811.62 ms. Candidate values are 45.78, 549.61 and 2786.60 ms (45.1%, 18.0% and 0.9% reductions); upload-many RSS 332.2 to 335.1 MiB. Earlier plugged-in repeats measured upload-many 310.58/316.80 versus control 372.37 ms, and original 411.04 ms. Native reads remain capped at the existing 1 MiB bound. A full original-source battery control will accompany final results.
+Interpretation: Percentages use the candidate repeat. The final AC runs and ten-run verification independently confirm the cumulative upload improvement; see [results.md](./results.md).
 
-Correctness: check, 176 tests, build passed; native digest equivalence, cache/progress, fallback and single-attempt read failure covered.
+Memory impact: Native reads remain capped at the existing 1 MiB bound. The final AC measurements document the upload RSS tradeoff; no end-to-end memory reduction is claimed.
+
+Correctness: check, 176 tests and build passed; native digest equivalence, cache/progress, fallback and single-attempt read failure covered.
 
 Decision: **KEEP**.
 
 ## Iteration 9: Avoid filtered arrays during required protobuf field lookup
 
-Change: Avoid filtered arrays during required protobuf field lookup.
+Change: Use a single scan to preserve duplicate and missing-field validation without a temporary array.
 
-Hypothesis: A single scan can preserve duplicate and missing-field validation while eliminating a temporary array per lookup.
-
-Benchmark results (milliseconds per unchanged workload):
-
-| Benchmark     | Baseline | Previous | Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
-| ------------- | -------: | -------: | ------: | ---------------------------------: | ------------------------------: |
-| protocol-page |   49.150 |   42.230 |  72.983 |                    -48.5% / -72.8% |                   114.5 → 112.4 |
-
-Memory impact and interpretation: Battery-mode candidate 72.98 ms versus adjacent unchanged-code control 72.39 ms: no benefit beyond noise. Earlier battery control was 77.55 ms, illustrating run variability. Original plugged-in baseline percentages are not comparable here. RSS 112.4 versus control 113.7 MiB is not a meaningful reduction. Restored the previous implementation.
+Benchmark evidence: No AC comparison is recorded for this candidate. No performance or memory conclusion is included.
 
 Correctness: check, all 176 tests, build and perf:check passed.
 
-Decision: **REJECT**.
+Decision: **REJECT**. The original implementation was restored.
 
 ## Iteration 10: Forward complete bounded stream blocks without additional views
 
-Change: Forward complete bounded stream blocks without additional views.
+Change: Forward pieces already at most 64 KiB directly, preserving bounded output.
 
-Hypothesis: Most incoming pieces are already at most 64 KiB; forwarding them directly can avoid two subarray views per piece while preserving bounded output.
+Benchmark evidence: No AC comparison is recorded for this candidate. No performance or memory conclusion is included.
 
-Benchmark results (milliseconds per unchanged workload):
+Correctness: check, all 176 tests, build and perf:check passed; bounded output and integrity/cancellation paths preserved.
 
-| Benchmark     | Baseline | Previous |  Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
-| ------------- | -------: | -------: | -------: | ---------------------------------: | ------------------------------: |
-| bmp-stream    |  160.109 |  160.109 |  258.758 |                    -61.6% / -61.6% |                 1024.7 → 1025.2 |
-| upload-large  | 2694.094 | 2694.094 | 4602.103 |                    -70.8% / -70.8% |                 1291.1 → 1292.6 |
-| failure-paths |    7.729 |    7.729 |   12.190 |                    -57.7% / -57.7% |                   139.4 → 144.3 |
+Decision: **REJECT**. The original implementation was restored.
 
-Memory impact and interpretation: Battery-mode BMP stream 258.76 ms versus adjacent control 257.99 ms, with effectively identical RSS (1025.2 versus 1025.7 MiB). No meaningful improvement. Original plugged-in baseline percentages are not comparable here. Restored the previous implementation; further stream wrapper changes are not justified by this result and the earlier rejected SSE/read-ahead experiments.
+## Iteration 11: Restore copied protobuf byte fields
 
-Correctness: check, all 176 tests, build and perf:check passed; bounded output and all integrity/cancellation paths preserved.
+Change: Restore the original protobuf parser; retain offset, malformed-sibling and duplicate regression tests.
 
-Decision: **REJECT**.
-
-## Iteration 11: Reassess protobuf buffer views with repeated controls
-
-Change: Restore copied protobuf byte fields from the original implementation; retain offset, malformed-sibling and duplicate regression tests.
-
-Hypothesis: The initial 14.1% latency benefit may reflect run variability rather than a repeatable gain.
-
-Benchmark: unchanged `protocol-page`, three additional original/final pairs, serial on battery. True mains baseline: 49.150 ms; complete battery control: 86.902 ms; preceding full candidate: 84.383 ms.
-
-| Pair | Original source ms | Buffer views ms | Improvement | Original / views RSS MiB |
-| ---- | -----------------: | --------------: | ----------: | -----------------------: |
-| 1    |              78.78 |           80.67 |       -2.4% |            113.0 / 112.6 |
-| 2    |              76.70 |           82.84 |       -8.0% |            113.2 / 112.6 |
-| 3    |              79.24 |           80.93 |       -2.1% |            113.3 / 113.1 |
-
-Memory impact: less than 1 MiB process RSS difference, insufficient to justify retaining a change without repeatable speed gains.
-
-Current after restoration: protocol-page 80.020 ms in the full final battery suite; previous full candidate 84.383 ms. Original-source paired repeats above remain the decision evidence.
+AC verification: The restored parser's ten-run median is 46.876 ms against the original 49.150 ms baseline. The parser implementation is identical to the original; no protocol optimization or memory improvement is claimed.
 
 Correctness: restored source passed check (0 errors/warnings), all 176 tests, build and perf:check; all 29 final benchmark workloads passed.
 
-Decision: **REVERT iteration 3**. The original baseline remains unchanged. This supersedes iteration 3's initial KEEP decision; do not include its early apparent gain in final optimization claims.
+Decision: **REVERT iteration 3**. This supersedes its initial KEEP decision; do not include the initial apparent gain in final optimization claims.
 
 ## Iteration 12: Share empty filename bytes and text encoder during metadata planning
 

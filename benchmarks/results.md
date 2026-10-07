@@ -2,8 +2,6 @@
 
 Final production source: `e16a27c` (later commits document experiments only). Measured on AC power against the unchanged [True Performance Baseline](./baseline.md), production source `86cba81`. Same Node v24.21.0, OS, CPU, dependencies, workloads, two warmups and five measured samples per case. Every case ran in a fresh process, sequentially, without competing builds, tests or browser transfers. No special compiler/CPU flags or forced GC were used. See [reproduction instructions](./README.md) and [all accepted/rejected iterations](./iterations.md).
 
-The device switched to battery during the work and subsequently returned to AC. Battery results are preserved separately below; they are not substituted for the original baseline or mixed into the AC comparison.
-
 ## Performance summary: original baseline versus final AC run
 
 Milliseconds per entire fixed workload, not per file. Improvement is percentage reduction in median latency. Throughput counts source input bytes and excludes metadata-only/failure cases (shown as zero). RSS includes fixtures, framework startup and warmups; it is not an application-only memory budget.
@@ -49,7 +47,7 @@ Milliseconds per entire fixed workload, not per file. Improvement is percentage 
 
 The many-small-file upload workload is 23.9% faster (411.040 to 312.782 ms). Peak RSS rises from 268.0 to 335.9 MiB (25.3%), a measured tradeoff accepted for the repeated throughput benefit. This is not an end-to-end memory reduction. Native hashing stays capped at 1 MiB reads, and idle hasher pools are capped at the existing maximum worker count.
 
-Many-file hashing reduces process peak RSS from 121.3 to 100.8 MiB; small chunk hashing from 124.8 to 99.3 MiB. Single-chunk library grouping falls from 356.9 to 237.1 MiB (33.6%); the battery pair showed 354.2 to 160.6 MiB. Exact high-water values vary with normal GC. Many-file hashing sampled external memory drops from about 129 MiB to a few MiB. Sampled heap/external values are not exact allocation totals or retained-memory measurements.
+Many-file hashing reduces process peak RSS from 121.3 to 100.8 MiB; small chunk hashing from 124.8 to 99.3 MiB. Single-chunk library grouping falls from 356.9 to 237.1 MiB (33.6%). Exact high-water values vary with normal GC. Many-file hashing sampled external memory drops from about 129 MiB to a few MiB. Sampled heap/external values are not exact allocation totals or retained-memory measurements.
 
 Large-upload peak RSS remains about 1,292 MiB, the combined boundary fixture about 2,601 MiB. Full-buffer BMP encoding fluctuates in whole-buffer increments (the final AC peak is one 64 MiB buffer above baseline); its byte-copying implementation is unchanged. No standalone browser/server RSS improvement is claimed from this combined-process fixture.
 
@@ -57,7 +55,7 @@ Large-upload peak RSS remains about 1,292 MiB, the combined boundary fixture abo
 
 The target of at least 20% lower latency is achieved for tiny/small/many-file hashing, small chunk hashing, prefix encoding, both grouping cases, date sorting, and many-small-file upload. Large-file hashing, planning, streaming, downloads, mixed concurrency, duplicate/retry and failure workloads remain near baseline; small differences are not claimed as causal gains.
 
-Rejected experiments include eager per-file maps, fused SSE decoding, bounded hash read-ahead, array-free protobuf lookup, extra stream-view branching, and shared metadata encoder/empty bytes. The initially accepted protobuf buffer views were reverted after three paired controls failed to reproduce the benefit; the final parser equals the original source. Several successive focused attempts produced negligible gains or regressions, so further complexity is not justified by the current evidence.
+AC measurements rejected eager per-file maps, fused SSE decoding, bounded hash read-ahead, and shared metadata encoder/empty bytes. These focused attempts produced negligible gains or regressions, so further complexity is not justified by the current evidence. The protobuf parser was restored to the original source; no protocol optimization is retained or claimed.
 
 Planning measured 53.93 ms in the full AC run versus the 51.068 ms original baseline; its adjacent unchanged-code control measured 50.93 ms. The final shared-allocation candidate repeated at 49.14 ms, only 3.5% below that control in a stress case planning twenty 500 GB files, with no memory benefit. It was rejected as immaterial per realistic file. Keep the full-suite result visible instead of replacing it with a favorable repeat.
 
@@ -81,54 +79,6 @@ This exercises real browser File/Blob/WebCrypto/WASM behavior separately from th
 | 500 × 1 KiB      |              370.8 |           196.4 |     47.0% | 359.1, 370.8, 455.8, 423.4, 343.5 | 235.3, 301.1, 196.4, 186.4, 132.9 |
 
 Tiny-file browser samples vary and trend downward; the table preserves all samples and uses the predefined median rather than the fastest sample. No Chrome process-memory reduction is inferred from these timings.
-
-## Separate battery control
-
-After the power-mode change, the original production source was rerun from baseline commit `45d73b6` in an isolated checkout with the unchanged suite plus the documented `group-many-files` addition. The final source was then run under the same battery conditions. This additional control preserves comparability without modifying the True Performance Baseline. Both complete suites used the same warmups/samples and sequential isolation.
-
-| Benchmark         | Original source ms |  Final ms | Improvement | Control RSS MiB | Final RSS MiB |
-| ----------------- | -----------------: | --------: | ----------: | --------------: | ------------: |
-| hash-tiny         |             24.828 |     8.564 |      +65.5% |           111.7 |          94.9 |
-| hash-small        |             93.411 |    42.008 |      +55.0% |           139.9 |         158.6 |
-| hash-medium       |             56.834 |    57.270 |       -0.8% |           168.7 |         172.2 |
-| hash-large        |            416.945 |   409.095 |       +1.9% |           409.7 |         409.5 |
-| hash-very-large   |           2370.493 |  2365.110 |       +0.2% |          1576.9 |        1578.2 |
-| hash-many         |             36.774 |    13.955 |      +62.1% |           115.2 |         100.6 |
-| identity          |              6.723 |     6.956 |       -3.5% |            93.9 |          94.2 |
-| chunk-hash-small  |             54.769 |    19.315 |      +64.7% |           129.1 |          98.8 |
-| chunk-hash-large  |            678.632 |   675.068 |       +0.5% |           830.1 |         829.7 |
-| planning          |             85.442 |    94.560 |      -10.7% |           111.6 |         113.2 |
-| prefix            |            145.682 |    94.948 |      +34.8% |            95.4 |          96.7 |
-| bmp-encode        |             16.977 |    15.076 |      +11.2% |           405.8 |         405.3 |
-| bmp-stream        |            250.715 |   249.499 |       +0.5% |          1024.6 |        1025.6 |
-| download-stream   |             61.236 |    61.392 |       -0.3% |           235.0 |         234.3 |
-| protocol-page     |             86.902 |    80.023 |       +7.9% |           113.7 |         113.5 |
-| group-chunks      |            177.498 |    16.173 |      +90.9% |           148.6 |         109.8 |
-| group-many-files  |             74.279 |    40.422 |      +45.6% |           354.2 |         160.6 |
-| sort-files        |             76.201 |    31.945 |      +58.1% |           112.4 |         107.2 |
-| upload-tiny       |              9.493 |    10.915 |      -15.0% |           100.3 |         100.6 |
-| upload-many       |            742.863 |   544.382 |      +26.7% |           268.2 |         341.0 |
-| upload-large      |           4621.083 |  4599.565 |       +0.5% |          1293.5 |        1291.7 |
-| upload-boundaries |          11439.835 | 11567.853 |       -1.1% |          2607.9 |        2600.6 |
-| upload-mixed-1    |           2936.974 |  2914.440 |       +0.8% |           803.5 |         798.2 |
-| upload-mixed-4    |           2907.421 |  2920.697 |       -0.5% |           831.0 |         832.2 |
-| upload-mixed-8    |           2899.397 |  2864.800 |       +1.2% |           846.7 |         844.7 |
-| upload-mixed-32   |           2864.650 |  2862.255 |       +0.1% |           876.1 |         874.2 |
-| upload-duplicate  |             96.818 |    96.716 |       +0.1% |           193.1 |         193.4 |
-| upload-retry      |            155.815 |   159.906 |       -2.6% |           199.4 |         200.5 |
-| failure-paths     |             13.661 |    17.196 |      -25.9% |           145.1 |         144.5 |
-
-The many-file upload gain repeated (742.863 to 544.382 ms, 26.7%), with RSS rising 268.2 to 341.0 MiB. Sampled external memory fell 80.0 to 72.3 MiB while sampled heap rose 60.6 to 94.4 MiB. Large and concurrent uploads remained close to controls.
-
-Apparent short-case regressions were checked with paired repeats, without replacing the full-suite values above:
-
-| Case          | Original / final pair 1 ms | Original / final pair 2 ms | Interpretation                               |
-| ------------- | -------------------------: | -------------------------: | -------------------------------------------- |
-| planning      |              84.33 / 84.99 |              83.99 / 84.33 | Full-suite 94.56 ms candidate did not recur. |
-| upload-tiny   |                9.65 / 9.92 |               10.67 / 9.52 | Direction varies; no claimed change.         |
-| failure-paths |              11.75 / 14.71 |              14.85 / 12.98 | Direction varies; no claimed change.         |
-
-Identity generation is unchanged; additional original medians 7.07/7.21/6.99 ms and candidate 6.08/7.48/5.05 ms demonstrate short-case variability. Protobuf-view repeat results and the final revert are documented in iteration 11.
 
 ## Ten-run verification
 

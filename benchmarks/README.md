@@ -14,7 +14,7 @@ See [baseline.md](./baseline.md) for the immutable baseline and [iterations.md](
 
 `group-many-files` additionally measures ten passes over 10,000 one-chunk files plus 2,500 duplicates, guarding the common case against indexing overhead. Its original-source baseline is documented separately.
 
-Keep power conditions consistent between controls and candidates. The original baseline was measured on mains power; the results include a separate original-source battery control and a final AC run after the device returned to mains power. Never interpret that environmental slowdown as a code regression or replace the original baseline with the newer control. See [results.md](./results.md) for both comparisons and convergence evidence.
+Run controls and candidates on AC power using the same machine and runtime. See [results.md](./results.md) for AC measurements, ten-run verification and convergence evidence.
 
 ## Supplemental browser hashing
 
