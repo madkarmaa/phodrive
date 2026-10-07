@@ -208,3 +208,23 @@ Memory impact and interpretation: Battery-mode candidate 72.98 ms versus adjacen
 Correctness: check, all 176 tests, build and perf:check passed.
 
 Decision: **REJECT**.
+
+## Iteration 10: Forward complete bounded stream blocks without additional views
+
+Change: Forward complete bounded stream blocks without additional views.
+
+Hypothesis: Most incoming pieces are already at most 64 KiB; forwarding them directly can avoid two subarray views per piece while preserving bounded output.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark     | Baseline | Previous |  Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| ------------- | -------: | -------: | -------: | ---------------------------------: | ------------------------------: |
+| bmp-stream    |  160.109 |  160.109 |  258.758 |                    -61.6% / -61.6% |                 1024.7 → 1025.2 |
+| upload-large  | 2694.094 | 2694.094 | 4602.103 |                    -70.8% / -70.8% |                 1291.1 → 1292.6 |
+| failure-paths |    7.729 |    7.729 |   12.190 |                    -57.7% / -57.7% |                   139.4 → 144.3 |
+
+Memory impact and interpretation: Battery-mode BMP stream 258.76 ms versus adjacent control 257.99 ms, with effectively identical RSS (1025.2 versus 1025.7 MiB). No meaningful improvement. Original plugged-in baseline percentages are not comparable here. Restored the previous implementation; further stream wrapper changes are not justified by this result and the earlier rejected SSE/read-ahead experiments.
+
+Correctness: check, all 176 tests, build and perf:check passed; bounded output and all integrity/cancellation paths preserved.
+
+Decision: **REJECT**.
