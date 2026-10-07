@@ -250,3 +250,22 @@ Current after restoration: protocol-page 80.020 ms in the full final battery sui
 Correctness: restored source passed check (0 errors/warnings), all 176 tests, build and perf:check; all 29 final benchmark workloads passed.
 
 Decision: **REVERT iteration 3**. The original baseline remains unchanged. This supersedes iteration 3's initial KEEP decision; do not include its early apparent gain in final optimization claims.
+
+## Iteration 12: Share empty filename bytes and text encoder during metadata planning
+
+Change: Share empty filename bytes and text encoder during metadata planning.
+
+Hypothesis: Avoid a zero-length typed array for each unnamed later chunk and reuse the stateless encoder.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark | Baseline | Previous | Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| --------- | -------: | -------: | ------: | ---------------------------------: | ------------------------------: |
+| planning  |   51.068 |   50.306 |  48.931 |                      +4.2% / +2.7% |                   112.6 → 113.4 |
+| prefix    |   83.729 |   53.609 |  53.813 |                     +35.7% / -0.4% |                     96.6 → 97.0 |
+
+Memory impact and interpretation: On AC, initial planning 48.93 ms versus full preceding suite 53.93 ms looked promising. Adjacent control was 50.93 ms and candidate repeat 49.14 ms: only 3.5% lower latency (original baseline 51.068 ms). Prefix control 55.19 ms versus repeat 53.52 ms overlaps prior accepted 53.48 ms. RSS unchanged (planning control 113.2 versus candidate 113.4 MiB). This planning stress case processes twenty 500 GB files; the absolute saving per realistic file is negligible and does not explain a meaningful end-to-end bottleneck. Restore the already-validated implementation; no further allocation changes are justified by these measurements.
+
+Correctness: check, 176 tests, build and perf:check all passed; Unicode golden bytes unchanged.
+
+Decision: **REJECT**.
