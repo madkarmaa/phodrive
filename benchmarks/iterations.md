@@ -147,3 +147,24 @@ Memory impact and interpretation: An interleaved control restored the previous i
 Correctness: candidate passed check, 174 tests, build and perf:check; byte-fragmented UTF8/BOM/CRLF and cancellation regression retained.
 
 Decision: **REJECT**.
+
+## Iteration 7: Overlap one upcoming bounded read with hashing
+
+Change: Overlap one upcoming bounded read with hashing.
+
+Hypothesis: Start at most one future1MiB Blob read while updating SHA state on the current block.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark        | Baseline | Previous |  Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| ---------------- | -------: | -------: | -------: | ---------------------------------: | ------------------------------: |
+| hash-large       |  244.732 |  243.279 |  247.911 |                      -1.3% / -1.9% |                   432.6 → 432.4 |
+| chunk-hash-large |  407.385 |  388.936 |  393.164 |                      +3.5% / -1.1% |                   829.9 → 829.1 |
+| upload-large     | 2694.094 | 2694.094 | 2711.967 |                      -0.7% / -0.7% |                 1291.1 → 1294.0 |
+| upload-mixed-32  | 1666.250 | 1666.250 | 1671.845 |                      -0.3% / -0.3% |                   862.5 → 886.2 |
+
+Memory impact and interpretation: No real speed improvement:64MiB hashing247.91 vs previous243.28ms, full chunk393.16 vs388.94ms, large upload2711.97 vsbaseline2694.09ms.32-worker mixed RSS rises862.5→886.2MiB and each active hasher can hold one additional1MiB block. Reject extra buffering/complexity; restore serial bounded reads.
+
+Correctness: check, 174 tests, build and perf:check pass; failed-read propagation and per-slice bound preserved.
+
+Decision: **REJECT**.
