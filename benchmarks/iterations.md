@@ -168,3 +168,25 @@ Memory impact and interpretation: No real speed improvement:64MiB hashing247.91 
 Correctness: check, 174 tests, build and perf:check pass; failed-read propagation and per-slice bound preserved.
 
 Decision: **REJECT**.
+
+## Iteration 8: Use native SHA-256 for bounded files
+
+Change: Use native SHA-256 for bounded files.
+
+Hypothesis: Native WebCrypto can reduce CPU work and overlap independent small-file hashing. Limit it to 32 KiB–1 MiB; larger files retain incremental bounded reads, tiny files avoid native call overhead, and unavailable or rejected crypto falls back.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark       | Baseline | Previous |  Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| --------------- | -------: | -------: | -------: | ---------------------------------: | ------------------------------: |
+| hash-small      |   54.757 |   48.794 |   45.779 |                     +16.4% / +6.2% |                   157.2 → 157.7 |
+| hash-tiny       |   13.289 |    3.293 |    4.568 |                    +65.6% / -38.7% |                     95.5 → 96.3 |
+| hash-many       |   22.881 |    8.370 |   14.011 |                    +38.8% / -67.4% |                   101.0 → 101.0 |
+| upload-many     |  411.040 |  384.427 |  549.609 |                    -33.7% / -43.0% |                   334.4 → 335.1 |
+| upload-mixed-32 | 1666.250 | 1666.250 | 2786.598 |                    -67.2% / -67.2% |                   862.5 → 898.6 |
+
+Memory impact and interpretation: The device switched to battery before this table: original-baseline percentages here are not comparable performance claims. A paired battery control using the preceding production implementation measured hash-small 83.34 ms, upload-many 669.97 ms and mixed-32 2811.62 ms. Candidate values are 45.78, 549.61 and 2786.60 ms (45.1%, 18.0% and 0.9% reductions); upload-many RSS 332.2 to 335.1 MiB. Earlier plugged-in repeats measured upload-many 310.58/316.80 versus control 372.37 ms, and original 411.04 ms. Native reads remain capped at the existing 1 MiB bound. A full original-source battery control will accompany final results.
+
+Correctness: check, 176 tests, build passed; native digest equivalence, cache/progress, fallback and single-attempt read failure covered.
+
+Decision: **KEEP**.

@@ -5,6 +5,7 @@ import { MAX_CONCURRENT_WORKERS, type SplitHeader } from '$lib/models';
 import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp/format';
 
 export const HASH_BLOCK_BYTES = 1024 * 1024;
+const NATIVE_HASH_MIN_BYTES = 32 * 1024;
 const ZERO_BLOCK = new Uint8Array(64 * 1024);
 const FILE_HASHES = new WeakMap<File, string>();
 const SHA256_HASHERS: IHasher[] = [];
@@ -56,6 +57,37 @@ function hashBlob(
     });
 }
 
+/** Native SHA-256 is worthwhile for bounded files above its async call overhead. */
+function hashSmallFile(file: File, subtle: SubtleCrypto): AsyncResult<string, ApplicationError> {
+    return Ok(undefined).andThenAsync<string, ApplicationError>(async () => {
+        let bytes: ArrayBuffer;
+
+        try {
+            bytes = await file.slice(0, file.size).arrayBuffer();
+        } catch {
+            return Err({
+                code: 'FILE_READ_FAILED',
+                message: 'Could not read the selected file.'
+            } as const);
+        }
+
+        try {
+            const digest = await subtle.digest('SHA-256', bytes);
+
+            return Ok(
+                Array.from(new Uint8Array(digest), (byte) =>
+                    byte.toString(16).padStart(2, '0')
+                ).join('')
+            );
+        } catch {
+            return Err({
+                code: 'HASH_INITIALIZATION_FAILED',
+                message: 'Could not prepare file hashing.'
+            } as const);
+        }
+    });
+}
+
 /** Read the original in bounded slices; a retry can reuse its immutable File's identity. */
 export function hashFile(
     file: File,
@@ -68,6 +100,29 @@ export function hashFile(
         return Ok(cached).andThenAsync(async (hash) => Ok(hash));
     }
 
+    const subtle = globalThis.crypto?.subtle;
+    if (subtle && file.size >= NATIVE_HASH_MIN_BYTES && file.size <= HASH_BLOCK_BYTES) {
+        return hashSmallFile(file, subtle)
+            .map((digest) => {
+                FILE_HASHES.set(file, digest);
+                onProgress(file.size);
+
+                return digest;
+            })
+            .orElseAsync(async (error) => {
+                if (error.code !== 'HASH_INITIALIZATION_FAILED') return Err(error);
+
+                return await hashFileIncrementally(file, onProgress);
+            });
+    }
+
+    return hashFileIncrementally(file, onProgress);
+}
+
+function hashFileIncrementally(
+    file: File,
+    onProgress: (read: number) => void
+): AsyncResult<string, ApplicationError> {
     return createHasher(createSHA256, SHA256_HASHERS).andThenAsync(async (hash) => {
         const hashed = await hashBlob(file, hash, onProgress);
         const result = hashed.map(() => {

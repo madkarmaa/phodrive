@@ -37,3 +37,39 @@ test('concurrent hashing isolates reusable states and failed reads cannot contam
         );
     }
 });
+
+test('bounded native hashing agrees with SHA256, caches identity and falls back when unavailable', async () => {
+    const bytes = new Uint8Array(64 * 1024).fill(42);
+    const expected = createHash('sha256').update(bytes).digest('hex');
+    const digest = vi.spyOn(crypto.subtle, 'digest');
+    try {
+        const file = new File([bytes], 'native.bin');
+        const progress: number[] = [];
+        const initial = await hashFile(file, (read) => progress.push(read));
+        const cached = await hashFile(file, (read) => progress.push(read));
+        expect(initial.unwrap()).toBe(expected);
+        expect(cached.unwrap()).toBe(expected);
+        expect(digest).toHaveBeenCalledOnce();
+        expect(progress).toEqual([bytes.length, bytes.length]);
+
+        digest.mockRejectedValue(new Error('native digest unavailable'));
+        const fallbackProgress: number[] = [];
+        const fallback = await hashFile(new File([bytes], 'fallback.bin'), (read) =>
+            fallbackProgress.push(read)
+        );
+        expect(fallback.unwrap()).toBe(expected);
+        expect(fallbackProgress).toEqual([bytes.length]);
+    } finally {
+        digest.mockRestore();
+    }
+});
+
+test('native-size file read failures remain errors without retrying the read', async () => {
+    const file = new File([new Uint8Array(64 * 1024)], 'unreadable.bin');
+    const blob = new Blob();
+    const read = vi.spyOn(blob, 'arrayBuffer').mockRejectedValue(new Error('unreadable'));
+    vi.spyOn(file, 'slice').mockReturnValue(blob);
+    const result = await hashFile(file, () => {});
+    expect(result.unwrapErr().code).toBe('FILE_READ_FAILED');
+    expect(read).toHaveBeenCalledOnce();
+});
