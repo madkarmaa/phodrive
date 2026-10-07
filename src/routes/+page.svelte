@@ -105,6 +105,7 @@
     >
         {#if drive.ready && view === AppView.Settings}
             <SettingsPanel
+                defaults={data.preferencesDefaults}
                 refreshIntervalSeconds={drive.refreshIntervalSeconds}
                 concurrentWorkers={drive.concurrentWorkers}
                 theme={drive.themeMode}

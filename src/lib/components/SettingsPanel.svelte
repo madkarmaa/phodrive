@@ -10,12 +10,14 @@
         MAX_CONCURRENT_WORKERS,
         RefreshIntervalSchema,
         ConcurrentWorkersSchema,
+        type PreferencesDefaults,
         type ThemeMode
     } from '$lib/models';
 
     interface Props {
         refreshIntervalSeconds: number;
         concurrentWorkers: number;
+        defaults: PreferencesDefaults;
         theme: ThemeMode;
         onrefreshinterval: (seconds: number) => void;
         onworkers: (workers: number) => void;
@@ -26,6 +28,7 @@
     let {
         refreshIntervalSeconds,
         concurrentWorkers,
+        defaults,
         theme,
         onrefreshinterval,
         onworkers,
@@ -56,6 +59,18 @@
     );
     const workersIssues = $derived(
         workersTouched && !workersValidation.success ? workersValidation.error.issues : undefined
+    );
+    const refreshSaveDisabled = $derived(
+        !refreshValidation.success || refreshValidation.data === refreshIntervalSeconds
+    );
+    const workersSaveDisabled = $derived(
+        !workersValidation.success || workersValidation.data === concurrentWorkers
+    );
+    const refreshResetDisabled = $derived(
+        refreshValidation.success && refreshValidation.data === defaults.refreshIntervalSeconds
+    );
+    const workersResetDisabled = $derived(
+        workersValidation.success && workersValidation.data === defaults.concurrentWorkers
     );
 
     watch(
@@ -96,6 +111,8 @@
                     return;
                 }
 
+                if (refreshSaveDisabled) return;
+
                 onrefreshinterval(refreshValidation.data);
             }}
         >
@@ -124,13 +141,17 @@
                         aria-describedby="refresh-description"
                     />
                 </div>
-                <Button type="submit" variant="tonal" aria-label="Save refresh interval"
-                    >Save</Button
+                <Button
+                    type="submit"
+                    variant="tonal"
+                    aria-label="Save refresh interval"
+                    disabled={refreshSaveDisabled}>Save</Button
                 >
                 <Button
                     type="button"
                     variant="outlined"
                     aria-label="Reset refresh interval"
+                    disabled={refreshResetDisabled}
                     onclick={() => {
                         onresetrefreshinterval();
                         refreshDraft = refreshIntervalSeconds;
@@ -150,6 +171,8 @@
                     workersInput?.focus();
                     return;
                 }
+
+                if (workersSaveDisabled) return;
 
                 onworkers(workersValidation.data);
             }}
@@ -179,13 +202,17 @@
                         aria-describedby="workers-description"
                     />
                 </div>
-                <Button type="submit" variant="tonal" aria-label="Save concurrent workers"
-                    >Save</Button
+                <Button
+                    type="submit"
+                    variant="tonal"
+                    aria-label="Save concurrent workers"
+                    disabled={workersSaveDisabled}>Save</Button
                 >
                 <Button
                     type="button"
                     variant="outlined"
                     aria-label="Reset concurrent workers"
+                    disabled={workersResetDisabled}
                     onclick={() => {
                         onresetworkers();
                         workersDraft = concurrentWorkers;
