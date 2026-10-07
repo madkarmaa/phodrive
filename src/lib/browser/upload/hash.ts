@@ -5,13 +5,16 @@ import { MAX_CONCURRENT_WORKERS, type SplitHeader } from '$lib/models';
 import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp/format';
 
 export const HASH_BLOCK_BYTES = 1024 * 1024;
+// Avoid native digest call overhead for tiny files.
 const NATIVE_HASH_MIN_BYTES = 32 * 1024;
 const ZERO_BLOCK = new Uint8Array(64 * 1024);
 const FILE_HASHES = new WeakMap<File, string>();
-const SHA256_HASHERS: IHasher[] = [];
-const SHA1_HASHERS: IHasher[] = [];
 
-function createHasher(
+// Only idle states are pooled; an operation owns its hasher through reads and digesting.
+const AVAILABLE_SHA256_HASHERS: IHasher[] = [];
+const AVAILABLE_SHA1_HASHERS: IHasher[] = [];
+
+function acquireHasher(
     factory: () => Promise<IHasher>,
     available: IHasher[]
 ): AsyncResult<IHasher, ApplicationError> {
@@ -34,7 +37,7 @@ function createHasher(
 
 function hashBlob(
     blob: Blob,
-    hash: IHasher,
+    hasher: IHasher,
     onProgress: (read: number) => void
 ): AsyncResult<void, ApplicationError> {
     return Ok(undefined).andThenAsync(async () => {
@@ -49,7 +52,8 @@ function hashBlob(
                     message: 'Could not read the selected file.'
                 } as const);
             }
-            hash.update(new Uint8Array(bytes));
+
+            hasher.update(new Uint8Array(bytes));
             onProgress(Math.min(offset + HASH_BLOCK_BYTES, blob.size));
         }
 
@@ -57,8 +61,8 @@ function hashBlob(
     });
 }
 
-/** Native SHA-256 is worthwhile for bounded files above its async call overhead. */
-function hashSmallFile(file: File, subtle: SubtleCrypto): AsyncResult<string, ApplicationError> {
+/** The caller limits native hashing to one read block to bound memory and preserve progress. */
+function hashFileNatively(file: File, subtle: SubtleCrypto): AsyncResult<string, ApplicationError> {
     return Ok(undefined).andThenAsync<string, ApplicationError>(async () => {
         let bytes: ArrayBuffer;
 
@@ -102,7 +106,7 @@ export function hashFile(
 
     const subtle = globalThis.crypto?.subtle;
     if (subtle && file.size >= NATIVE_HASH_MIN_BYTES && file.size <= HASH_BLOCK_BYTES) {
-        return hashSmallFile(file, subtle)
+        return hashFileNatively(file, subtle)
             .map((digest) => {
                 FILE_HASHES.set(file, digest);
                 onProgress(file.size);
@@ -123,17 +127,18 @@ function hashFileIncrementally(
     file: File,
     onProgress: (read: number) => void
 ): AsyncResult<string, ApplicationError> {
-    return createHasher(createSHA256, SHA256_HASHERS).andThenAsync(async (hash) => {
-        const hashed = await hashBlob(file, hash, onProgress);
+    return acquireHasher(createSHA256, AVAILABLE_SHA256_HASHERS).andThenAsync(async (hasher) => {
+        const hashed = await hashBlob(file, hasher, onProgress);
         const result = hashed.map(() => {
-            const digest = hash.digest('hex');
+            const digest = hasher.digest('hex');
             FILE_HASHES.set(file, digest);
 
             return digest;
         });
 
-        // A state is exclusively owned until its read completes, including failed reads.
-        if (SHA256_HASHERS.length < MAX_CONCURRENT_WORKERS) SHA256_HASHERS.push(hash);
+        // Limit retained WASM states, including states returned after a failed read.
+        if (AVAILABLE_SHA256_HASHERS.length < MAX_CONCURRENT_WORKERS)
+            AVAILABLE_SHA256_HASHERS.push(hasher);
 
         return result;
     });
@@ -163,18 +168,19 @@ export function hashUploadChunk(
     header: SplitHeader
 ): AsyncResult<{ sha1: string; size: number }, ApplicationError> {
     return encodeSplitPrefix(header).andThenAsync(({ prefix, totalSize, paddingSize }) =>
-        createHasher(createSHA1, SHA1_HASHERS).andThenAsync(async (hash) => {
-            hash.update(prefix);
+        acquireHasher(createSHA1, AVAILABLE_SHA1_HASHERS).andThenAsync(async (hasher) => {
+            hasher.update(prefix);
 
-            const hashed = await hashBlob(payload, hash, () => {});
+            const hashed = await hashBlob(payload, hasher, () => {});
             const result = hashed.map(() => {
                 for (let offset = 0; offset < paddingSize; offset += ZERO_BLOCK.length)
-                    hash.update(ZERO_BLOCK.subarray(0, paddingSize - offset));
+                    hasher.update(ZERO_BLOCK.subarray(0, paddingSize - offset));
 
-                return { sha1: hash.digest('hex'), size: totalSize };
+                return { sha1: hasher.digest('hex'), size: totalSize };
             });
 
-            if (SHA1_HASHERS.length < MAX_CONCURRENT_WORKERS) SHA1_HASHERS.push(hash);
+            if (AVAILABLE_SHA1_HASHERS.length < MAX_CONCURRENT_WORKERS)
+                AVAILABLE_SHA1_HASHERS.push(hasher);
 
             return result;
         })

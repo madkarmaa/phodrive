@@ -17,12 +17,17 @@ export function fileKey(file: { email: string; fileId: string }): string {
     return `${file.email}:${file.fileId}`;
 }
 
+type IndexedFileGroup = {
+    file: FileGroup;
+    chunkPositions?: Map<number, number>;
+};
+
 export function groupChunks(items: UploadedChunk[]): FileGroup[] {
-    const groups = new Map<string, { file: FileGroup; indexes?: Map<number, number> }>();
+    const groups = new Map<string, IndexedFileGroup>();
 
     for (const chunk of items) {
         const key = fileKey(chunk);
-        let entry = groups.get(key);
+        const entry = groups.get(key);
 
         if (!entry) {
             const file: FileGroup = {
@@ -35,30 +40,32 @@ export function groupChunks(items: UploadedChunk[]): FileGroup[] {
                 chunks: [chunk],
                 complete: false
             };
-            entry = { file };
-            groups.set(key, entry);
+            groups.set(key, { file });
 
             continue;
         }
 
         const group = entry.file;
-        const index = entry.indexes
-            ? entry.indexes.get(chunk.chunkIndex)
-            : group.chunks[0].chunkIndex === chunk.chunkIndex
-              ? 0
-              : undefined;
-        const current = index === undefined ? undefined : group.chunks[index];
+        let position: number | undefined;
+        if (entry.chunkPositions) {
+            position = entry.chunkPositions.get(chunk.chunkIndex);
+        } else if (group.chunks[0].chunkIndex === chunk.chunkIndex) {
+            position = 0;
+        }
+
+        const current = position === undefined ? undefined : group.chunks[position];
         group.at = Math.max(group.at, chunk.at);
         if (current && !(current.at <= chunk.at)) continue;
 
-        if (index === undefined) {
-            // Most files have one chunk; create an index only for a split file.
-            entry.indexes ??= new Map([[group.chunks[0].chunkIndex, 0]]);
-            entry.indexes.set(chunk.chunkIndex, group.chunks.length);
+        if (position === undefined) {
+            // Single-chunk files need no map. Positions stay valid until the final sort.
+            entry.chunkPositions ??= new Map([[group.chunks[0].chunkIndex, 0]]);
+            entry.chunkPositions.set(chunk.chunkIndex, group.chunks.length);
             group.chunks.push(chunk);
         } else {
-            group.chunks[index] = chunk;
+            group.chunks[position] = chunk;
         }
+
         if (chunk.chunkIndex === 0 && chunk.originalName) group.name = chunk.originalName;
     }
 
