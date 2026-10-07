@@ -120,3 +120,35 @@ test('remote chunks group into one card', () => {
     const remoteName = chunkFileName('video.mp4', FILE_HASH, 1, 2);
     expect(remoteName).toBe(`video.mp4.phodrive-${FILE_HASH}-1-of-2.bmp`);
 });
+
+test('prefix encoding preserves original protocol bytes for Unicode and multibyte indexes', async () => {
+    const { encodeSplitPrefix } = await import('$lib/bmp/format');
+    const common = { fileHash: 'ab'.repeat(32), fileId: 'cd'.repeat(32) };
+    const first = encodeSplitPrefix({
+        ...common,
+        chunkIndex: 0,
+        flags: 1,
+        payloadSize: 1024,
+        fileName: 'photos-📷.bin'
+    }).unwrap();
+    expect(Buffer.from(first.prefix).toString('hex')).toBe(
+        '424d360c000000000000360000002800000020000000200000000100180000000000000c000000000000000000000000000000000000424d53504c495401' +
+            'ab'.repeat(32) +
+            'cd'.repeat(32) +
+            '000180080f70686f746f732df09f93b72e62696e'
+    );
+    expect([first.totalSize, first.paddingSize]).toEqual([3126, 1956]);
+    const later = encodeSplitPrefix({
+        ...common,
+        chunkIndex: 128,
+        flags: 0,
+        payloadSize: 195000000
+    }).unwrap();
+    expect(Buffer.from(later.prefix).toString('hex')).toBe(
+        '424db6a49f0b000000003600000028000000801f00007d1f0000010018000000000080a49f0b00000000000000000000000000000000424d53504c495401' +
+            'ab'.repeat(32) +
+            'cd'.repeat(32) +
+            '800100c0edfd5c'
+    );
+    expect([later.totalSize, later.paddingSize]).toEqual([195011766, 11633]);
+});

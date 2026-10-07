@@ -26,3 +26,25 @@ Memory impact and interpretation: Repeated small hashes confirmed 63.4% and 59.7
 Correctness: check, 170 tests, build and perf:check pass; new concurrency and failed-read regression test.
 
 Decision: **KEEP**.
+
+## Iteration 2: Write BMP metadata directly into its destination
+
+Change: Write BMP metadata directly into its destination.
+
+Hypothesis: Remove temporary hash/varint arrays and duplicate UTF8 encoding without changing validation, layout or padding.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark        | Baseline | Previous | Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| ---------------- | -------: | -------: | ------: | ---------------------------------: | ------------------------------: |
+| prefix           |   83.729 |   83.729 |  53.609 |                    +36.0% / +36.0% |                     95.5 → 96.6 |
+| planning         |   51.068 |   51.068 |  50.306 |                      +1.5% / +1.5% |                   112.7 → 112.6 |
+| chunk-hash-small |   28.557 |   11.424 |  10.386 |                     +63.6% / +9.1% |                     98.3 → 98.9 |
+| bmp-encode       |    7.806 |    7.806 |   7.671 |                      +1.7% / +1.7% |                   533.8 → 597.4 |
+| upload-many      |  411.040 |  369.556 | 375.908 |                      +8.5% / -1.7% |                   335.4 → 314.2 |
+
+Memory impact and interpretation: Prefix latency improves 36.0%; RSS is flat. Planning and full BMP encoding are unchanged within noise. Full-buffer BMP fixture RSS varies by one 64 MiB allocation due to GC (533.8 to 597.4 MiB); no full-buffer production allocation was added. Upload-many 375.91 ms is within iteration1 repeat variability (369.56–381.71 ms); RSS 314.2 MiB lies between its prior repeat values. Varint uses its documented destination-buffer API.
+
+Correctness: check, 171 tests, build and perf:check pass; fixed pre-change Unicode/index128 protocol golden bytes pass.
+
+Decision: **KEEP**.

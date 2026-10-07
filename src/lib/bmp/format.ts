@@ -12,10 +12,9 @@ export const BMP_HEADER_BYTES = 54;
 export const SPLIT_MAGIC = new TextEncoder().encode('BMSPLIT\x01');
 export const FILE_HASH_BYTES = 32;
 
-function hashBytes(hash: string): Uint8Array {
-    return Uint8Array.from({ length: FILE_HASH_BYTES }, (_, position) =>
-        Number.parseInt(hash.slice(position * 2, position * 2 + 2), 16)
-    );
+function writeHash(target: Uint8Array, offset: number, hash: string): void {
+    for (let position = 0; position < FILE_HASH_BYTES; position++)
+        target[offset + position] = Number.parseInt(hash.slice(position * 2, position * 2 + 2), 16);
 }
 
 function bmpLayout(
@@ -37,8 +36,9 @@ function bmpLayout(
     return Ok({ width, height, total });
 }
 
-/** Exact prefix size, including the BMP header, before the payload begins. */
-export function splitHeaderByteLength(input: SplitHeader): Result<number, BmpError> {
+function splitHeaderLayout(
+    input: SplitHeader
+): Result<{ length: number; name: Uint8Array }, BmpError> {
     const parsed = SplitHeaderSchema.safeParse(input);
     if (!parsed.success) return Err(BMP_ERRORS.INVALID_CHUNK_METADATA);
 
@@ -56,7 +56,12 @@ export function splitHeaderByteLength(input: SplitHeader): Result<number, BmpErr
         Varint.encodingLength(header.payloadSize) +
         (header.chunkIndex === 0 ? Varint.encodingLength(nameBytes.length) + nameBytes.length : 0);
 
-    return Ok(length);
+    return Ok({ length, name: nameBytes });
+}
+
+/** Exact prefix size, including the BMP header, before the payload begins. */
+export function splitHeaderByteLength(input: SplitHeader): Result<number, BmpError> {
+    return splitHeaderLayout(input).map(({ length }) => length);
 }
 
 /** Exact projected BMP size before a file slice is read. */
@@ -75,7 +80,7 @@ export function encodeSplitPrefix(input: SplitHeader): Result<
     },
     BmpError
 > {
-    return splitHeaderByteLength(input).andThen((length) => {
+    return splitHeaderLayout(input).andThen(({ length, name }) => {
         if (length > MAX_SPLIT_HEADER_BYTES) return Err(BMP_ERRORS.INVALID_CHUNK_METADATA);
 
         return bmpLayout(length - BMP_HEADER_BYTES + input.payloadSize).map(
@@ -92,25 +97,23 @@ export function encodeSplitPrefix(input: SplitHeader): Result<
                 view.setUint16(28, 24, true);
                 view.setUint32(34, total - BMP_HEADER_BYTES, true);
 
-                const name =
-                    input.chunkIndex === 0
-                        ? new TextEncoder().encode(input.fileName)
-                        : new Uint8Array();
                 let offset = BMP_HEADER_BYTES;
-                const fields = [
-                    SPLIT_MAGIC,
-                    hashBytes(input.fileHash),
-                    hashBytes(input.fileId),
-                    Uint8Array.from(Varint.encode(input.chunkIndex)),
-                    Uint8Array.of(input.flags),
-                    Uint8Array.from(Varint.encode(input.payloadSize))
-                ];
-                if (input.chunkIndex === 0)
-                    fields.push(Uint8Array.from(Varint.encode(name.length)), name);
+                prefix.set(SPLIT_MAGIC, offset);
+                offset += SPLIT_MAGIC.length;
+                writeHash(prefix, offset, input.fileHash);
+                offset += FILE_HASH_BYTES;
+                writeHash(prefix, offset, input.fileId);
+                offset += FILE_HASH_BYTES;
 
-                for (const bytes of fields) {
-                    prefix.set(bytes, offset);
-                    offset += bytes.length;
+                Varint.encode(input.chunkIndex, prefix, offset);
+                offset += Varint.encodingLength(input.chunkIndex);
+                prefix[offset++] = input.flags;
+                Varint.encode(input.payloadSize, prefix, offset);
+                offset += Varint.encodingLength(input.payloadSize);
+                if (input.chunkIndex === 0) {
+                    Varint.encode(name.length, prefix, offset);
+                    offset += Varint.encodingLength(name.length);
+                    prefix.set(name, offset);
                 }
 
                 return {
