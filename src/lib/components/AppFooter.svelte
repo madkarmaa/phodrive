@@ -55,9 +55,11 @@
 
 <style>
     :global(:root .footer-source.np-button) {
+        justify-self: start;
         height: auto;
-        padding: 0;
+        padding-block: 4px;
         font: inherit;
+        --np-button-padding: 8px;
         --np-button-gap: 6px;
         --np-button-icon-size: 16px;
     }
