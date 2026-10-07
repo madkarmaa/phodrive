@@ -126,3 +126,24 @@ Memory impact and interpretation: Sorting drops 57.2% against baseline and 59.2%
 Correctness: check, 173 tests, build and perf:check pass; existing Unicode, case, date-tie and immutable sorting coverage retained.
 
 Decision: **KEEP**.
+
+## Iteration 6: Fuse UTF8 decoding and SSE parsing into one stream stage
+
+Change: Fuse UTF8 decoding and SSE parsing into one stream stage.
+
+Hypothesis: Remove one TransformStream and its scheduling/queue overhead while preserving the same parser and validation.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark      | Baseline | Previous |  Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| -------------- | -------: | -------: | -------: | ---------------------------------: | ------------------------------: |
+| upload-tiny    |    5.931 |    5.931 |    5.222 |                    +11.9% / +11.9% |                   100.7 → 100.2 |
+| upload-many    |  411.040 |  384.427 |  367.095 |                     +10.7% / +4.5% |                   334.4 → 301.7 |
+| upload-mixed-8 | 1685.675 | 1672.018 | 1657.798 |                      +1.7% / +0.9% |                   842.5 → 845.3 |
+| upload-retry   |   86.975 |   88.378 |   92.031 |                      -5.8% / -4.1% |                   231.0 → 229.8 |
+
+Memory impact and interpretation: An interleaved control restored the previous implementation: upload-many 368.74 ms / 304.1 MiB RSS, candidate repeat 360.78 ms / 304.8 MiB. The 2.2% benefit is too small relative to run variability to justify maintaining a custom stream wrapper. Initial apparent improvement over 384.43 ms was mostly noise; full baseline improvement belonged to earlier changes. Tiny workload control5.34 vs4.95 ms is small in absolute terms. Reverted production change.
+
+Correctness: candidate passed check, 174 tests, build and perf:check; byte-fragmented UTF8/BOM/CRLF and cancellation regression retained.
+
+Decision: **REJECT**.

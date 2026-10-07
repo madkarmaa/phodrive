@@ -88,3 +88,25 @@ test('server errors preserve their safe message', async () => {
         message: 'Upload transfer failed (HTTP 429)'
     });
 });
+
+test('upload event decoding preserves split UTF8, BOM and CRLF across byte boundaries', async () => {
+    const error = 'Photos failed: 📷 café';
+    const bytes = encoder.encode(
+        `\uFEFFdata: ${JSON.stringify({ type: UploadEventType.Error, error })}\r\n\r\n`
+    );
+    let offset = 0;
+    let cancelled = false;
+    serve(
+        new ReadableStream<Uint8Array>({
+            pull(controller) {
+                if (offset < bytes.length) controller.enqueue(bytes.subarray(offset, ++offset));
+            },
+            cancel() {
+                cancelled = true;
+            }
+        })
+    );
+    const failed = await uploadRequest(new FormData(), () => Ok(undefined));
+    expect(failed.unwrapErr()).toEqual({ code: 'UPLOAD_FAILED', message: error });
+    await vi.waitFor(() => expect(cancelled).toBe(true));
+});
