@@ -1,6 +1,6 @@
 # Local performance suite
 
-Run `bun run perf --output=/absolute/path/results.json` (or `npm run perf -- --output=...`). Run `bun run perf:check` to type-check the suite. Pass case names to run a subset, for example `bun run perf hash-many prefix upload-many --output=/tmp/subset.json`. Output paths should be outside the repository. Node launches the suite under either package manager, matching the default production server. No Google account or network is used.
+Run `bun run perf --output=/absolute/path/results.json` (or `npm run perf -- --output=...`). Run `bun run perf:check` to type-check the suite. Pass case names to run a subset, for example `bun run perf hash-many prefix upload-many --output=/tmp/subset.json`. Write raw JSON outside the repository or under the ignored `.vitest/performance/` directory (create the directory first). Node launches the suite under either package manager, matching the default production server. No Google account or network is used.
 
 Each case runs in a fresh Vitest child process, with two warmups and five measured samples. Cases and samples run sequentially; do not run builds, tests, other benchmarks, or browser transfers alongside them. The reported latency is the median for the **entire fixed workload**, not a per-operation latency. JSON preserves every sample, input bytes, throughput, process peak RSS, and sampled heap/external memory. Small hash cases batch 200 operations; many-file hashing and small chunk hashing use 500. Prefix encoding uses 10,000 headers. Planning uses twenty 500 GB metadata-only plans. Library parsing uses ten 1,000-photo pages. Grouping uses ten passes over 4,096 chunks plus 1,024 duplicates; sorting uses ten 10,000-file sorts.
 
@@ -13,3 +13,9 @@ Memory metrics are **whole-process** measurements, including fixtures, framework
 See [baseline.md](./baseline.md) for the immutable baseline and [iterations.md](./iterations.md) for accepted and rejected changes.
 
 `group-many-files` additionally measures ten passes over 10,000 one-chunk files plus 2,500 duplicates, guarding the common case against indexing overhead. Its original-source baseline is documented separately.
+
+Keep power conditions consistent between controls and candidates. The original baseline was measured on mains power; the results include a separate original-source battery control and a final AC run after the device returned to mains power. Never interpret that environmental slowdown as a code regression or replace the original baseline with the newer control. See [results.md](./results.md) for both comparisons and convergence evidence.
+
+## Supplemental browser hashing
+
+To reproduce the browser comparison, copy `src/lib/browser/upload/hash.ts` from original production commit `86cba81` into `.svelte-kit/performance/browser-original-hash.ts` (create that ignored directory after normal project setup). Keep the original source unmodified. Start `bun run dev`, open its URL in an existing Chrome window, and evaluate [browser-hashing.js](./browser-hashing.js) in the browser console or Chrome MCP. It imports the original and current hashing modules through the dev server, then runs two warmups and five samples for each of 200 × 64 KiB and 500 × 1 KiB. Results include all samples and validation flags; every operation uses a fresh File. Run it separately from other benchmarks, builds and uploads. No Google account is required. Remove the temporary original module afterward.
