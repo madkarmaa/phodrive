@@ -1,303 +1,217 @@
-import { SERVER_ERRORS } from '$server/errors';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import { readFile, access, open, stat } from 'node:fs/promises';
-import { join } from 'node:path';
-import { Err, Ok } from 'results-ts';
-import { receiveUpload, type ReceivedUpload } from '$server/upload-input';
+import { afterEach, expect, test, vi } from 'vitest';
+import { receiveUpload } from '$server/upload-input';
+import { encodeUploadBmp } from '$server/upload-bmp';
 import { uploadFiles, planUpload } from '$server/uploads';
 import { uploadStream } from '$server/upload-stream';
-import { createTemporaryDirectory, removeTemporaryDirectory } from '$server/temporary-files';
-import * as temporary from '$server/temporary-files';
-import { decodeSplitBmp, MAX_CHUNK_PAYLOAD_BYTES, MAX_PHOTOS_BMP_BYTES } from '$server/bmp';
-import { uploadBmp } from '$server/photos';
-import { UploadEventType, UploadPhase, UploadStatus, type UploadEvent } from '$lib/models';
+import { decodeSplitBmp, MAX_CHUNK_PAYLOAD_BYTES } from '$server/bmp';
+import { UploadEventType, UploadStatus, UploadPhase, type UploadEvent } from '$lib/models';
+import { uploadForm, photosUploadHarness } from '../helpers/upload';
+import * as fs from 'node:fs/promises';
 
-vi.mock('$server/photos', () => ({ uploadBmp: vi.fn() }));
-const PAYLOAD = Buffer.from([0, 255, 13, 10, 42]);
-const directories: string[] = [];
-
-beforeEach(() => {
-    vi.mocked(uploadBmp).mockImplementation((_email, _token, _name, bmp) =>
-        Ok({
-            status: UploadStatus.Uploaded,
-            mediaKey: createHash('sha1').update(bmp).digest('hex'),
-            sha1: createHash('sha1').update(bmp).digest('hex')
-        }).andThenAsync(async (response) => Ok(response))
-    );
+vi.mock('node:fs/promises', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('node:fs/promises')>();
+    return { ...actual, open: vi.fn(actual.open), mkdtemp: vi.fn(actual.mkdtemp) };
 });
 
-afterEach(async () => {
-    vi.clearAllMocks();
-    for (const directory of directories.splice(0)) await removeTemporaryDirectory(directory);
-});
+afterEach(() => vi.restoreAllMocks());
 
-function form(files: File[] = [new File([PAYLOAD], 'proof.bin')]): FormData {
-    const data = new FormData();
-    data.set('email', 'test@example.com');
-    data.set('token', 'aas_et/test');
-    data.set('workers', '2');
-    for (const file of files) data.append('file', file);
-    return data;
-}
-
-async function receive(files?: File[]): Promise<ReceivedUpload> {
-    const result = await receiveUpload(
-        new Request('http://localhost/api/upload', { method: 'POST', body: form(files) })
-    );
-    const input = result.unwrap();
-    directories.push(input.directory);
-    return input;
-}
-
-test('raw multipart files are streamed to private disk storage and hashed on server, including empty/unicode files', async () => {
-    const input = await receive([new File([PAYLOAD], 'résumé.bin'), new File([], 'empty.bin')]);
-    expect(input.files).toHaveLength(2);
-    expect(input.files[0]).toMatchObject({
-        name: 'résumé.bin',
-        size: PAYLOAD.length,
-        fileHash: createHash('sha256').update(PAYLOAD).digest('hex')
-    });
-    const bytes = await readFile(input.files[0].path);
-    expect(bytes).toEqual(PAYLOAD);
-    const savedFile = await stat(input.files[0].path);
-    expect(savedFile.mode & 0o600).toBe(0o600);
-    // Windows does not implement separate owner, group, and other permission bits.
-    if (process.platform !== 'win32') expect(savedFile.mode & 0o777).toBe(0o600);
-    expect(input.files[1].size).toBe(0);
-    expect(input.files[1].fileHash).toBe(createHash('sha256').digest('hex'));
-    const events: UploadEvent[] = [];
-    const uploaded = await uploadFiles(input, (event) => events.push(event));
-    expect(uploaded.isOk()).toBe(true);
-    expect(events.filter((event) => event.type === UploadEventType.FileComplete)).toHaveLength(2);
-    const [, , , emptyBmp] = vi
-        .mocked(uploadBmp)
-        .mock.calls.find(([, , name]) => name.startsWith('empty.bin.'))!;
-    const decoded = decodeSplitBmp(emptyBmp).unwrap();
-    expect(decoded.payload).toHaveLength(0);
-    expect(decoded.header.flags).toBe(1);
-});
-
-test('streamed original files larger than the Photos limit are accepted without whole-file buffering', async () => {
-    const total = MAX_PHOTOS_BMP_BYTES + 5;
-    const block = Buffer.alloc(1_000_000);
-    const hash = createHash('sha256');
-    const header = Buffer.from(
-        '--raw\r\nContent-Disposition: form-data; name="email"\r\n\r\ntest@example.com\r\n--raw\r\nContent-Disposition: form-data; name="token"\r\n\r\naas_et/test\r\n--raw\r\nContent-Disposition: form-data; name="workers"\r\n\r\n2\r\n--raw\r\nContent-Disposition: form-data; name="file"; filename="huge.bin"\r\nContent-Type: application/octet-stream\r\n\r\n'
-    );
-    let sent = -1;
-    const body = new ReadableStream<Uint8Array>({
-        pull(controller) {
-            if (sent === -1) {
-                sent = 0;
-                controller.enqueue(header);
-                return;
-            }
-            if (sent < total) {
-                const bytes = block.subarray(0, Math.min(block.length, total - sent));
-                hash.update(bytes);
-                sent += bytes.length;
-                controller.enqueue(bytes);
-                return;
-            }
-            controller.enqueue(Buffer.from('\r\n--raw--\r\n'));
-            controller.close();
-        }
-    });
-    const init = {
-        method: 'POST',
-        headers: { 'content-type': 'multipart/form-data; boundary=raw' },
-        body,
-        duplex: 'half' as const
-    };
-    const received = await receiveUpload(new Request('http://localhost/api/upload', init));
+test('multipart ingestion and BMP transfer stream without allocating files on disk', async () => {
+    const fixture = uploadForm();
+    const open = vi.spyOn(fs, 'open').mockRejectedValue(new Error('ENOSPC'));
+    const mkdtemp = vi.spyOn(fs, 'mkdtemp').mockRejectedValue(new Error('ENOSPC'));
+    const received = await receiveUpload(fixture.request());
     const input = received.unwrap();
-    directories.push(input.directory);
-    expect(input.files[0].size).toBe(total);
-    expect(input.files[0].fileHash).toBe(hash.digest('hex'));
-    const plan = planUpload(input.files[0]).unwrap();
-    expect(plan.headers).toHaveLength(2);
-    expect(plan.sizes.every((size) => size < MAX_PHOTOS_BMP_BYTES)).toBe(true);
-});
-
-test('server reads and encodes actual split ranges with stable hash, original name and final flag', async () => {
-    const created = await createTemporaryDirectory();
-    const directory = created.unwrap();
-    directories.push(directory);
-    const path = join(directory, 'large');
-    const disk = await open(path, 'w');
-    await disk.truncate(MAX_CHUNK_PAYLOAD_BYTES + 5);
-    await disk.write(PAYLOAD, 0, PAYLOAD.length, MAX_CHUNK_PAYLOAD_BYTES);
-    await disk.close();
-    const input: ReceivedUpload = {
-        email: 'test@example.com',
-        token: 'aas_et/test',
-        workers: 2,
-        directory,
-        files: [
-            { name: 'large.bin', path, size: MAX_CHUNK_PAYLOAD_BYTES + 5, fileHash: 'a'.repeat(64) }
-        ]
-    };
+    const harness = photosUploadHarness();
     const events: UploadEvent[] = [];
-    const result = await uploadFiles(input, (event) => events.push(event));
-    expect(result.isOk()).toBe(true);
-    expect(uploadBmp).toHaveBeenCalledTimes(2);
-    for (const [, , name, bmp] of vi.mocked(uploadBmp).mock.calls) {
-        const decoded = decodeSplitBmp(bmp).unwrap();
-        expect(bmp.length).toBeLessThan(MAX_PHOTOS_BMP_BYTES);
-        expect(decoded.header.fileHash).toBe(input.files[0].fileHash);
-        expect(name).toContain(`-${decoded.header.chunkIndex}-of-2.bmp`);
-        if (decoded.header.chunkIndex === 0) {
-            expect(decoded.header.fileName).toBe('large.bin');
-            expect(decoded.payload).toHaveLength(MAX_CHUNK_PAYLOAD_BYTES);
-            expect(decoded.payload.every((byte) => byte === 0)).toBe(true);
-            expect(decoded.header.flags).toBe(0);
-        } else {
-            expect(Buffer.from(decoded.payload)).toEqual(PAYLOAD);
-            expect(decoded.header.flags).toBe(1);
-        }
-    }
-    const final = events.filter((event) => event.type === UploadEventType.Progress).at(-1);
-    expect(final?.progress.phase).toBe(UploadPhase.Uploading);
-    if (final?.progress.phase === UploadPhase.Uploading)
-        expect(final.progress.completed + final.progress.reused).toBe(final.progress.total);
-    expect(planUpload({ ...input.files[0], size: 250_000_000 }).unwrap().headers).toHaveLength(2);
+    const uploaded = await uploadFiles(input, (event) => events.push(event), harness.fetcher);
+    expect(uploaded.isOk()).toBe(true);
+    expect(open).not.toHaveBeenCalled();
+    expect(mkdtemp).not.toHaveBeenCalled();
+    expect(harness.counts).toMatchObject({ transfers: 1, commits: 1 });
+    const bmp = harness.stored.get(fixture.metadata.sha1)!;
+    expect(decodeSplitBmp(bmp).unwrap().payload).toEqual(Buffer.from([0, 255, 13, 10, 42]));
+    expect(events.some((event) => event.type === UploadEventType.Chunk)).toBe(true);
+    await input.cancel();
 });
 
-test('one transfer pool bounds a selection, retains confirmations after failure and completes other files', async () => {
-    const input = await receive(
-        Array.from({ length: 5 }, (_, index) => new File([PAYLOAD], `file-${index}.bin`))
+test('encoder has bounded blocks and demand-driven ingress, independent of payload size', async () => {
+    const original = Buffer.alloc(2_000_000, 42);
+    const fixture = uploadForm(original);
+    const serialized = fixture.request();
+    const headers = new Headers(serialized.headers);
+    const serializedBytes = await serialized.arrayBuffer();
+    const wire = new Uint8Array(serializedBytes);
+    let offset = 0;
+    let readAhead = 0;
+    const ingress = new ReadableStream<Uint8Array>(
+        {
+            pull(controller) {
+                if (offset === wire.length) {
+                    controller.close();
+                    return;
+                }
+                const next = wire.subarray(offset, offset + 16 * 1024);
+                offset += next.length;
+                readAhead = offset;
+                controller.enqueue(next);
+            }
+        },
+        { highWaterMark: 0 }
     );
-    let active = 0;
-    let peak = 0;
-    vi.mocked(uploadBmp).mockImplementation((_email, _token, name) =>
-        Ok(undefined).andThenAsync(async () => {
-            active++;
-            peak = Math.max(peak, active);
-            await new Promise<void>((resolve) => setTimeout(resolve, 10));
-            active--;
-            if (name.startsWith('file-0.'))
-                return Err({
-                    code: 'REQUEST_FAILED',
-                    message: 'Upload transfer failed (HTTP 429)'
-                } as const);
-            return Ok({ status: UploadStatus.AlreadyExists, mediaKey: name, sha1: '0'.repeat(40) });
-        })
-    );
+    const init = { method: 'POST', headers, body: ingress, duplex: 'half' as const };
+    const request = new Request(serialized.url, init);
+    const received = await receiveUpload(request);
+    const input = received.unwrap();
+    let blocks = 0;
+    let bytes = 0;
+    const encoded = encodeUploadBmp(input);
+    const reader = encoded.body.getReader();
+    const prefix = await reader.read();
+    expect(prefix.value).toEqual(fixture.prefix.prefix);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const pausedAt = readAhead;
+    expect(pausedAt).toBeLessThan(256 * 1024);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(readAhead).toBe(pausedAt);
+    const hash = createHash('sha1').update(prefix.value!);
+    while (true) {
+        const next = await reader.read();
+        if (next.done) break;
+        expect(next.value.length).toBeLessThanOrEqual(64 * 1024);
+        hash.update(next.value);
+        bytes += next.value.length;
+        blocks++;
+    }
+    expect(blocks).toBeGreaterThan(30);
+    expect(bytes + prefix.value!.length).toBe(input.bmp.totalSize);
+    expect(hash.digest('hex')).toBe(fixture.metadata.sha1);
+    const verified = await encoded.verified;
+    expect(verified.isOk()).toBe(true);
+    await input.cancel();
+});
+
+test.each(['hash', 'short', 'long'] as const)(
+    'invalid %s is never committed to Google',
+    async (damage) => {
+        const fixture = uploadForm();
+        if (damage === 'hash') fixture.metadata.sha1 = 'a'.repeat(40);
+        fixture.form.set('metadata', JSON.stringify(fixture.metadata));
+        if (damage === 'short')
+            fixture.form.set('chunk', new Blob([Uint8Array.of(1)]), 'chunk.bin');
+        if (damage === 'long') fixture.form.set('chunk', new Blob([Buffer.alloc(6)]), 'chunk.bin');
+        const received = await receiveUpload(fixture.request());
+        const harness = photosUploadHarness();
+        const uploaded = await uploadFiles(received.unwrap(), () => {}, harness.fetcher);
+        expect(uploaded.isErr()).toBe(true);
+        expect(harness.counts.commits).toBe(0);
+        await received.unwrap().cancel();
+    }
+);
+
+test('deduplication still validates the complete incoming split without a Google transfer', async () => {
+    const fixture = uploadForm();
+    const received = await receiveUpload(fixture.request());
+    const harness = photosUploadHarness({ duplicate: true });
     const events: UploadEvent[] = [];
-    const result = await uploadFiles(input, (event) => events.push(event));
-    expect(result.isOk()).toBe(true);
-    expect(active).toBe(0);
-    expect(peak).toBe(input.workers);
-    expect(events.filter((event) => event.type === UploadEventType.FileError)).toHaveLength(1);
-    expect(events.filter((event) => event.type === UploadEventType.Chunk)).toHaveLength(4);
-    expect(events.filter((event) => event.type === UploadEventType.FileComplete)).toHaveLength(4);
+    const uploaded = await uploadFiles(
+        received.unwrap(),
+        (event) => events.push(event),
+        harness.fetcher
+    );
+    expect(uploaded.isOk()).toBe(true);
+    expect(harness.counts).toMatchObject({ transfers: 0, commits: 0 });
+    expect(events.find((event) => event.type === UploadEventType.FileComplete)).toMatchObject({
+        result: { status: 'already exists' }
+    });
+    await received.unwrap().cancel();
 });
 
-test('stream removes received bytes after completion and after response cancellation', async () => {
-    for (const cancelled of [false, true]) {
-        const input = await receive();
-        const response = uploadStream(input);
-        if (cancelled) await response.body?.cancel();
-        else {
-            const body = await response.text();
-            expect(body).toContain('"type":"complete"');
-        }
-        await vi.waitFor(async () => {
-            await expect(access(input.directory)).rejects.toThrow();
-        });
-    }
+test('uncertain commits can be resolved by a stable SHA-1 lookup on retry', async () => {
+    const fixture = uploadForm();
+    const harness = photosUploadHarness({ failCommit: true });
+    const first = await receiveUpload(fixture.request());
+    const failed = await uploadFiles(first.unwrap(), () => {}, harness.fetcher);
+    expect(failed.unwrapErr().code).toBe('COMMIT_OUTCOME_UNCERTAIN');
+    await first.unwrap().cancel();
+    const second = await receiveUpload(fixture.request());
+    const retried = await uploadFiles(second.unwrap(), () => {}, harness.fetcher);
+    expect(retried.isOk()).toBe(true);
+    expect(harness.counts).toMatchObject({ transfers: 1, commits: 1 });
+    await second.unwrap().cancel();
 });
 
-test('late chunk failure keeps earlier confirmation and leaves queued chunks unread', async () => {
-    const input = await receive([
-        new File([PAYLOAD], 'large.bin'),
-        new File([PAYLOAD], 'good.bin')
-    ]);
-    const disk = await open(input.files[0].path, 'r+');
-    const size = 2 * MAX_CHUNK_PAYLOAD_BYTES + 5;
-    await disk.truncate(size);
-    await disk.close();
-    input.files[0] = { ...input.files[0], size };
-    input.workers = 1;
-    const readRange = vi.spyOn(temporary, 'readFileRange');
-    vi.mocked(uploadBmp).mockImplementation((_email, _token, name) =>
-        Ok(undefined).andThenAsync(async () => {
-            if (name.startsWith('large.bin.') && name.includes('-1-of-3.bmp'))
-                return Err({
-                    code: 'REQUEST_FAILED',
-                    message: 'Upload transfer failed (HTTP 429)'
-                } as const);
-            return Ok({ status: UploadStatus.Uploaded, mediaKey: name, sha1: '0'.repeat(40) });
-        })
-    );
-
-    try {
-        const events: UploadEvent[] = [];
-        const result = await uploadFiles(input, (event) => events.push(event));
-        expect(result.isOk()).toBe(true);
-        expect(readRange.mock.calls.map(([path, start]) => ({ path, start }))).toEqual([
-            { path: input.files[0].path, start: 0 },
-            { path: input.files[0].path, start: MAX_CHUNK_PAYLOAD_BYTES },
-            { path: input.files[1].path, start: 0 }
-        ]);
-        expect(
-            events.filter((event) => event.type === UploadEventType.Chunk && event.id === 0)
-        ).toMatchObject([{ chunk: { chunkIndex: 0, isLast: false } }]);
-        expect(events.filter((event) => event.type === UploadEventType.FileError)).toMatchObject([
-            { id: 0, error: 'Upload transfer failed (HTTP 429)' }
-        ]);
-        expect(events.filter((event) => event.type === UploadEventType.FileComplete)).toMatchObject(
-            [{ id: 1 }]
-        );
-    } finally {
-        readRange.mockRestore();
-    }
+test('metadata-only preparation can describe a 500 GB source without opening or allocating that file', async () => {
+    const size = 500_000_000_000;
+    const plan = planUpload({ name: '500gb.bin', size, fileHash: 'a'.repeat(64) }).unwrap();
+    expect(plan.headers).toHaveLength(Math.ceil(size / MAX_CHUNK_PAYLOAD_BYTES));
+    expect(plan.headers.reduce((sum, header) => sum + header.payloadSize, 0)).toBe(size);
+    expect(plan.headers.at(-1)?.flags).toBe(1);
+    const fixture = uploadForm(new Uint8Array(), '500gb.bin', { fileSize: size });
+    const received = await receiveUpload(fixture.request());
+    expect(received.unwrap().header.payloadSize).toBe(MAX_CHUNK_PAYLOAD_BYTES);
+    expect(received.unwrap().bmp.prefix.length).toBeLessThan(512);
+    await received.unwrap().cancel();
 });
 
-test('upload stream reports cleanup failure instead of batch completion', async () => {
-    const input = await receive();
-    const remove = vi
-        .spyOn(temporary, 'removeTemporaryDirectory')
-        .mockImplementation(() =>
-            Err(SERVER_ERRORS.TEMPORARY_STORAGE_REMOVE_FAILED).andThenAsync(async () =>
-                Ok(undefined)
-            )
-        );
-
-    try {
-        const response = uploadStream(input);
-        const body = await response.text();
-        expect(body).toContain('"type":"file-complete"');
-        expect(body).toContain('"error":"Could not remove temporary file storage."');
-        expect(body).not.toContain('"type":"complete"');
-        expect(remove).toHaveBeenCalledWith(input.directory);
-    } finally {
-        remove.mockRestore();
-    }
+test('paused downstream progress is coalesced rather than retaining every event', async () => {
+    const fixture = uploadForm();
+    const received = await receiveUpload(fixture.request());
+    const input = received.unwrap();
+    const uploads = await import('$server/uploads');
+    let finished = false;
+    vi.spyOn(uploads, 'uploadFiles').mockImplementation((_input, emit) =>
+        encodeUploadBmp(input)
+            .drain()
+            .map(() => {
+                for (let completed = 0; completed <= 10_000; completed++) {
+                    emit({
+                        type: UploadEventType.Progress,
+                        id: 0,
+                        progress: {
+                            phase: UploadPhase.Uploading,
+                            completed,
+                            reused: 0,
+                            total: 10_000
+                        }
+                    });
+                }
+                emit({
+                    type: UploadEventType.FileComplete,
+                    id: 0,
+                    result: {
+                        status: UploadStatus.Uploaded,
+                        mediaKey: 'key',
+                        sha1: input.sha1
+                    }
+                });
+                finished = true;
+            })
+    );
+    const response = uploadStream(input);
+    await vi.waitFor(() => expect(finished).toBe(true));
+    const text = await response.text();
+    expect(text.match(/data:/g)).toHaveLength(4);
+    expect(text).toContain('"completed":10000');
+    expect(text).toContain('file-complete');
+    expect(text).toContain('"type":"complete"');
 });
 
-test('invalid credentials, names and malformed multipart requests fail without Google calls', async () => {
-    const invalid = form();
-    invalid.set('workers', '0');
-    const badWorkers = await receiveUpload(
-        new Request('http://localhost/api/upload', { method: 'POST', body: invalid })
-    );
-    expect(badWorkers.isErr()).toBe(true);
-    const badName = await receiveUpload(
-        new Request('http://localhost/api/upload', {
-            method: 'POST',
-            body: form([new File([PAYLOAD], '../unsafe.bin')])
-        })
-    );
-    expect(badName.isErr()).toBe(true);
-    const truncated = await receiveUpload(
-        new Request('http://localhost/api/upload', {
-            method: 'POST',
-            headers: { 'content-type': 'multipart/form-data; boundary=broken' },
-            body: '--broken\r\nContent-Disposition: form-data; name="file"; filename="proof.bin"\r\n\r\ntruncated'
-        })
-    );
-    expect(truncated.isErr()).toBe(true);
-    expect(uploadBmp).not.toHaveBeenCalled();
+test('request cancellation closes unfinished multipart ingress and produces no confirmation', async () => {
+    const fixture = uploadForm(Buffer.alloc(1_000_000));
+    const abort = new AbortController();
+    const request = new Request('http://localhost/api/upload', {
+        method: 'POST',
+        body: fixture.form,
+        signal: abort.signal
+    });
+    const received = await receiveUpload(request);
+    const source = encodeUploadBmp(received.unwrap());
+    const reader = source.body.getReader();
+    await reader.read();
+    abort.abort();
+    await expect(reader.read()).rejects.toBeDefined();
+    const verified = await source.verified;
+    expect(verified.isErr()).toBe(true);
+    await received.unwrap().cancel();
 });

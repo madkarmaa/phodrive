@@ -19,6 +19,7 @@ import { pageRequest, parseLibraryPage, type LibraryCandidate } from '$server/li
 import { decodeSplitHeader, MAX_SPLIT_HEADER_BYTES } from '$server/bmp';
 import { photosFetch, type Fetcher } from '$server/fetcher';
 import { LIBRARY_STATE_REQUEST } from '$server/library-requests';
+import type { UploadBmpSource } from '$server/upload-bmp';
 import { parsePhotoDownloadUrl } from '$server/photos-download';
 
 const AUTH_URL = 'https://android.googleapis.com/auth';
@@ -358,8 +359,10 @@ function uploadAuthenticatedBmp(
                     sha1: sha1Hex
                 });
 
-            return startUpload(bmp, sha1, commonHeaders, fetcher)
-                .andThenAsync((uploadId) => transferBmp(bmp, uploadId, commonHeaders, fetcher))
+            return startUpload(bmp.length, sha1, commonHeaders, fetcher)
+                .andThenAsync((uploadId) =>
+                    transferBmp(bodyBytes(bmp), uploadId, commonHeaders, fetcher)
+                )
                 .andThenAsync((transfer) => commitBmp(name, sha1, transfer, rpcHeaders, fetcher))
                 .map((mediaKey) => ({
                     status: UploadStatus.Uploaded as const,
@@ -370,8 +373,71 @@ function uploadAuthenticatedBmp(
     );
 }
 
+/** Streaming upload with caller-supplied SHA-1 verified before a photo can be committed. */
+export function uploadBmpStream(
+    email: string,
+    token: string,
+    name: string,
+    source: UploadBmpSource,
+    fetcher: Fetcher = photosFetch,
+    signal?: AbortSignal
+): AsyncResult<UploadResponse, ServerError> {
+    return Ok(undefined).andThenAsync(async () => {
+        const abort = new AbortController();
+        const onAbort = () => abort.abort();
+        signal?.addEventListener('abort', onAbort, { once: true });
+        if (signal?.aborted) abort.abort();
+        const transport: Fetcher = (url, init) => fetcher(url, { ...init, signal: abort.signal });
+        const sha1 = Buffer.from(source.sha1, 'hex');
+        try {
+            return await authenticatedHeaders(email, token, transport).andThenAsync((headers) =>
+                hashLookup(sha1, headers.rpcHeaders, transport).andThenAsync<
+                    UploadResponse,
+                    ServerError
+                >(async (existing) => {
+                    if (existing)
+                        return source.drain().map(() => ({
+                            status: UploadStatus.AlreadyExists,
+                            mediaKey: existing,
+                            sha1: source.sha1
+                        }));
+                    return startUpload(source.length, sha1, headers.commonHeaders, transport)
+                        .andThenAsync((uploadId) =>
+                            transferBmp(
+                                source.body,
+                                uploadId,
+                                headers.commonHeaders,
+                                transport,
+                                source.length
+                            )
+                        )
+                        .andThenAsync((transfer) => source.verified.map(() => transfer))
+                        .andThenAsync((transfer) =>
+                            commitBmp(name, sha1, transfer, headers.rpcHeaders, transport)
+                        )
+                        .map((mediaKey) => ({
+                            status: UploadStatus.Uploaded,
+                            mediaKey,
+                            sha1: source.sha1
+                        }));
+                })
+            );
+        } finally {
+            abort.abort();
+            signal?.removeEventListener('abort', onAbort);
+            if (!source.body.locked) {
+                try {
+                    await source.body.cancel();
+                } catch {
+                    /* Transport failures already carry a safe error. */
+                }
+            }
+        }
+    });
+}
+
 function startUpload(
-    bmp: Buffer,
+    length: number,
     sha1: Buffer,
     commonHeaders: Record<string, string>,
     fetcher: Fetcher
@@ -381,7 +447,7 @@ function startUpload(
         numberField(2, 2),
         numberField(3, 1),
         numberField(4, 3),
-        numberField(7, bmp.length)
+        numberField(7, length)
     );
 
     return send(
@@ -394,7 +460,7 @@ function startUpload(
                 ...commonHeaders,
                 'content-type': 'application/x-protobuf',
                 'x-goog-hash': `sha1=${sha1.toString('base64')}`,
-                'x-upload-content-length': String(bmp.length)
+                'x-upload-content-length': String(length)
             },
             body: bodyBytes(request)
         },
@@ -410,10 +476,11 @@ function startUpload(
 type Transfer = { scotty: Buffer; type: number; token: Buffer };
 
 function transferBmp(
-    bmp: Buffer,
+    body: BodyInit,
     uploadId: string,
     commonHeaders: Record<string, string>,
-    fetcher: Fetcher
+    fetcher: Fetcher,
+    length?: number
 ): AsyncResult<Transfer, ServerError> {
     const url = new URL(UPLOAD_URL);
     url.searchParams.set('upload_id', uploadId);
@@ -424,8 +491,11 @@ function transferBmp(
         {
             method: 'PUT',
             redirect: 'manual',
-            headers: commonHeaders,
-            body: bodyBytes(bmp)
+            headers: {
+                ...commonHeaders,
+                ...(length === undefined ? {} : { 'content-length': String(length) })
+            },
+            body
         },
         'Upload transfer'
     ).andThenAsync((response) => readBody(response, 'Upload transfer').andThen(parseTransfer));

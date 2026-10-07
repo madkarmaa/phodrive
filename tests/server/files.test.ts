@@ -5,7 +5,6 @@ import { Err, Ok } from 'results-ts';
 import { downloadFile, deleteFile } from '$server/files';
 import { downloadBmp, moveToTrash } from '$server/photos';
 import { decodeSplitHeader } from '$server/bmp';
-import * as temporary from '$server/temporary-files';
 import { FileActionKind } from '$lib/models';
 import { bmpResponse, downloadFixture } from '../helpers/download';
 
@@ -34,7 +33,6 @@ function fixture() {
 
 test('server streams ordered raw bytes without allocating temporary storage', async () => {
     const { input, original } = fixture();
-    const storage = vi.spyOn(temporary, 'createTemporaryDirectory');
     const result = await downloadFile({ ...input, chunks: input.chunks.toReversed() });
     const response = result.unwrap();
     expect(response.headers.get('content-type')).toBe('application/octet-stream');
@@ -46,7 +44,6 @@ test('server streams ordered raw bytes without allocating temporary storage', as
     const bytes = await response.arrayBuffer();
     expect(Buffer.from(bytes)).toEqual(Buffer.from(original));
     expect(downloadBmp).toHaveBeenCalledTimes(2);
-    expect(storage).not.toHaveBeenCalled();
 });
 
 test.each([1, 2, 7, 129, 65_536])(

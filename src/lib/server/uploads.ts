@@ -1,25 +1,24 @@
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
+import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import {
     UploadEventType,
     UploadPhase,
     UploadStatus,
     type SplitHeader,
     type UploadEvent,
-    type UploadResponse
+    type UploadFile
 } from '$lib/models';
-import pLimit, { type LimitFunction } from 'p-limit';
-import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import { encodeSplitBmp, MAX_CHUNK_PAYLOAD_BYTES, splitBmpByteLength } from '$server/bmp';
+import { SERVER_ERRORS, type ServerError } from '$server/errors';
+import { MAX_CHUNK_PAYLOAD_BYTES, splitBmpByteLength } from '$lib/bmp-format';
 import { chunkFileName, fileIdentity } from '$server/chunks';
-import { readFileRange } from '$server/temporary-files';
 import { photosFetchWithProgress, type Fetcher } from '$server/fetcher';
-import { uploadBmp } from '$server/photos';
-import type { ReceivedFile, ReceivedUpload } from '$server/upload-input';
+import { uploadBmpStream } from '$server/photos';
+import { encodeUploadBmp } from '$server/upload-bmp';
+import type { ReceivedUpload } from '$server/upload-input';
 
-const PROGRESS_INTERVAL_MS = 100;
 type UploadPlan = { headers: SplitHeader[]; sizes: number[] };
+const PROGRESS_INTERVAL_MS = 100;
 
-export function planUpload(file: ReceivedFile): Result<UploadPlan, ServerError> {
+export function planUpload(file: UploadFile): Result<UploadPlan, ServerError> {
     if (
         !Number.isSafeInteger(file.size) ||
         file.size < 0 ||
@@ -54,163 +53,66 @@ export function planUpload(file: ReceivedFile): Result<UploadPlan, ServerError> 
     return Ok({ headers, sizes });
 }
 
-function uploadChunk(
-    file: ReceivedFile,
-    header: SplitHeader,
-    count: number,
-    email: string,
-    token: string,
-    onProgress: (sent: number) => void,
-    fetcher?: Fetcher
-): AsyncResult<UploadResponse, ServerError> {
-    return readFileRange(file.path, header.chunkIndex * MAX_CHUNK_PAYLOAD_BYTES, header.payloadSize)
-        .andThen((payload) => encodeSplitBmp(payload, header))
-        .andThenAsync((bmp) =>
-            uploadBmp(
-                email,
-                token,
-                chunkFileName(file.name, file.fileHash, header.chunkIndex, count),
-                Buffer.from(bmp.buffer, bmp.byteOffset, bmp.byteLength),
-                fetcher ?? photosFetchWithProgress(onProgress)
-            )
-        );
-}
-
-/** Keep wire bytes and reused bytes separate; only confirmed chunks can finish a job. */
-function createProgressReporter(plan: UploadPlan, id: number, emit: (event: UploadEvent) => void) {
-    const total = plan.sizes.reduce((sum, size) => sum + size, 0);
-    const sentByChunk = plan.headers.map(() => 0);
-    let completed = 0;
-    let reused = 0;
-    let lastUpdate = 0;
-
-    function report(force = false) {
-        const now = performance.now();
-        if (!force && lastUpdate && now - lastUpdate < PROGRESS_INTERVAL_MS) return;
-
-        lastUpdate = now;
-        emit({
-            type: UploadEventType.Progress,
-            id,
-            progress: { phase: UploadPhase.Uploading, completed, total, reused }
-        });
-    }
-
-    function sent(index: number, bytes: number) {
-        completed += bytes - sentByChunk[index];
-        sentByChunk[index] = bytes;
-        report(bytes === plan.sizes[index]);
-    }
-
-    function confirm(index: number, status: UploadStatus) {
-        if (status === UploadStatus.AlreadyExists) reused += plan.sizes[index];
-        if (status === UploadStatus.Uploaded && sentByChunk[index] < plan.sizes[index]) {
-            completed += plan.sizes[index] - sentByChunk[index];
-            sentByChunk[index] = plan.sizes[index];
-        }
-    }
-
-    return { report, sent, confirm };
-}
-
-function uploadPlannedFile(
-    file: ReceivedFile,
-    plan: UploadPlan,
-    id: number,
-    input: ReceivedUpload,
-    emit: (event: UploadEvent) => void,
-    limit: LimitFunction,
-    fetcher?: Fetcher
-): AsyncResult<UploadResponse, ServerError> {
-    return Ok(undefined).andThenAsync(async () => {
-        const progress = createProgressReporter(plan, id, emit);
-        let failure: ServerError | null = null;
-        let uploadedAny = false;
-        progress.report(true);
-
-        const responses = await limit.map(plan.headers, async (header) => {
-            // Leave queued ranges unread after failure; settle every active Google operation.
-            if (failure) return Err(failure);
-
-            const index = header.chunkIndex;
-            const uploaded = await uploadChunk(
-                file,
-                header,
-                plan.headers.length,
-                input.email,
-                input.token,
-                (sent) => progress.sent(index, sent),
-                fetcher
-            );
-
-            uploaded.match({
-                Ok: (response) => {
-                    uploadedAny ||= response.status === UploadStatus.Uploaded;
-                    progress.confirm(index, response.status);
-                    emit({
-                        type: UploadEventType.Chunk,
-                        id,
-                        chunk: {
-                            fileHash: file.fileHash,
-                            fileId: header.fileId,
-                            chunkIndex: index,
-                            isLast: header.flags === 1,
-                            originalName: header.fileName,
-                            size: header.payloadSize,
-                            at: Date.now(),
-                            mediaKey: response.mediaKey,
-                            sha1: response.sha1
-                        }
-                    });
-                    progress.report(true);
-                },
-                Err: (error) => {
-                    failure ??= error;
-                }
-            });
-
-            return uploaded;
-        });
-
-        let last: Result<UploadResponse, ServerError> = Err(SERVER_ERRORS.NO_UPLOADED_CHUNKS);
-        for (const response of responses) {
-            if (response.isErr()) return response;
-            last = response;
-        }
-
-        return last.map((response) => ({
-            ...response,
-            status: uploadedAny ? UploadStatus.Uploaded : UploadStatus.AlreadyExists
-        }));
-    });
-}
-
-/** A single transfer pool covers every file in the selection. */
+/** One incoming split is encoded and forwarded directly, with no disk or whole-chunk buffer. */
 export function uploadFiles(
     input: ReceivedUpload,
     emit: (event: UploadEvent) => void,
     fetcher?: Fetcher
 ): AsyncResult<void, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
-        const chunkLimit = pLimit(input.workers);
-        const fileLimit = pLimit(input.workers);
-        for (const [id] of input.files.entries()) emit({ type: UploadEventType.Queued, id });
-
-        await fileLimit.map(input.files, async (file, id) => {
+        const source = encodeUploadBmp(input);
+        let lastProgress = 0;
+        const report = (completed: number, reused = 0, force = false) => {
+            const now = performance.now();
+            if (!force && now - lastProgress < PROGRESS_INTERVAL_MS) return;
+            lastProgress = now;
             emit({
                 type: UploadEventType.Progress,
-                id,
-                progress: { phase: UploadPhase.Preparing, completed: 0, total: file.size }
+                id: 0,
+                progress: {
+                    phase: UploadPhase.Uploading,
+                    completed,
+                    reused,
+                    total: input.bmp.totalSize
+                }
             });
-            const uploaded = await planUpload(file).andThenAsync((plan) =>
-                uploadPlannedFile(file, plan, id, input, emit, chunkLimit, fetcher)
-            );
-            uploaded.match({
-                Ok: (result) => emit({ type: UploadEventType.FileComplete, id, result }),
-                Err: (error) => emit({ type: UploadEventType.FileError, id, error: error.message })
-            });
-        });
+        };
+        report(0, 0, true);
+        const uploaded = await uploadBmpStream(
+            input.email,
+            input.token,
+            chunkFileName(
+                input.file.name,
+                input.file.fileHash,
+                input.header.chunkIndex,
+                input.chunkCount
+            ),
+            source,
+            fetcher ?? photosFetchWithProgress((sent) => report(sent)),
+            input.signal
+        );
+        if (uploaded.isErr()) return uploaded.map(() => undefined);
 
+        uploaded.inspect((result) => {
+            const reused = result.status === UploadStatus.AlreadyExists ? input.bmp.totalSize : 0;
+            report(input.bmp.totalSize - reused, reused, true);
+            emit({
+                type: UploadEventType.Chunk,
+                id: 0,
+                chunk: {
+                    fileHash: input.header.fileHash,
+                    fileId: input.header.fileId,
+                    chunkIndex: input.header.chunkIndex,
+                    isLast: input.header.flags === 1,
+                    originalName: input.header.fileName,
+                    size: input.header.payloadSize,
+                    at: Date.now(),
+                    mediaKey: result.mediaKey,
+                    sha1: result.sha1
+                }
+            });
+            emit({ type: UploadEventType.FileComplete, id: 0, result });
+        });
         return Ok(undefined);
     });
 }

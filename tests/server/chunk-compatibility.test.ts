@@ -28,7 +28,6 @@ function legacyIdentity(fileHash: string): string {
 test('195 MB split layouts remain below the photo limit and retry with a stable identity', () => {
     const file = {
         name: FILE_NAME,
-        path: '/unused',
         size: 2 * MAX_CHUNK_PAYLOAD_BYTES + 1,
         fileHash: 'a'.repeat(64)
     };
@@ -51,7 +50,6 @@ test('old 64 MB chunks and a larger-chunk reupload coexist and both download int
     const fileHash = createHash('sha256').update(original).digest('hex');
     const planned = planUpload({
         name: FILE_NAME,
-        path: '/unused',
         size: original.length,
         fileHash
     });

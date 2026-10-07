@@ -204,7 +204,21 @@ export const FileDeleteResponseSchema = z.object({
     deleted: z.array(RemoteBmpSchema),
     error: z.string().optional()
 });
-export const UploadRequestSchema = AccountSchema.extend({ workers: ConcurrentWorkersSchema });
+export const UploadFileSchema = z.object({
+    name: z
+        .string()
+        .min(1)
+        .refine((name) => !/[\\/\r\n\0]/.test(name)),
+    size: z.int().nonnegative(),
+    fileHash: Sha256HexSchema
+});
+export const UploadRequestSchema = AccountSchema.extend({
+    file: UploadFileSchema,
+    chunkIndex: z.int().nonnegative(),
+    sha1: Sha1HexSchema
+});
+export type UploadFile = z.infer<typeof UploadFileSchema>;
+export type ChunkUploadRequest = z.infer<typeof UploadRequestSchema>;
 
 export type RemoteBmp = z.infer<typeof RemoteBmpSchema>;
 export type LibraryResponse = z.infer<typeof LibraryResponseSchema>;

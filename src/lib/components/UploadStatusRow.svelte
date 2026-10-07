@@ -30,7 +30,7 @@
                 ? 'Already in Google Photos'
                 : 'Uploaded successfully';
         if (progress.phase === UploadPhase.Receiving) return 'Sending files to server…';
-        if (progress.phase === UploadPhase.Preparing) return 'Preparing file on server…';
+        if (progress.phase === UploadPhase.Preparing) return `Preparing file… ${percent}%`;
         if (processed === progress.total) return 'Finishing upload…';
 
         return `Uploading… ${percent}%`;

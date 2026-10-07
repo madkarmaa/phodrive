@@ -1,80 +1,42 @@
 import { test, expect, vi, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { Ok } from 'results-ts';
 import { groupChunks, type UploadedChunk } from '$lib/file-groups';
-import { UploadEventType, UploadStatus, type UploadEvent } from '$lib/models';
+import { UploadEventType, type UploadEvent, FileActionKind, type FileRequest } from '$lib/models';
 import { planUpload, uploadFiles } from '$server/uploads';
 import { receiveUpload } from '$server/upload-input';
-import { removeTemporaryDirectory } from '$server/temporary-files';
-import { downloadBmp, uploadBmp } from '$server/photos';
+import * as photos from '$server/photos';
 import { decodeSplitBmp, encodeSplitBmp, MAX_CHUNK_PAYLOAD_BYTES } from '$server/bmp';
 import { fileIdentity } from '$server/chunks';
 import { downloadFile } from '$server/files';
-import { FileActionKind, type FileRequest } from '$lib/models';
+import { uploadForm, photosUploadHarness } from '../helpers/upload';
 
-vi.mock('$server/photos', () => ({ uploadBmp: vi.fn(), downloadBmp: vi.fn() }));
-
-const directories: string[] = [];
 const PAYLOAD = Buffer.from([1, 2, 3, 4]);
 const EMPTY_HASH = createHash('sha256').digest('hex');
+afterEach(() => vi.restoreAllMocks());
 
-afterEach(async () => {
-    vi.clearAllMocks();
-    for (const directory of directories.splice(0)) await removeTemporaryDirectory(directory);
-});
-
-test('same-batch files with identical bytes retain both names in the library', async () => {
-    const form = new FormData();
-    form.set('email', 'synthetic@example.com');
-    form.set('token', 'aas_et/synthetic-token');
-    form.set('workers', '2');
-    form.append('file', new File([PAYLOAD], 'first.bin'));
-    form.append('file', new File([PAYLOAD], 'second.bin'));
-    form.append('file', new File([], 'empty-first.bin'));
-    form.append('file', new File([], 'empty-second.bin'));
-
-    const received = await receiveUpload(
-        new Request('http://localhost/api/upload', { method: 'POST', body: form })
-    );
-    const input = received.unwrap();
-    directories.push(input.directory);
-
-    vi.mocked(uploadBmp).mockImplementation((_email, _token, _name, bmp) => {
-        const sha1 = createHash('sha1').update(bmp).digest('hex');
-        return Ok(undefined).andThenAsync(async () =>
-            Ok({ status: UploadStatus.Uploaded, mediaKey: sha1, sha1 })
-        );
-    });
-
+test('identical original bytes under different names remain separate complete groups', async () => {
+    const harness = photosUploadHarness();
     const events: UploadEvent[] = [];
-    const uploaded = await uploadFiles(input, (event) => events.push(event));
-    expect(uploaded.isOk()).toBe(true);
-
+    for (const name of ['first.bin', 'second.bin', 'empty-first.bin', 'empty-second.bin']) {
+        const fixture = uploadForm(name.startsWith('empty') ? new Uint8Array() : PAYLOAD, name);
+        const received = await receiveUpload(fixture.request());
+        const input = received.unwrap();
+        const uploaded = await uploadFiles(input, (event) => events.push(event), harness.fetcher);
+        expect(uploaded.isOk()).toBe(true);
+        await input.cancel();
+    }
     const chunks: UploadedChunk[] = events.flatMap((event) =>
-        event.type === UploadEventType.Chunk ? [{ ...event.chunk, email: input.email }] : []
+        event.type === UploadEventType.Chunk ? [{ ...event.chunk, email: 'test@example.com' }] : []
     );
-    const decoded = vi.mocked(uploadBmp).mock.calls.map(([, , name, bmp]) => ({
-        name,
-        header: decodeSplitBmp(bmp).unwrap().header
-    }));
-    expect(decoded.map(({ header }) => header.fileHash)).toContain(EMPTY_HASH);
-    expect(decoded.map(({ header }) => header.fileName).sort()).toEqual([
+    const groups = groupChunks(chunks);
+    expect(groups.map((file) => file.name).sort()).toEqual([
         'empty-first.bin',
         'empty-second.bin',
         'first.bin',
         'second.bin'
     ]);
-    expect(new Set(decoded.map(({ header }) => header.fileId)).size).toBe(4);
-
-    const files = groupChunks(chunks);
-    expect(files.map((file) => file.name).sort()).toEqual([
-        'empty-first.bin',
-        'empty-second.bin',
-        'first.bin',
-        'second.bin'
-    ]);
-    expect(files).toHaveLength(4);
-    expect(files.every((file) => file.complete)).toBe(true);
+    expect(groups.every((file) => file.complete)).toBe(true);
+    expect(new Set(groups.map((file) => file.fileId)).size).toBe(4);
 });
 
 test('distinct identities keep identical content under different names as separate files', () => {
@@ -99,7 +61,7 @@ test('distinct identities keep identical content under different names as separa
 
 test('same-name retries keep identity stable while different names get independent identities', () => {
     const fileHash = createHash('sha256').update(PAYLOAD).digest('hex');
-    const file = { name: 'first.bin', path: '/unused', size: PAYLOAD.length, fileHash };
+    const file = { name: 'first.bin', size: PAYLOAD.length, fileHash };
     const retry = planUpload({ ...file }).unwrap();
     const initial = planUpload(file).unwrap();
 
@@ -120,19 +82,16 @@ test('split upload plans use different stable identities for same-content filena
     const fileHash = createHash('sha256').update(PAYLOAD).digest('hex');
     const first = planUpload({
         name: 'first.bin',
-        path: '/unused',
         size: MAX_CHUNK_PAYLOAD_BYTES + 1,
         fileHash
     }).unwrap();
     const firstRetry = planUpload({
         name: 'first.bin',
-        path: '/unused',
         size: MAX_CHUNK_PAYLOAD_BYTES + 1,
         fileHash
     }).unwrap();
     const second = planUpload({
         name: 'second.bin',
-        path: '/unused',
         size: MAX_CHUNK_PAYLOAD_BYTES + 1,
         fileHash
     }).unwrap();
@@ -190,8 +149,9 @@ test('download rejects a mismatched file identity before fetching any BMP bytes'
         ]
     };
 
+    const download = vi.spyOn(photos, 'downloadBmp');
     const result = await downloadFile(input);
 
     expect(result.isErr()).toBe(true);
-    expect(downloadBmp).not.toHaveBeenCalled();
+    expect(download).not.toHaveBeenCalled();
 });

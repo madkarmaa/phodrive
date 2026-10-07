@@ -1,15 +1,15 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { expect, test } from 'vitest';
 import { receiveUpload } from '$server/upload-input';
-import { removeTemporaryDirectory } from '$server/temporary-files';
+import { encodeUploadBmp } from '$server/upload-bmp';
+import { uploadForm } from '../helpers/upload';
 import { MAX_CHUNK_PAYLOAD_BYTES, MAX_PHOTOS_BMP_BYTES, splitBmpByteLength } from '$server/bmp';
 import { planUpload } from '$server/uploads';
 
 const FILE_HASH = 'a'.repeat(64);
 
 function plan(size: number, name = 'large.bin') {
-    return planUpload({ name, path: '/sparse/or/mocked', size, fileHash: FILE_HASH });
+    return planUpload({ name, size, fileHash: FILE_HASH });
 }
 
 test('plans exact chunk boundary ranges, final flags, zero-byte files, and 200 MB originals', () => {
@@ -64,29 +64,16 @@ test('first chunk BMP size accounts for UTF-8 long-name metadata overhead', () =
     expect(planned.sizes[1]).toBe(splitBmpByteLength(planned.headers[1]).unwrap());
 });
 
-test('multipart receive preserves exact zero and one-byte originals and hashes', async () => {
-    const bytes = Buffer.from([0xff]);
-    const form = new FormData();
-    form.set('email', 'test@example.com');
-    form.set('token', 'aas_et/synthetic');
-    form.set('workers', '1');
-    form.append('file', new File([], 'empty.bin'));
-    form.append('file', new File([bytes], 'single-byte.bin'));
-
-    const result = await receiveUpload(
-        new Request('http://localhost/api/upload', { method: 'POST', body: form })
-    );
-    const input = result.unwrap();
-
-    try {
-        expect(input.files.map((file) => file.size)).toEqual([0, 1]);
-        expect(input.files.map((file) => file.fileHash)).toEqual([
-            createHash('sha256').digest('hex'),
-            createHash('sha256').update(bytes).digest('hex')
-        ]);
-        expect(await readFile(input.files[0].path)).toEqual(Buffer.alloc(0));
-        expect(await readFile(input.files[1].path)).toEqual(bytes);
-    } finally {
-        await removeTemporaryDirectory(input.directory);
+test('zero and one-byte chunks stream with exact hashes and payloads', async () => {
+    for (const payload of [new Uint8Array(), Uint8Array.of(0xff)]) {
+        const fixture = uploadForm(payload, 'small.bin');
+        const received = await receiveUpload(fixture.request());
+        const input = received.unwrap();
+        const bmp = encodeUploadBmp(input);
+        const drained = await bmp.drain();
+        expect(drained.isOk()).toBe(true);
+        expect(input.file.size).toBe(payload.length);
+        expect(input.file.fileHash).toBe(createHash('sha256').update(payload).digest('hex'));
+        await input.cancel();
     }
 });

@@ -27,7 +27,8 @@ async function dispatchRequest(
     dispatcher: Dispatcher
 ): ReturnType<Fetcher> {
     const bytes = init?.body instanceof Uint8Array ? init.body : null;
-    const request = new Request(input, bytes ? { ...init, body: undefined } : init);
+    const requestInit = { ...init, body: bytes ? undefined : init?.body, duplex: 'half' as const };
+    const request = new Request(input, requestInit);
     const body = bytes ?? request.body;
     const response = await undiciFetch(request.url, {
         method: request.method,
@@ -69,8 +70,7 @@ export const photosFetch: Fetcher = (input, init) => dispatchRequest(input, init
 export function photosFetchWithProgress(onProgress: (sent: number) => void): Fetcher {
     return (input, init) => {
         const bytes = init?.body;
-        if (init?.method !== 'PUT' || !(bytes instanceof Uint8Array))
-            return photosFetch(input, init);
+        if (init?.method !== 'PUT' || !bytes) return photosFetch(input, init);
 
         const dispatcher = PHOTOS_AGENT.compose((dispatch) => (options, handler) => {
             let sent = 0;
@@ -84,7 +84,9 @@ export function photosFetchWithProgress(onProgress: (sent: number) => void): Fet
             };
 
             // Fetch keeps the original Content-Length; only the transport body is streamed.
-            return dispatch({ ...options, body: Readable.from(transferBlocks(bytes)) }, handler);
+            return bytes instanceof Uint8Array
+                ? dispatch({ ...options, body: Readable.from(transferBlocks(bytes)) }, handler)
+                : dispatch(options, handler);
         });
 
         return dispatchRequest(input, init, dispatcher);

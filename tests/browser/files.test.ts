@@ -1,22 +1,14 @@
-import {
-    UploadStatus,
-    UploadEventType,
-    UploadJobStatus,
-    UploadPhase,
-    FileRequestSchema,
-    type UploadEvent,
-    type RemoteBmp
-} from '$lib/models';
+import { FileRequestSchema, UploadJobStatus, UploadEventType, type RemoteBmp } from '$lib/models';
 import { afterEach, expect, vi, test } from 'vitest';
 import { createHash } from 'node:crypto';
 import { groupChunks, type UploadedChunk } from '$lib/file-groups';
 import { downloadFile, uploadFiles, deleteFile, type UploadJob } from '$browser/files';
+import { HASH_BLOCK_BYTES, hashFile } from '$browser/upload-hash';
+import { browserUploadResponse } from '../helpers/upload';
 
 const PAYLOAD = Uint8Array.of(0, 255, 13, 10, 42);
 const FILE_HASH = createHash('sha256').update(PAYLOAD).digest('hex');
-const WIRE_BYTES = 3126;
 afterEach(() => vi.restoreAllMocks());
-
 function chunk(name = 'proof.bin'): RemoteBmp {
     return {
         fileHash: FILE_HASH,
@@ -31,233 +23,147 @@ function chunk(name = 'proof.bin'): RemoteBmp {
     };
 }
 
-function events(id = 0, name = 'proof.bin', duplicate = false): UploadEvent[] {
-    return [
-        { type: UploadEventType.Queued, id },
-        {
-            type: UploadEventType.Progress,
-            id,
-            progress: { phase: UploadPhase.Preparing, completed: 0, total: PAYLOAD.length }
-        },
-        {
-            type: UploadEventType.Progress,
-            id,
-            progress: { phase: UploadPhase.Uploading, completed: 0, total: WIRE_BYTES, reused: 0 }
-        },
-        { type: UploadEventType.Chunk, id, chunk: chunk(name) },
-        {
-            type: UploadEventType.Progress,
-            id,
-            progress: {
-                phase: UploadPhase.Uploading,
-                completed: duplicate ? 0 : WIRE_BYTES,
-                total: WIRE_BYTES,
-                reused: duplicate ? WIRE_BYTES : 0
-            }
-        },
-        {
-            type: UploadEventType.FileComplete,
-            id,
-            result: {
-                status: duplicate ? UploadStatus.AlreadyExists : UploadStatus.Uploaded,
-                mediaKey: name,
-                sha1: '0'.repeat(40)
-            }
-        }
-    ];
-}
-
-function response(events: UploadEvent[]): Response {
-    return new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''), {
-        headers: { 'content-type': 'text/event-stream' }
-    });
-}
-
-test('selection sends credentials, workers and original files once without reading or encoding', async () => {
+test('browser hashes incrementally and posts raw slices with stable verified BMP checksums', async () => {
     const files = [new File([PAYLOAD], 'proof.bin'), new File([PAYLOAD], 'other.bin')];
     const reads = files.map((file) => vi.spyOn(file, 'arrayBuffer'));
-    const slices = files.map((file) => vi.spyOn(file, 'slice'));
     const saved: UploadedChunk[] = [];
     const jobs = new Map<number, UploadJob>();
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
-        if (!(init?.body instanceof FormData)) throw new Error('Expected upload form');
-        const submitted = init.body.getAll('file');
-        expect(submitted).toHaveLength(files.length);
-        for (const [index, file] of submitted.entries()) {
-            if (!(file instanceof File)) throw new Error('Expected an original file');
-            expect({ name: file.name, size: file.size, type: file.type }).toEqual({
-                name: files[index].name,
-                size: files[index].size,
-                type: files[index].type
-            });
-            // Native FormData may clone File objects; inspect bytes without invoking their spies.
-            const bytes = await File.prototype.arrayBuffer.call(file);
-            expect(new Uint8Array(bytes)).toEqual(PAYLOAD);
-        }
-        expect(init.body.get('email')).toBe('test@example.com');
-        expect(init.body.get('token')).toBe('aas_et/test');
-        expect(init.body.get('workers')).toBe('2');
-        return response([
-            ...events(),
-            ...events(1, 'other.bin', true),
-            { type: UploadEventType.Complete }
-        ]);
-    });
-
+    const fetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(async (_url, init) => browserUploadResponse(init));
     const uploaded = await uploadFiles(
         files,
         'test@example.com',
         'aas_et/test',
         2,
         (job) => jobs.set(job.id, job),
-        (value) => saved.push(value)
+        (chunk) => saved.push(chunk)
     );
     expect(uploaded.isOk()).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    for (const spy of [...reads, ...slices]) expect(spy).not.toHaveBeenCalled();
-    expect([...jobs.values()].map((job) => job.status)).toEqual(['complete', 'complete']);
-    expect(jobs.get(1)?.progress).toMatchObject({ completed: 0, reused: WIRE_BYTES });
-    expect(saved).toHaveLength(2);
-    expect(saved.every((item) => item.email === 'test@example.com')).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(reads.every((read) => read.mock.calls.length === 0)).toBe(true);
+    expect(saved.map((chunk) => chunk.originalName).sort()).toEqual(['other.bin', 'proof.bin']);
+    expect(new Set(saved.map((chunk) => chunk.fileId)).size).toBe(2);
+    expect([...jobs.values()].every((job) => job.status === UploadJobStatus.Complete)).toBe(true);
 });
 
-test('file failures retain confirmed chunks while independent files finish', async () => {
-    const saved: UploadedChunk[] = [];
-    const jobs = new Map<number, UploadJob>();
-    const partial = events().slice(0, 4);
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
-        response([
-            ...partial,
-            { type: UploadEventType.FileError, id: 0, error: 'Upload transfer failed (HTTP 429)' },
-            ...events(1, 'good.bin'),
-            { type: UploadEventType.Complete }
-        ])
+test('full-file hashing reads at most 1 MiB at once and retries reuse the immutable file hash', async () => {
+    const file = new File([Buffer.alloc(3_000_000, 42)], 'bounded.bin');
+    const full = vi
+        .spyOn(file, 'arrayBuffer')
+        .mockRejectedValue(new Error('whole file allocation prohibited'));
+    const slices = vi.spyOn(file, 'slice');
+    const first = await hashFile(file, () => {});
+    expect(first.unwrap()).toBe(
+        createHash('sha256').update(Buffer.alloc(3_000_000, 42)).digest('hex')
     );
+    expect(slices).toHaveBeenCalledTimes(3);
+    expect(slices.mock.calls.every(([start, end]) => end! - start! <= HASH_BLOCK_BYTES)).toBe(true);
+    const second = await hashFile(file, () => {});
+    expect(second.unwrap()).toBe(first.unwrap());
+    expect(slices).toHaveBeenCalledTimes(3);
+    expect(full).not.toHaveBeenCalled();
+});
+
+test('global transfer pool respects workers and mixed failures preserve other files', async () => {
+    let active = 0;
+    let peak = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+        active++;
+        peak = Math.max(peak, active);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        active--;
+        if (init?.body instanceof FormData && String(init.body.get('metadata')).includes('bad.bin'))
+            return new Response(JSON.stringify({ error: 'synthetic failure' }), { status: 503 });
+        return browserUploadResponse(init);
+    });
+    const files = ['a.bin', 'bad.bin', 'c.bin', 'd.bin'].map((name) => new File([PAYLOAD], name));
+    const jobs = new Map<number, UploadJob>();
     const result = await uploadFiles(
-        [new File([PAYLOAD], 'proof.bin'), new File([PAYLOAD], 'good.bin')],
+        files,
         'test@example.com',
         'aas_et/test',
         2,
         (job) => jobs.set(job.id, job),
-        (item) => saved.push(item)
+        () => {}
     );
     expect(result.isOk()).toBe(true);
-    expect(jobs.get(0)).toMatchObject({
+    expect(peak).toBe(2);
+    expect(jobs.get(1)).toMatchObject({
         status: UploadJobStatus.Error,
-        message: expect.stringContaining('429')
+        message: 'synthetic failure'
     });
-    expect(jobs.get(1)?.status).toBe('complete');
-    expect(saved).toHaveLength(2);
+    expect(
+        [...jobs.values()].filter((job) => job.status === UploadJobStatus.Complete)
+    ).toHaveLength(3);
 });
 
-test('job events reject regressing totals, unknown IDs, incomplete confirmations and premature batch completion', async () => {
-    const cases: UploadEvent[][] = [
-        [{ type: UploadEventType.Complete }],
-        events(99),
-        [
-            ...events().slice(0, 3),
-            {
-                type: UploadEventType.Progress,
-                id: 0,
-                progress: { phase: UploadPhase.Uploading, completed: 0, reused: 0, total: 1 }
-            }
-        ],
-        [
-            ...events().slice(0, 3),
-            {
-                type: UploadEventType.Progress,
-                id: 0,
-                progress: {
-                    phase: UploadPhase.Uploading,
-                    completed: 10,
-                    reused: 0,
-                    total: WIRE_BYTES
-                }
-            },
-            {
-                type: UploadEventType.Progress,
-                id: 0,
-                progress: {
-                    phase: UploadPhase.Uploading,
-                    completed: 5,
-                    reused: 0,
-                    total: WIRE_BYTES
-                }
-            }
-        ],
-        events().filter((event) => event.type !== UploadEventType.Chunk),
-        [...events(), ...events()],
-        events().slice(0, 3)
-    ];
-    for (const invalid of cases) {
-        vi.spyOn(globalThis, 'fetch').mockImplementation(async () => response(invalid));
-        const result = await uploadFiles(
+test.each(['sha1', 'index', 'name', 'missing'] as const)(
+    'invalid %s chunk confirmation cannot complete a browser job',
+    async (damage) => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) =>
+            browserUploadResponse(init, false, (events) => {
+                if (damage === 'missing')
+                    return events.filter((event) => event.type !== UploadEventType.Chunk);
+                return events.map((event) =>
+                    event.type === UploadEventType.Chunk
+                        ? {
+                              ...event,
+                              chunk: {
+                                  ...event.chunk,
+                                  ...(damage === 'sha1'
+                                      ? { sha1: 'a'.repeat(40) }
+                                      : damage === 'index'
+                                        ? { chunkIndex: 2 }
+                                        : { originalName: 'wrong.bin' })
+                              }
+                          }
+                        : event
+                );
+            })
+        );
+        const jobs: UploadJob[] = [];
+        const saved: UploadedChunk[] = [];
+        await uploadFiles(
             [new File([PAYLOAD], 'proof.bin')],
             'test@example.com',
             'aas_et/test',
-            2,
-            () => {},
-            () => {}
+            1,
+            (job) => jobs.push(job),
+            (chunk) => saved.push(chunk)
         );
-        expect(result.isErr()).toBe(true);
+        expect(jobs.at(-1)?.status).toBe(UploadJobStatus.Error);
+        expect(saved).toHaveLength(0);
     }
-});
+);
 
-test('invalid names and worker counts never read or schedule files', async () => {
-    const invalid = new File([PAYLOAD], 'invalid\nname.bin');
-    const reads = vi.spyOn(invalid, 'slice');
-    const requests = vi.spyOn(globalThis, 'fetch');
-    const jobs: UploadJob[] = [];
-    const selected = await uploadFiles(
-        [invalid],
+test('selection validates names and worker count, preserving empty files', async () => {
+    const fetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(async (_url, init) => browserUploadResponse(init, true));
+    const jobs = new Map<number, UploadJob>();
+    const uploaded = await uploadFiles(
+        [new File([], 'bad/path'), new File([], 'empty.bin')],
         'test@example.com',
         'aas_et/test',
-        2,
-        (job) => jobs.push(job),
+        1,
+        (job) => jobs.set(job.id, job),
         () => {}
     );
-    expect(selected.isOk()).toBe(true);
-    expect(jobs.at(-1)?.status).toBe('error');
-    const workers = await uploadFiles(
-        [new File([PAYLOAD], 'proof.bin')],
+    expect(uploaded.isOk()).toBe(true);
+    expect(jobs.get(0)?.status).toBe(UploadJobStatus.Error);
+    expect(jobs.get(1)?.status).toBe(UploadJobStatus.Complete);
+    expect(fetch).toHaveBeenCalledOnce();
+    const invalid = await uploadFiles(
+        [new File([], 'proof.bin')],
         'test@example.com',
         'aas_et/test',
         0,
         () => {},
         () => {}
     );
-    expect(workers.isErr()).toBe(true);
-    expect(reads).not.toHaveBeenCalled();
-    expect(requests).not.toHaveBeenCalled();
-});
-
-test('server job IDs map to the original selection after an invalid first file is skipped', async () => {
-    const invalid = new File([PAYLOAD], 'invalid\nname.bin');
-    const valid = new File([PAYLOAD], 'proof.bin');
-    const jobs = new Map<number, UploadJob>();
-    const saved: UploadedChunk[] = [];
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
-        if (!(init?.body instanceof FormData)) throw new Error('Expected upload form');
-        const submitted = init.body.getAll('file');
-        expect(submitted).toHaveLength(1);
-        expect(submitted[0]).toMatchObject({ name: valid.name, size: valid.size });
-        return response([...events(0), { type: UploadEventType.Complete }]);
-    });
-
-    const result = await uploadFiles(
-        [invalid, valid],
-        'test@example.com',
-        'aas_et/test',
-        2,
-        (job) => jobs.set(job.id, job),
-        (item) => saved.push(item)
-    );
-    expect(result.isOk()).toBe(true);
-    expect(jobs.get(0)).toMatchObject({ name: invalid.name, status: UploadJobStatus.Error });
-    expect(jobs.get(1)).toMatchObject({ name: valid.name, status: UploadJobStatus.Complete });
-    expect(saved).toHaveLength(1);
-    expect(saved[0].originalName).toBe(valid.name);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(invalid.isErr()).toBe(true);
+    expect(fetch).toHaveBeenCalledOnce();
 });
 
 test('download asks for one reconstructed file and preserves its original bytes', async () => {

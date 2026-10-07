@@ -9,6 +9,10 @@ export const SERVER_ERRORS = {
         code: 'UPLOAD_INPUT_REQUIRED',
         message: 'Choose files and enter your account credentials.'
     },
+    UPLOAD_INTEGRITY_FAILED: {
+        code: 'UPLOAD_INTEGRITY_FAILED',
+        message: 'Upload failed SHA-1 verification.'
+    },
     INVALID_UPLOAD_REQUEST: { code: 'INVALID_UPLOAD_REQUEST', message: 'Invalid upload request.' },
     INVALID_UPLOAD_FILE_NAME: { code: 'INVALID_UPLOAD_FILE_NAME', message: 'Invalid file name.' },
     INVALID_FILE_NAME: { code: 'INVALID_FILE_NAME', message: 'Invalid file name' },
@@ -32,25 +36,9 @@ export const SERVER_ERRORS = {
         code: 'NO_UPLOADED_CHUNKS',
         message: 'No chunks were uploaded.'
     },
-    TEMPORARY_STORAGE_CREATE_FAILED: {
-        code: 'TEMPORARY_STORAGE_CREATE_FAILED',
-        message: 'Could not create temporary file storage.'
-    },
-    TEMPORARY_STORAGE_REMOVE_FAILED: {
-        code: 'TEMPORARY_STORAGE_REMOVE_FAILED',
-        message: 'Could not remove temporary file storage.'
-    },
-    FILE_READ_FAILED: {
-        code: 'FILE_READ_FAILED',
-        message: 'Could not read the received file.'
-    },
     INCOMPLETE_FILE: {
         code: 'INCOMPLETE_FILE',
         message: 'The received file is incomplete.'
-    },
-    TEMPORARY_STORAGE_CLOSE_FAILED: {
-        code: 'TEMPORARY_STORAGE_CLOSE_FAILED',
-        message: 'Could not close temporary file storage.'
     },
     INVALID_PAGE_TOKEN: { code: 'INVALID_PAGE_TOKEN', message: 'Invalid page token' },
     REPEATED_LIBRARY_PAGE: {

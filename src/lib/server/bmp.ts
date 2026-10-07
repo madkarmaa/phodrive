@@ -2,43 +2,22 @@ import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import { Err, Ok, type Result } from 'results-ts';
 import Varint from 'varint';
 import { SplitHeaderSchema, type SplitHeader } from '$lib/models';
-
-export const MAX_PHOTOS_BMP_BYTES = 200_000_000;
-export const MAX_CHUNK_PAYLOAD_BYTES = 195_000_000;
-export const MAX_SPLIT_HEADER_BYTES = 65_536;
+import { encodeSplitPrefix } from '$lib/bmp-format';
+export {
+    MAX_PHOTOS_BMP_BYTES,
+    MAX_CHUNK_PAYLOAD_BYTES,
+    MAX_SPLIT_HEADER_BYTES,
+    splitHeaderByteLength,
+    splitBmpByteLength
+} from '$lib/bmp-format';
 
 const BMP_HEADER_BYTES = 54;
 const SPLIT_MAGIC = new TextEncoder().encode('BMSPLIT\x01');
 const FILE_HASH_BYTES = 32;
 const UTF8 = new TextDecoder('utf-8', { fatal: true });
 
-function hashBytes(hash: string): Uint8Array {
-    return Uint8Array.from({ length: FILE_HASH_BYTES }, (_, position) =>
-        Number.parseInt(hash.slice(position * 2, position * 2 + 2), 16)
-    );
-}
-
 function hashHex(bytes: Uint8Array): string {
     return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-function bmpLayout(
-    length: number
-): Result<{ width: number; height: number; total: number }, ServerError> {
-    if (!Number.isSafeInteger(length) || length < 0) return Err(SERVER_ERRORS.INVALID_CHUNK_SIZE);
-
-    const width = Math.max(
-        32,
-        Math.ceil((Math.floor(Math.sqrt(Math.ceil(length / 3))) + 1) / 4) * 4
-    );
-    const stride = width * 3;
-    const height = Math.max(32, Math.ceil(length / stride));
-    const total = BMP_HEADER_BYTES + stride * height;
-
-    if (total > MAX_PHOTOS_BMP_BYTES || width > 0x7fffffff || height > 0x7fffffff)
-        return Err(SERVER_ERRORS.CHUNK_TOO_LARGE);
-
-    return Ok({ width, height, total });
 }
 
 function readVarint(
@@ -63,101 +42,22 @@ function readVarint(
     }
 }
 
-/** Exact prefix size, including the BMP header, before the payload begins. */
-export function splitHeaderByteLength(input: SplitHeader): Result<number, ServerError> {
-    const parsed = SplitHeaderSchema.safeParse(input);
-    if (!parsed.success) return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
-
-    const header = parsed.data;
-    const nameBytes = header.fileName
-        ? new TextEncoder().encode(header.fileName)
-        : new Uint8Array();
-    const length =
-        BMP_HEADER_BYTES +
-        SPLIT_MAGIC.length +
-        FILE_HASH_BYTES +
-        FILE_HASH_BYTES +
-        Varint.encodingLength(header.chunkIndex) +
-        1 +
-        Varint.encodingLength(header.payloadSize) +
-        (header.chunkIndex === 0 ? Varint.encodingLength(nameBytes.length) + nameBytes.length : 0);
-
-    return Ok(length);
-}
-
-/** Exact projected BMP size before a file slice is read. */
-export function splitBmpByteLength(input: SplitHeader): Result<number, ServerError> {
-    return splitHeaderByteLength(input).andThen((length) =>
-        bmpLayout(length - BMP_HEADER_BYTES + input.payloadSize).map(({ total }) => total)
-    );
-}
-
-/** Encode one chunk; the Zod schema is the source of truth for its metadata shape. */
+/** Encode a complete BMP for protocol fixtures and compatibility checks. */
 export function encodeSplitBmp(
     payload: Uint8Array,
     input: SplitHeader
 ): Result<Uint8Array<ArrayBuffer>, ServerError> {
-    const parsed = SplitHeaderSchema.safeParse(input);
-    if (!parsed.success || parsed.data.payloadSize !== payload.length)
-        return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
+    if (input.payloadSize !== payload.length) return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
 
-    const header = parsed.data;
-    const identity = hashBytes(header.fileId);
-    const fileName = header.fileName ? new TextEncoder().encode(header.fileName) : new Uint8Array();
-    const index = Uint8Array.from(Varint.encode(header.chunkIndex));
-    const size = Uint8Array.from(Varint.encode(header.payloadSize));
-    const nameLength =
-        header.chunkIndex === 0
-            ? Uint8Array.from(Varint.encode(fileName.length))
-            : new Uint8Array();
-    const contentLength =
-        SPLIT_MAGIC.length +
-        FILE_HASH_BYTES +
-        identity.length +
-        index.length +
-        1 +
-        size.length +
-        nameLength.length +
-        fileName.length +
-        payload.length;
-
-    return bmpLayout(contentLength).andThen(({ width, height, total }) => {
+    return encodeSplitPrefix(input).andThen(({ prefix, totalSize }) => {
         let bmp: Uint8Array<ArrayBuffer>;
-
         try {
-            bmp = new Uint8Array(total);
+            bmp = new Uint8Array(totalSize);
         } catch {
             return Err(SERVER_ERRORS.BMP_ALLOCATION_FAILED);
         }
-
-        const view = new DataView(bmp.buffer);
-        bmp.set([66, 77]);
-        view.setUint32(2, total, true);
-        view.setUint32(10, BMP_HEADER_BYTES, true);
-        view.setUint32(14, 40, true);
-        view.setUint32(18, width, true);
-        view.setUint32(22, height, true);
-        view.setUint16(26, 1, true);
-        view.setUint16(28, 24, true);
-        view.setUint32(34, total - BMP_HEADER_BYTES, true);
-
-        let offset = BMP_HEADER_BYTES;
-
-        for (const bytes of [
-            SPLIT_MAGIC,
-            hashBytes(header.fileHash),
-            identity,
-            index,
-            Uint8Array.of(header.flags),
-            size,
-            nameLength,
-            fileName,
-            payload
-        ]) {
-            bmp.set(bytes, offset);
-            offset += bytes.length;
-        }
-
+        bmp.set(prefix);
+        bmp.set(payload, prefix.length);
         return Ok(bmp);
     });
 }

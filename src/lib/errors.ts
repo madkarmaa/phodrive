@@ -19,6 +19,11 @@ export type ApplicationError = {
         | 'REQUEST_FAILED'
         | 'STORAGE_UNAVAILABLE'
         | 'UPLOAD_FAILED'
-        | 'UPLOAD_STREAM_INTERRUPTED';
+        | 'UPLOAD_STREAM_INTERRUPTED'
+        | 'HASH_INITIALIZATION_FAILED'
+        | 'FILE_READ_FAILED'
+        | 'INVALID_CHUNK_SIZE'
+        | 'INVALID_CHUNK_METADATA'
+        | 'CHUNK_TOO_LARGE';
     readonly message: string;
 };

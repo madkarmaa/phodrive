@@ -1,69 +1,14 @@
 import type { ApplicationError } from '$lib/errors';
-import {
-    FileActionKind,
-    UploadJobStatus,
-    ConcurrentWorkersSchema,
-    FileDeleteResponseSchema
-} from '$lib/models';
+import { FileActionKind, ConcurrentWorkersSchema, FileDeleteResponseSchema } from '$lib/models';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import type { FileGroup, UploadedChunk } from '$lib/file-groups';
 import { schemaResult } from '$lib/schema-result';
 import { apiJson, request } from '$browser/api';
-import { uploadRequest } from '$browser/upload';
-import {
-    createUploadJobs,
-    createUploadEventHandler,
-    type UploadSource,
-    type UploadJob
-} from '$browser/upload-jobs';
-
 export { createUploadJobs, type UploadJob } from '$browser/upload-jobs';
 
 export type { UploadProgress } from '$lib/models';
 
-/** The browser sends original files without reading, hashing, slicing, or encoding their bytes. */
-export function uploadFiles(
-    files: readonly File[],
-    email: string,
-    token: string,
-    workers: number,
-    onJob: (job: UploadJob) => void,
-    onChunk: (chunk: UploadedChunk) => void
-): AsyncResult<void, ApplicationError> {
-    return schemaResult(
-        ConcurrentWorkersSchema,
-        workers,
-        'Invalid concurrent worker count.'
-    ).andThenAsync(async (concurrency) => {
-        const jobs = createUploadJobs(files);
-        const sources: UploadSource[] = [];
-        const form = new FormData();
-        form.set('email', email);
-        form.set('token', token);
-        form.set('workers', String(concurrency));
-
-        for (const [id, file] of files.entries()) {
-            if (!file.name || /[\\/\r\n\0]/.test(file.name) || !Number.isSafeInteger(file.size)) {
-                jobs[id] = {
-                    ...jobs[id],
-                    status: UploadJobStatus.Error,
-                    message: 'Invalid file name or size.'
-                };
-                onJob(jobs[id]);
-                continue;
-            }
-
-            sources.push({ file, jobId: id });
-            form.append('file', file);
-            jobs[id] = { ...jobs[id], status: UploadJobStatus.Active };
-            onJob(jobs[id]);
-        }
-        if (sources.length === 0) return Ok(undefined);
-
-        const handle = createUploadEventHandler(sources, jobs, email, onJob, onChunk);
-        return uploadRequest(form, handle);
-    });
-}
+export { uploadFiles } from '$browser/upload-files';
 
 function fileRequest(
     item: FileGroup,

@@ -1,31 +1,85 @@
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
 import Busboy, { type BusboyFileStream } from '@fastify/busboy';
-import { createHash } from 'node:crypto';
-import { createWriteStream } from 'node:fs';
-import { join } from 'node:path';
-import { Readable, Transform } from 'node:stream';
+import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import { UploadRequestSchema } from '$lib/models';
+import { UploadRequestSchema, type ChunkUploadRequest, type SplitHeader } from '$lib/models';
+import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp-format';
 import { schemaResult } from '$lib/schema-result';
-import { createTemporaryDirectory, removeTemporaryDirectory } from '$server/temporary-files';
+import { fileIdentity } from '$server/chunks';
+import { SERVER_ERRORS, type ServerError } from '$server/errors';
 
 const MAX_UPLOAD_FIELD_BYTES = 64 * 1024;
 const MAX_UPLOAD_HEADER_BYTES = 16 * 1024;
 
-export interface ReceivedFile {
-    name: string;
-    path: string;
-    size: number;
-    fileHash: string;
+export interface ReceivedUpload extends ChunkUploadRequest {
+    header: SplitHeader;
+    chunkCount: number;
+    bmp: { prefix: Uint8Array<ArrayBuffer>; totalSize: number; paddingSize: number };
+    payload: ReadableStream<Uint8Array>;
+    finished: () => AsyncResult<void, ServerError>;
+    cancel: () => AsyncResult<void, ServerError>;
+    signal: AbortSignal;
 }
 
-export interface ReceivedUpload {
-    email: string;
-    token: string;
-    workers: number;
-    files: ReceivedFile[];
-    directory: string;
+function parseMetadata(text: string): Result<ChunkUploadRequest, ServerError> {
+    let value: unknown;
+    try {
+        value = JSON.parse(text);
+    } catch {
+        return Err(SERVER_ERRORS.INVALID_UPLOAD_REQUEST);
+    }
+
+    return schemaResult(UploadRequestSchema, value, 'Invalid upload request.').mapErr(
+        () => SERVER_ERRORS.INVALID_UPLOAD_REQUEST
+    );
+}
+
+function chunkMetadata(input: ChunkUploadRequest) {
+    const count = Math.max(1, Math.ceil(input.file.size / MAX_CHUNK_PAYLOAD_BYTES));
+    if (input.chunkIndex >= count) return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
+
+    const header: SplitHeader = {
+        fileHash: input.file.fileHash,
+        fileId: fileIdentity(input.file.name, input.file.fileHash),
+        chunkIndex: input.chunkIndex,
+        flags: input.chunkIndex === count - 1 ? 1 : 0,
+        payloadSize: Math.min(
+            MAX_CHUNK_PAYLOAD_BYTES,
+            input.file.size - input.chunkIndex * MAX_CHUNK_PAYLOAD_BYTES
+        ),
+        fileName: input.chunkIndex === 0 ? input.file.name : undefined
+    };
+    return encodeSplitPrefix(header).map((bmp) => ({ header, bmp, chunkCount: count }));
+}
+
+function payloadStream(stream: BusboyFileStream): ReadableStream<Uint8Array> {
+    const iterator = stream[Symbol.asyncIterator]();
+    return new ReadableStream<Uint8Array>(
+        {
+            async pull(controller) {
+                let next: IteratorResult<unknown>;
+                try {
+                    next = await iterator.next();
+                } catch {
+                    controller.error(SERVER_ERRORS.FILE_RECEIVE_FAILED);
+                    return;
+                }
+                if (next.done) {
+                    controller.close();
+                    return;
+                }
+                if (!(next.value instanceof Uint8Array)) {
+                    controller.error(SERVER_ERRORS.FILE_RECEIVE_FAILED);
+                    return;
+                }
+                controller.enqueue(next.value);
+            },
+            cancel() {
+                stream.destroy();
+            }
+        },
+        { highWaterMark: 0 }
+    );
 }
 
 async function* requestBytes(body: ReadableStream<Uint8Array>) {
@@ -34,7 +88,6 @@ async function* requestBytes(body: ReadableStream<Uint8Array>) {
         while (true) {
             const next = await reader.read();
             if (next.done) return;
-
             yield next.value;
         }
     } finally {
@@ -43,39 +96,8 @@ async function* requestBytes(body: ReadableStream<Uint8Array>) {
     }
 }
 
-function saveFile(
-    stream: BusboyFileStream,
-    name: string,
-    path: string
-): AsyncResult<ReceivedFile, ServerError> {
-    return Ok(undefined).andThenAsync<ReceivedFile, ServerError>(async () => {
-        const hash = createHash('sha256');
-        let size = 0;
-        const hashing = new Transform({
-            transform(bytes: Buffer, _encoding, callback) {
-                size += bytes.length;
-                hash.update(bytes);
-                callback(null, bytes);
-            }
-        });
-
-        try {
-            await pipeline(stream, hashing, createWriteStream(path, { flags: 'wx', mode: 0o600 }));
-        } catch {
-            return Err(SERVER_ERRORS.FILE_RECEIVE_FAILED);
-        }
-
-        if (stream.truncated || !Number.isSafeInteger(size))
-            return Err(SERVER_ERRORS.FILE_TOO_LARGE);
-
-        return Ok({ name, path, size, fileHash: hash.digest('hex') });
-    });
-}
-
-function receiveMultipartUpload(
-    request: Request,
-    directory: string
-): AsyncResult<ReceivedUpload, ServerError> {
+/** Read just the manifest, then expose the live multipart file with backpressure. */
+export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         const contentType = request.headers.get('content-type');
         if (!request.body || !contentType?.startsWith('multipart/form-data'))
@@ -88,96 +110,108 @@ function receiveMultipartUpload(
                 headers: { 'content-type': contentType },
                 preservePath: true,
                 limits: {
-                    fields: 3,
+                    fields: 1,
+                    files: 1,
+                    parts: 2,
                     fieldSize: MAX_UPLOAD_FIELD_BYTES,
-                    headerSize: MAX_UPLOAD_HEADER_BYTES
+                    headerSize: MAX_UPLOAD_HEADER_BYTES,
+                    fileSize: MAX_CHUNK_PAYLOAD_BYTES + 1
                 }
             });
-            source = Readable.from(requestBytes(request.body));
+            source = Readable.from(requestBytes(request.body), {
+                objectMode: false,
+                highWaterMark: 64 * 1024
+            });
         } catch {
             return Err(SERVER_ERRORS.INVALID_UPLOAD_REQUEST);
         }
 
-        const fields = new Map<string, string>();
-        const active = new Set<BusboyFileStream>();
-        const pending: PromiseLike<Result<ReceivedFile, ServerError>>[] = [];
+        let metadata: ChunkUploadRequest | null = null;
+        let active: BusboyFileStream | null = null;
         let failure: ServerError | null = null;
-
+        let receivedFile = false;
+        let settle: (result: Result<ReceivedUpload, ServerError>) => void = () => {};
+        const ready = new Promise<Result<ReceivedUpload, ServerError>>((resolve) => {
+            settle = resolve;
+        });
+        const fail = (error: ServerError) => {
+            failure ??= error;
+            settle(Err(failure));
+            active?.destroy();
+            source.destroy();
+            parser.destroy();
+        };
+        const onAbort = () => fail(SERVER_ERRORS.FILE_RECEIVE_FAILED);
+        request.signal.addEventListener('abort', onAbort, { once: true });
         parser.on('field', (key, value, nameTruncated, valueTruncated) => {
-            if (
-                nameTruncated ||
-                valueTruncated ||
-                fields.has(key) ||
-                !['email', 'token', 'workers'].includes(key)
-            ) {
-                failure ??= SERVER_ERRORS.INVALID_UPLOAD_REQUEST;
+            if (key !== 'metadata' || metadata || receivedFile || nameTruncated || valueTruncated) {
+                fail(SERVER_ERRORS.INVALID_UPLOAD_REQUEST);
                 return;
             }
-
-            fields.set(key, value);
-        });
-        parser.on('fieldsLimit', () => {
-            failure ??= SERVER_ERRORS.INVALID_UPLOAD_REQUEST;
-        });
-        parser.on('file', (key, stream, name) => {
-            if (key !== 'file' || !name || /[\\/\r\n\0]/.test(name)) {
-                failure ??= SERVER_ERRORS.INVALID_UPLOAD_FILE_NAME;
-                stream.resume();
-                return;
-            }
-
-            active.add(stream);
-            const saved = saveFile(
-                stream,
-                name,
-                join(directory, String(pending.length))
-            ).inspectErr((error) => {
-                failure ??= error;
-                parser.destroy(new Error(error.message));
+            parseMetadata(value).match({
+                Ok: (input) => {
+                    metadata = input;
+                },
+                Err: fail
             });
-            pending.push(Promise.resolve(saved));
-            stream.once('close', () => active.delete(stream));
         });
+        parser.on('fieldsLimit', () => fail(SERVER_ERRORS.INVALID_UPLOAD_REQUEST));
+        parser.on('filesLimit', () => fail(SERVER_ERRORS.INVALID_UPLOAD_REQUEST));
+        parser.on('partsLimit', () => fail(SERVER_ERRORS.INVALID_UPLOAD_REQUEST));
+        parser.on('file', (key, stream) => {
+            if (key !== 'chunk' || !metadata || receivedFile || failure) {
+                stream.resume();
+                fail(SERVER_ERRORS.INVALID_UPLOAD_REQUEST);
+                return;
+            }
+            receivedFile = true;
+            active = stream;
+            stream.on('error', () => fail(SERVER_ERRORS.FILE_RECEIVE_FAILED));
+            stream.on('limit', () => fail(SERVER_ERRORS.FILE_TOO_LARGE));
+            const input = metadata;
+            chunkMetadata(input).match({
+                Err: fail,
+                Ok: (chunk) => {
+                    const payload = payloadStream(stream);
+                    settle(
+                        Ok({
+                            ...input,
+                            ...chunk,
+                            payload,
+                            signal: request.signal,
+                            finished: () => Ok(undefined).andThenAsync(async () => await completed),
+                            cancel: () =>
+                                Ok(undefined).andThenAsync(async () => {
+                                    active?.destroy();
+                                    source.destroy();
+                                    parser.destroy();
+                                    await completed;
+                                    return Ok(undefined);
+                                })
+                        })
+                    );
+                }
+            });
+        });
+        const completed = pipeline(source, parser)
+            .then((): Result<void, ServerError> =>
+                failure
+                    ? Err(failure)
+                    : receivedFile
+                      ? Ok(undefined)
+                      : Err(SERVER_ERRORS.FILES_REQUIRED)
+            )
+            .catch((): Result<void, ServerError> =>
+                Err(failure ?? SERVER_ERRORS.FILE_RECEIVE_FAILED)
+            )
+            .then((result) => {
+                request.signal.removeEventListener('abort', onAbort);
+                result.inspectErr((error) => settle(Err(error)));
+                if (!receivedFile) settle(Err(SERVER_ERRORS.FILES_REQUIRED));
+                return result;
+            });
+        if (request.signal.aborted) onAbort();
 
-        try {
-            await pipeline(source, parser);
-        } catch {
-            failure ??= SERVER_ERRORS.FILE_RECEIVE_FAILEDS;
-            for (const stream of active) stream.destroy();
-        }
-
-        const saved = await Promise.all(pending);
-        if (failure) return Err(failure);
-        if (saved.length === 0) return Err(SERVER_ERRORS.FILES_REQUIRED);
-
-        const files: ReceivedFile[] = [];
-        for (const result of saved) {
-            if (result.isErr()) return result;
-
-            result.inspect((file) => files.push(file));
-        }
-
-        return schemaResult(
-            UploadRequestSchema,
-            {
-                email: fields.get('email')?.trim(),
-                token: fields.get('token')?.trim(),
-                workers: Number(fields.get('workers'))
-            },
-            'Enter a valid account and worker count.'
-        )
-            .mapErr(() => SERVER_ERRORS.INVALID_UPLOAD_CREDENTIALS)
-            .map((credentials) => ({ ...credentials, files, directory }));
-    });
-}
-
-/** Credentials live only in this request; raw bytes are spooled with bounded stream buffers. */
-export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, ServerError> {
-    return createTemporaryDirectory().andThenAsync(async (directory) => {
-        const received = await receiveMultipartUpload(request, directory);
-        if (received.isOk()) return received;
-
-        const removed = await removeTemporaryDirectory(directory);
-        return removed.andThen(() => received);
+        return await ready;
     });
 }
