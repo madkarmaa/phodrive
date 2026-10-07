@@ -142,7 +142,7 @@ Benchmark results (milliseconds per unchanged workload):
 | upload-mixed-8 | 1685.675 | 1672.018 | 1657.798 |                      +1.7% / +0.9% |                   842.5 → 845.3 |
 | upload-retry   |   86.975 |   88.378 |   92.031 |                      -5.8% / -4.1% |                   231.0 → 229.8 |
 
-Memory impact and interpretation: An interleaved control restored the previous implementation: upload-many 368.74 ms / 304.1 MiB RSS, candidate repeat 360.78 ms / 304.8 MiB. The 2.2% benefit is too small relative to run variability to justify maintaining a custom stream wrapper. Initial apparent improvement over 384.43 ms was mostly noise; full baseline improvement belonged to earlier changes. Tiny workload control5.34 vs4.95 ms is small in absolute terms. Reverted production change.
+Memory impact and interpretation: An interleaved control restored the previous implementation: upload-many 368.74 ms / 304.1 MiB RSS, candidate repeat 360.78 ms / 304.8 MiB. The 2.2% benefit is too small relative to run variability to justify maintaining a custom stream wrapper. Initial apparent improvement over 384.43 ms was mostly noise; full baseline improvement belonged to earlier changes. Tiny workload control 5.34 vs 4.95 ms is small in absolute terms. Reverted production change.
 
 Correctness: candidate passed check, 174 tests, build and perf:check; byte-fragmented UTF8/BOM/CRLF and cancellation regression retained.
 
@@ -152,7 +152,7 @@ Decision: **REJECT**.
 
 Change: Overlap one upcoming bounded read with hashing.
 
-Hypothesis: Start at most one future1MiB Blob read while updating SHA state on the current block.
+Hypothesis: Start at most one future 1 MiB Blob read while updating SHA state on the current block.
 
 Benchmark results (milliseconds per unchanged workload):
 
@@ -163,7 +163,7 @@ Benchmark results (milliseconds per unchanged workload):
 | upload-large     | 2694.094 | 2694.094 | 2711.967 |                      -0.7% / -0.7% |                 1291.1 → 1294.0 |
 | upload-mixed-32  | 1666.250 | 1666.250 | 1671.845 |                      -0.3% / -0.3% |                   862.5 → 886.2 |
 
-Memory impact and interpretation: No real speed improvement:64MiB hashing247.91 vs previous243.28ms, full chunk393.16 vs388.94ms, large upload2711.97 vsbaseline2694.09ms.32-worker mixed RSS rises862.5→886.2MiB and each active hasher can hold one additional1MiB block. Reject extra buffering/complexity; restore serial bounded reads.
+Memory impact and interpretation: No real speed improvement: 64 MiB hashing 247.91 vs previous 243.28 ms, full chunk 393.16 vs 388.94 ms, large upload 2711.97 vs baseline 2694.09 ms. 32-worker mixed RSS rises 862.5→886.2 MiB and each active hasher can hold one additional 1 MiB block. Reject extra buffering/complexity; restore serial bounded reads.
 
 Correctness: check, 174 tests, build and perf:check pass; failed-read propagation and per-slice bound preserved.
 
@@ -228,3 +228,25 @@ Memory impact and interpretation: Battery-mode BMP stream 258.76 ms versus adjac
 Correctness: check, all 176 tests, build and perf:check passed; bounded output and all integrity/cancellation paths preserved.
 
 Decision: **REJECT**.
+
+## Iteration 11: Reassess protobuf buffer views with repeated controls
+
+Change: Restore copied protobuf byte fields from the original implementation; retain offset, malformed-sibling and duplicate regression tests.
+
+Hypothesis: The initial 14.1% latency benefit may reflect run variability rather than a repeatable gain.
+
+Benchmark: unchanged `protocol-page`, three additional original/final pairs, serial on battery. True mains baseline: 49.150 ms; complete battery control: 86.902 ms; preceding full candidate: 84.383 ms.
+
+| Pair | Original source ms | Buffer views ms | Improvement | Original / views RSS MiB |
+| ---- | -----------------: | --------------: | ----------: | -----------------------: |
+| 1    |              78.78 |           80.67 |       -2.4% |            113.0 / 112.6 |
+| 2    |              76.70 |           82.84 |       -8.0% |            113.2 / 112.6 |
+| 3    |              79.24 |           80.93 |       -2.1% |            113.3 / 113.1 |
+
+Memory impact: less than 1 MiB process RSS difference, insufficient to justify retaining a change without repeatable speed gains.
+
+Current after restoration: protocol-page 80.020 ms in the full final battery suite; previous full candidate 84.383 ms. Original-source paired repeats above remain the decision evidence.
+
+Correctness: restored source passed check (0 errors/warnings), all 176 tests, build and perf:check; all 29 final benchmark workloads passed.
+
+Decision: **REVERT iteration 3**. The original baseline remains unchanged. This supersedes iteration 3's initial KEEP decision; do not include its early apparent gain in final optimization claims.

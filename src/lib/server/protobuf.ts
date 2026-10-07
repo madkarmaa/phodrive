@@ -34,7 +34,6 @@ export function bodyBytes(buffer: Buffer): Uint8Array<ArrayBuffer> {
 
 export type Field = { number: number; value: number | Buffer };
 
-/** Byte fields borrow the input; protocol consumers treat response buffers as immutable. */
 export function parse(data: Uint8Array): Result<Field[], ServerError> {
     const fields: Field[] = [];
     let offset = 0;
@@ -68,7 +67,7 @@ export function parse(data: Uint8Array): Result<Field[], ServerError> {
                     if (offset + length > data.length)
                         return Err(SERVER_ERRORS.TRUNCATED_PROTOBUF_FIELD);
 
-                    const value = Buffer.from(data.buffer, data.byteOffset + offset, length);
+                    const value = Buffer.from(data.subarray(offset, offset + length));
                     offset += length;
 
                     return Ok<Field | null>({ number, value });
