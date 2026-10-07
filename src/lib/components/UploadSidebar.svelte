@@ -1,7 +1,7 @@
 <script lang="ts">
     import { ExtendedFab, Fab, IconButton, NavigationDrawer, NavigationDrawerItem } from 'noph-ui';
     import { MediaQuery } from 'svelte/reactivity';
-    import { AppView } from '$lib/models';
+    import { AppView } from '#lib/models';
     import IconAdd from '~icons/material-symbols/add';
     import IconHome from '~icons/material-symbols/home-outline';
     import IconSettings from '~icons/material-symbols/settings-outline';

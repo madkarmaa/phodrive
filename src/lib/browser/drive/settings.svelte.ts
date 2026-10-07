@@ -5,8 +5,8 @@ import {
     DEFAULT_FILE_LAYOUT,
     ThemeMode,
     type PreferencesDefaults
-} from '$lib/models';
-import type { BrowserPreferences } from '$browser/storage';
+} from '#lib/models';
+import type { BrowserPreferences } from '#browser/storage';
 
 /** User-facing preference changes and their immediate theme preview. */
 export class DriveSettings {

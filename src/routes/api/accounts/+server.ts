@@ -1,8 +1,7 @@
-import { json } from '@sveltejs/kit';
-import { NewAccountSchema } from '$lib/models';
-import { schemaResult } from '$lib/validation';
-import { connectGoogleAccount } from '$server/accounts';
-import { readJson } from '$server/request';
+import { NewAccountSchema } from '#lib/models';
+import { schemaResult } from '#lib/validation';
+import { connectGoogleAccount } from '#server/accounts';
+import { readJson } from '#server/request';
 import type { z } from 'zod';
 import type { RequestHandler } from './$types';
 
@@ -16,14 +15,16 @@ export const POST: RequestHandler = async ({ request }) => {
     );
     const input = parsed.match<z.infer<typeof NewAccountSchema> | Response>({
         Ok: (value) => value,
-        Err: (error) => json({ error: error.message }, { status: 400, headers: RESPONSE_HEADERS })
+        Err: (error) =>
+            Response.json({ error: error.message }, { status: 400, headers: RESPONSE_HEADERS })
     });
     if (input instanceof Response) return input;
 
     const connected = await connectGoogleAccount(input.email, input.token);
 
     return connected.match({
-        Ok: (token) => json({ token }, { headers: RESPONSE_HEADERS }),
-        Err: (error) => json({ error: error.message }, { status: 400, headers: RESPONSE_HEADERS })
+        Ok: (token) => Response.json({ token }, { headers: RESPONSE_HEADERS }),
+        Err: (error) =>
+            Response.json({ error: error.message }, { status: 400, headers: RESPONSE_HEADERS })
     });
 };

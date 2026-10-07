@@ -1,10 +1,10 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { Err, Ok } from 'results-ts';
-import { downloadFile } from '$server/files';
-import { downloadBmp } from '$server/photos';
+import { downloadFile } from '#server/files';
+import { downloadBmp } from '#server/photos';
 import { bmpResponse, downloadFixture } from '../helpers/download';
 
-vi.mock('$server/photos', () => ({ downloadBmp: vi.fn(), moveToTrash: vi.fn() }));
+vi.mock('#server/photos', () => ({ downloadBmp: vi.fn(), moveToTrash: vi.fn() }));
 afterEach(() => vi.clearAllMocks());
 
 function setup() {

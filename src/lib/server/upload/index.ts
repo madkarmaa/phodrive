@@ -5,14 +5,14 @@ import {
     UploadStatus,
     type UploadEvent,
     type UploadFile
-} from '$lib/models';
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
-import { planChunks, type UploadPlan } from '$lib/upload';
-import { chunkFileName, fileIdentity } from '$server/chunks';
-import { photosFetchWithProgress, type Fetcher } from '$server/fetcher';
-import { uploadBmpStream } from '$server/photos';
-import { encodeUploadBmp } from '$server/upload/bmp';
-import type { ReceivedUpload } from '$server/upload/input';
+} from '#lib/models';
+import { SERVER_ERRORS, type ServerError } from '#server/errors';
+import { planChunks, type UploadPlan } from '#lib/upload';
+import { chunkFileName, fileIdentity } from '#server/chunks';
+import { photosFetchWithProgress, type Fetcher } from '#server/fetcher';
+import { uploadBmpStream } from '#server/photos';
+import { encodeUploadBmp } from '#server/upload/bmp';
+import type { ReceivedUpload } from '#server/upload/input';
 
 const PROGRESS_INTERVAL_MS = 100;
 

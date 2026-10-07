@@ -1,11 +1,11 @@
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
-import { DriveController } from '$browser/drive/index.svelte';
-import * as filesApi from '$browser/files';
-import * as libraryApi from '$browser/library';
-import { FileActionKind, ThemeMode, UploadJobStatus, UploadStatus } from '$lib/models';
-import type { UploadedChunk } from '$lib/files';
-import { CONCURRENT_WORKERS_KEY, SELECTED_KEY } from '$browser/storage';
+import { DriveController } from '#browser/drive/index.svelte';
+import * as filesApi from '#browser/files';
+import * as libraryApi from '#browser/library';
+import { FileActionKind, ThemeMode, UploadJobStatus, UploadStatus } from '#lib/models';
+import type { UploadedChunk } from '#lib/files';
+import { CONCURRENT_WORKERS_KEY, SELECTED_KEY } from '#browser/storage';
 
 const { storage, tab } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -33,7 +33,7 @@ const OWNER = 'owner@example.com';
 const OTHER = 'other@example.com';
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     vi.restoreAllMocks();

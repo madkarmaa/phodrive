@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { ThemeMode } from '$lib/models';
-import { BrowserPreferences, THEME_KEY } from '$browser/storage';
+import { ThemeMode } from '#lib/models';
+import { BrowserPreferences, THEME_KEY } from '#browser/storage';
 
 const { storage } = vi.hoisted(() => {
     class MemoryStorage implements Storage {

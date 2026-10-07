@@ -1,4 +1,4 @@
-import type { ApplicationError } from '$lib/errors';
+import type { ApplicationError } from '#lib/errors';
 import { Err, Ok, type AsyncResult } from 'results-ts';
 
 export function readJson(request: Request): AsyncResult<unknown, ApplicationError> {

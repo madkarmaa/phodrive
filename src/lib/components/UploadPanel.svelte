@@ -1,11 +1,11 @@
 <script lang="ts">
     import { IconButton, List, Sheet } from 'noph-ui';
-    import { UploadJobStatus } from '$lib/models';
+    import { UploadJobStatus } from '#lib/models';
 
     import { slide } from 'svelte/transition';
     import { prefersReducedMotion } from 'svelte/motion';
-    import type { UploadJob } from '$browser/files';
-    import UploadStatusRow from '$components/UploadStatusRow.svelte';
+    import type { UploadJob } from '#browser/files';
+    import UploadStatusRow from '#components/UploadStatusRow.svelte';
     import IconClose from '~icons/material-symbols/close';
     import IconExpandMore from '~icons/material-symbols/expand-more';
 

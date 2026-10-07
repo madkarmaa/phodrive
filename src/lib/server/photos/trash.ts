@@ -1,9 +1,9 @@
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
+import { SERVER_ERRORS, type ServerError } from '#server/errors';
 import { Err, Ok, type AsyncResult } from 'results-ts';
-import { authenticatedHeaders } from '$server/photos/auth';
-import { photosFetch, type Fetcher } from '$server/fetcher';
-import { send, readBody } from '$server/photos/transport';
-import { message, numberField, bytesField, bodyBytes } from '$server/protobuf';
+import { authenticatedHeaders } from '#server/photos/auth';
+import { photosFetch, type Fetcher } from '#server/fetcher';
+import { send, readBody } from '#server/photos/transport';
+import { message, numberField, bytesField, bodyBytes } from '#server/protobuf';
 
 const TRASH_URL = 'https://photosdata-pa.googleapis.com/6439526531001121323/17490284929287180316';
 

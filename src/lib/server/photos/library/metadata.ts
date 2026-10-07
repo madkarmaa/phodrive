@@ -1,7 +1,7 @@
-import type { ServerError } from '$server/errors';
+import type { ServerError } from '#server/errors';
 import { Ok, type Result } from 'results-ts';
-import { MAX_PHOTOS_BMP_BYTES } from '$server/bmp';
-import { LIBRARY_PAGE_REQUEST } from '$server/photos/library/requests';
+import { MAX_PHOTOS_BMP_BYTES } from '#server/bmp';
+import { LIBRARY_PAGE_REQUEST } from '#server/photos/library/requests';
 import {
     bytes,
     parse,
@@ -11,7 +11,7 @@ import {
     optional,
     encodeFields,
     type Field
-} from '$server/protobuf';
+} from '#server/protobuf';
 
 export function pageRequest(resume: Buffer): Result<Buffer, ServerError> {
     const envelope = parse(Buffer.from(LIBRARY_PAGE_REQUEST, 'base64')).andThen((fields) =>

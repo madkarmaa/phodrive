@@ -4,14 +4,14 @@ import {
     MAX_CONCURRENT_WORKERS,
     MAX_REFRESH_INTERVAL_SECONDS,
     ThemeMode
-} from '$lib/models';
-import { DriveController } from '$browser/drive/index.svelte';
+} from '#lib/models';
+import { DriveController } from '#browser/drive/index.svelte';
 import {
     BrowserPreferences,
     CONCURRENT_WORKERS_KEY,
     REFRESH_INTERVAL_KEY,
     THEME_KEY
-} from '$browser/storage';
+} from '#browser/storage';
 
 const { storage } = vi.hoisted(() => {
     class MemoryStorage implements Storage {

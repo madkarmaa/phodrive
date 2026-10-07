@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { UploadJobStatus, UploadPhase, UploadStatus } from '$lib/models';
+    import { UploadJobStatus, UploadPhase, UploadStatus } from '#lib/models';
 
     import { CircularProgress, IconButton, ListItem } from 'noph-ui';
-    import type { UploadJob } from '$browser/files';
+    import type { UploadJob } from '#browser/files';
     import IconDescription from '~icons/material-symbols/description';
     import IconCheckCircle from '~icons/material-symbols/check-circle';
     import IconError from '~icons/material-symbols/error-outline';

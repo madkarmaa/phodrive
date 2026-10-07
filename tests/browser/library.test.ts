@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { readLibrarySnapshot } from '$browser/library';
-import type { RemoteBmp } from '$lib/models';
+import { readLibrarySnapshot } from '#browser/library';
+import type { RemoteBmp } from '#lib/models';
 
 afterEach(() => vi.restoreAllMocks());
 

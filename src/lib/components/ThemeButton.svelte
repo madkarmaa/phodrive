@@ -1,7 +1,7 @@
 <script lang="ts">
     import { IconButton } from 'noph-ui';
-    import { ThemeMode } from '$lib/models';
-    import { NEXT_THEME } from '$browser/storage';
+    import { ThemeMode } from '#lib/models';
+    import { NEXT_THEME } from '#browser/storage';
     import IconLightMode from '~icons/material-symbols/light-mode-outline';
     import IconDarkMode from '~icons/material-symbols/dark-mode-outline';
     import IconDesktopWindows from '~icons/material-symbols/desktop-windows-outline';

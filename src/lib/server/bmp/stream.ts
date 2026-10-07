@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import type { SplitHeader } from '$lib/models';
+import type { SplitHeader } from '#lib/models';
 import {
     decodeSplitHeader,
     MAX_PHOTOS_BMP_BYTES,
     MAX_SPLIT_HEADER_BYTES,
     splitHeaderByteLength
-} from '$server/bmp';
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
+} from '#server/bmp';
+import { SERVER_ERRORS, type ServerError } from '#server/errors';
 
 /** Retain only the split header and the current network block, never a whole BMP. */
 export class SplitBmpReader {

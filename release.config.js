@@ -2,7 +2,7 @@
 export default {
     branches: ['main'],
     tagFormat: 'v${version}',
-    // Keep the Conventional Commits preset on major 9 for the notes generator's writer 8.
+    // The writer override in package.json supports the preset's render functions.
     plugins: [
         ['@semantic-release/commit-analyzer', { preset: 'conventionalcommits' }],
         ['@semantic-release/release-notes-generator', { preset: 'conventionalcommits' }],

@@ -1,9 +1,9 @@
-import type { ApplicationError } from '$lib/errors';
+import type { ApplicationError } from '#lib/errors';
 import { Ok, type AsyncResult } from 'results-ts';
-import { exchangeOAuth2ForAas } from '$server/aas';
-import { photosFetch, type Fetcher } from '$server/fetcher';
-import { validateAasAccount } from '$server/photos';
-import type { ServerError } from '$server/errors';
+import { exchangeOAuth2ForAas } from '#server/aas';
+import { photosFetch, type Fetcher } from '#server/fetcher';
+import { validateAasAccount } from '#server/photos';
+import type { ServerError } from '#server/errors';
 
 /** Return only a Google-validated AAS token; never retain the one-time OAuth2 token. */
 export function connectGoogleAccount(

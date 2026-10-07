@@ -1,4 +1,4 @@
-import type { ApplicationError } from '$lib/errors';
+import type { ApplicationError } from '#lib/errors';
 import { Err, Ok, type Result } from 'results-ts';
 import type { z } from 'zod';
 

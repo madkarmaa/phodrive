@@ -1,23 +1,23 @@
 <script lang="ts">
-    import { AppView, ConfirmKind, FileActionKind } from '$lib/models';
+    import { AppView, ConfirmKind, FileActionKind } from '#lib/models';
 
     import { onMount, untrack } from 'svelte';
     import type { PageData } from './$types';
     import { fade } from 'svelte/transition';
     import { prefersReducedMotion } from 'svelte/motion';
-    import { DriveController } from '$browser/drive/index.svelte';
-    import AppHeader from '$components/AppHeader.svelte';
-    import AccountMenu from '$components/AccountMenu.svelte';
-    import AccountSetup from '$components/AccountSetup.svelte';
-    import ConfirmDialog from '$components/ConfirmDialog.svelte';
-    import UploadSidebar from '$components/UploadSidebar.svelte';
-    import UploadPanel from '$components/UploadPanel.svelte';
-    import FileFilters from '$components/FileFilters.svelte';
-    import FileGrid from '$components/FileGrid.svelte';
-    import LayoutToggle from '$components/LayoutToggle.svelte';
-    import SettingsPanel from '$components/SettingsPanel.svelte';
-    import ErrorFeedback from '$components/ErrorFeedback.svelte';
-    import FileDrop from '$components/FileDrop.svelte';
+    import { DriveController } from '#browser/drive/index.svelte';
+    import AppHeader from '#components/AppHeader.svelte';
+    import AccountMenu from '#components/AccountMenu.svelte';
+    import AccountSetup from '#components/AccountSetup.svelte';
+    import ConfirmDialog from '#components/ConfirmDialog.svelte';
+    import UploadSidebar from '#components/UploadSidebar.svelte';
+    import UploadPanel from '#components/UploadPanel.svelte';
+    import FileFilters from '#components/FileFilters.svelte';
+    import FileGrid from '#components/FileGrid.svelte';
+    import LayoutToggle from '#components/LayoutToggle.svelte';
+    import SettingsPanel from '#components/SettingsPanel.svelte';
+    import ErrorFeedback from '#components/ErrorFeedback.svelte';
+    import FileDrop from '#components/FileDrop.svelte';
 
     interface Props {
         data: PageData;

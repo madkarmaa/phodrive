@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { Err, Ok, type AsyncResult } from 'results-ts';
-import type { FileRequest, RemoteBmp, SplitHeader } from '$lib/models';
-import { SplitBmpReader } from '$server/bmp/stream';
-import { MAX_SPLIT_HEADER_BYTES, splitHeaderByteLength } from '$server/bmp';
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
-import { downloadBmp } from '$server/photos';
+import type { FileRequest, RemoteBmp, SplitHeader } from '#lib/models';
+import { SplitBmpReader } from '#server/bmp/stream';
+import { MAX_SPLIT_HEADER_BYTES, splitHeaderByteLength } from '#server/bmp';
+import { SERVER_ERRORS, type ServerError } from '#server/errors';
+import { downloadBmp } from '#server/photos';
 
 function openChunk(
     input: FileRequest,

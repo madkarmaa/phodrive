@@ -1,6 +1,6 @@
 <script lang="ts">
     import { IconButton, Item, Menu, MenuItem } from 'noph-ui';
-    import Avatar from '$components/Avatar.svelte';
+    import Avatar from '#components/Avatar.svelte';
     import IconAdd from '~icons/material-symbols/add';
     import IconClose from '~icons/material-symbols/close';
     import IconLogout from '~icons/material-symbols/logout';

@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { uploadFiles, type UploadJob } from '$browser/files';
-import { UploadJobStatus } from '$lib/models';
+import { uploadFiles, type UploadJob } from '#browser/files';
+import { UploadJobStatus } from '#lib/models';
 import { browserUploadResponse } from '../helpers/upload';
 
 afterEach(() => vi.restoreAllMocks());

@@ -1,7 +1,7 @@
 <script lang="ts">
-    import FilterChip from '$components/FilterChip.svelte';
+    import FilterChip from '#components/FilterChip.svelte';
     import { Button } from 'noph-ui';
-    import { DEFAULT_FILE_SORT, FileSort } from '$lib/models';
+    import { DEFAULT_FILE_SORT, FileSort } from '#lib/models';
 
     interface Props {
         types: string[];

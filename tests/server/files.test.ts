@@ -1,14 +1,14 @@
-import { SERVER_ERRORS } from '$server/errors';
+import { SERVER_ERRORS } from '#server/errors';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { Err, Ok } from 'results-ts';
-import { downloadFile, deleteFile } from '$server/files';
-import { downloadBmp, moveToTrash } from '$server/photos';
-import { decodeSplitHeader } from '$server/bmp';
-import { FileActionKind } from '$lib/models';
+import { downloadFile, deleteFile } from '#server/files';
+import { downloadBmp, moveToTrash } from '#server/photos';
+import { decodeSplitHeader } from '#server/bmp';
+import { FileActionKind } from '#lib/models';
 import { bmpResponse, downloadFixture } from '../helpers/download';
 
-vi.mock('$server/photos', () => ({ downloadBmp: vi.fn(), moveToTrash: vi.fn() }));
+vi.mock('#server/photos', () => ({ downloadBmp: vi.fn(), moveToTrash: vi.fn() }));
 
 beforeEach(() => {
     vi.mocked(moveToTrash).mockImplementation(() =>

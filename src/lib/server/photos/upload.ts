@@ -1,10 +1,10 @@
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
+import { SERVER_ERRORS, type ServerError } from '#server/errors';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import { UploadStatus, type UploadResponse } from '$lib/models';
+import { UploadStatus, type UploadResponse } from '#lib/models';
 import { createHash } from 'node:crypto';
-import { authenticatedHeaders, type PhotosHeaders } from '$server/photos/auth';
-import { photosFetch, type Fetcher } from '$server/fetcher';
-import { send, readBody } from '$server/photos/transport';
+import { authenticatedHeaders, type PhotosHeaders } from '#server/photos/auth';
+import { photosFetch, type Fetcher } from '#server/fetcher';
+import { send, readBody } from '#server/photos/transport';
 import {
     message,
     numberField,
@@ -16,8 +16,8 @@ import {
     parse,
     integer,
     type Field
-} from '$server/protobuf';
-import type { UploadBmpSource } from '$server/upload/bmp';
+} from '#server/protobuf';
+import type { UploadBmpSource } from '#server/upload/bmp';
 
 const UPLOAD_URL = 'https://photos.googleapis.com/data/upload/uploadmedia/interactive';
 const HASH_URL = 'https://photosdata-pa.googleapis.com/6439526531001121323/5084965799730810217';

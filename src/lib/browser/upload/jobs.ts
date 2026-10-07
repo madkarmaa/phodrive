@@ -1,4 +1,4 @@
-import type { ApplicationError } from '$lib/errors';
+import type { ApplicationError } from '#lib/errors';
 import {
     UploadEventType,
     UploadJobStatus,
@@ -6,8 +6,8 @@ import {
     type UploadEvent,
     type UploadProgress,
     type UploadResponse
-} from '$lib/models';
-import type { UploadedChunk } from '$lib/files';
+} from '#lib/models';
+import type { UploadedChunk } from '#lib/files';
 import { Err, Ok, type Result } from 'results-ts';
 
 export interface UploadJob {

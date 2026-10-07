@@ -1,8 +1,8 @@
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
+import { SERVER_ERRORS, type ServerError } from '#server/errors';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import { authenticatedHeaders } from '$server/photos/auth';
-import { photosFetch, type Fetcher } from '$server/fetcher';
-import { send, readBody } from '$server/photos/transport';
+import { authenticatedHeaders } from '#server/photos/auth';
+import { photosFetch, type Fetcher } from '#server/fetcher';
+import { send, readBody } from '#server/photos/transport';
 import {
     message,
     bytesField,
@@ -13,7 +13,7 @@ import {
     optional,
     parse,
     utf8
-} from '$server/protobuf';
+} from '#server/protobuf';
 
 const DOWNLOAD_URL =
     'https://photosdata-pa.googleapis.com/$rpc/social.frontend.photos.preparedownloaddata.v1.PhotosPrepareDownloadDataService/PhotosPrepareDownload';

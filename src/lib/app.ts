@@ -1,4 +1,4 @@
-import metadata from '$package';
+import metadata from '#package';
 
 export const APP_NAME = 'Phodrive';
 export const APP_VERSION = metadata.version;

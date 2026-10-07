@@ -5,12 +5,12 @@ import {
     UploadPhase,
     UploadStatus,
     type UploadEvent
-} from '$lib/models';
-import { encodeSplitBmp, decodeSplitBmp } from '$server/bmp';
-import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp/format';
-import { fileIdentity } from '$server/chunks';
-import { bytesField, message, nested, numberField } from '$server/protobuf';
-import type { Fetcher } from '$server/fetcher';
+} from '#lib/models';
+import { encodeSplitBmp, decodeSplitBmp } from '#server/bmp';
+import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '#lib/bmp/format';
+import { fileIdentity } from '#server/chunks';
+import { bytesField, message, nested, numberField } from '#server/protobuf';
+import type { Fetcher } from '#server/fetcher';
 
 export function uploadForm(
     payload: Uint8Array = Buffer.from([0, 255, 13, 10, 42]),

@@ -1,7 +1,7 @@
-import { UploadJobStatus } from '$lib/models';
+import { UploadJobStatus } from '#lib/models';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { DriveController } from '$browser/drive/index.svelte';
-import { createUploadJobs } from '$browser/files';
+import { DriveController } from '#browser/drive/index.svelte';
+import { createUploadJobs } from '#browser/files';
 import { browserUploadResponse } from '../helpers/upload';
 
 const { storage } = vi.hoisted(() => {
@@ -28,8 +28,8 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('#browser/accounts', () => ({ validateAccount: vi.fn() }));
+vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();

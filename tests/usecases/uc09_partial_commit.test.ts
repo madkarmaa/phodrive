@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
-import { ThemeMode, UploadJobStatus, UploadStatus } from '$lib/models';
-import type { UploadedChunk } from '$lib/files';
-import { DriveController } from '$browser/drive/index.svelte';
-import * as filesApi from '$browser/files';
-import { findBmpBySha1, uploadBmp } from '$server/photos';
-import type { Fetcher } from '$server/fetcher';
+import { ThemeMode, UploadJobStatus, UploadStatus } from '#lib/models';
+import type { UploadedChunk } from '#lib/files';
+import { DriveController } from '#browser/drive/index.svelte';
+import * as filesApi from '#browser/files';
+import { findBmpBySha1, uploadBmp } from '#server/photos';
+import type { Fetcher } from '#server/fetcher';
 
 const { storage } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -34,8 +34,8 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('#browser/accounts', () => ({ validateAccount: vi.fn() }));
+vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();

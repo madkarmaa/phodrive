@@ -1,6 +1,6 @@
-import { groupChunks, sortFiles, filterFiles, fileType, type UploadedChunk } from '$lib/files';
-import { FileSort } from '$lib/models';
-import { readLibraryPage, readLibrarySnapshot } from '$browser/library';
+import { groupChunks, sortFiles, filterFiles, fileType, type UploadedChunk } from '#lib/files';
+import { FileSort } from '#lib/models';
+import { readLibraryPage, readLibrarySnapshot } from '#browser/library';
 
 /** Library pagination, filtering, and stale-request protection for the selected account. */
 export class DriveLibrary {

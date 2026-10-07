@@ -1,5 +1,5 @@
-import type { Handle } from '@sveltejs/kit';
-import { readPreferencesDefaults } from '$server/preferences';
+import type { Handle } from '@sveltejs/kit/hooks';
+import { readPreferencesDefaults } from '#server/preferences';
 
 const THEME_PLACEHOLDER = '%phodrive.theme%';
 

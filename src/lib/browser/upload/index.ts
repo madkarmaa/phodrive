@@ -9,15 +9,15 @@ import {
     type UploadEvent,
     type SplitHeader,
     type UploadResponse
-} from '$lib/models';
-import type { ApplicationError } from '$lib/errors';
-import type { UploadedChunk } from '$lib/files';
-import { schemaResult } from '$lib/validation';
-import { MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp/format';
-import { planChunks, type UploadPlan } from '$lib/upload';
-import { uploadRequest } from '$browser/upload/request';
-import { hashFile, hashUploadChunk, uploadIdentity } from '$browser/upload/hash';
-import { createUploadJobs, createUploadEventHandler, type UploadJob } from '$browser/upload/jobs';
+} from '#lib/models';
+import type { ApplicationError } from '#lib/errors';
+import type { UploadedChunk } from '#lib/files';
+import { schemaResult } from '#lib/validation';
+import { MAX_CHUNK_PAYLOAD_BYTES } from '#lib/bmp/format';
+import { planChunks, type UploadPlan } from '#lib/upload';
+import { uploadRequest } from '#browser/upload/request';
+import { hashFile, hashUploadChunk, uploadIdentity } from '#browser/upload/hash';
+import { createUploadJobs, createUploadEventHandler, type UploadJob } from '#browser/upload/jobs';
 
 const PROGRESS_INTERVAL_MS = 100;
 

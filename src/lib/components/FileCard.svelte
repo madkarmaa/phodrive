@@ -1,10 +1,10 @@
 <script lang="ts">
     import { Card } from 'noph-ui';
-    import type { FileActionKind } from '$lib/models';
+    import type { FileActionKind } from '#lib/models';
 
-    import type { FileGroup } from '$lib/files';
-    import { fileType } from '$lib/files';
-    import FileActions from '$components/FileActions.svelte';
+    import type { FileGroup } from '#lib/files';
+    import { fileType } from '#lib/files';
+    import FileActions from '#components/FileActions.svelte';
     import IconDescription from '~icons/material-symbols/description';
     import IconDescriptionOutline from '~icons/material-symbols/description-outline';
 

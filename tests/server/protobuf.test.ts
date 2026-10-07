@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { bytes, bytesField, message, nested, numberField, parse } from '$server/protobuf';
+import { bytes, bytesField, message, nested, numberField, parse } from '#server/protobuf';
 
 test('nested protobuf fields respect nonzero backing offsets and keep all sibling validation', () => {
     const encoded = message(bytesField(1, bytesField(2, 'value')), numberField(3, 7));

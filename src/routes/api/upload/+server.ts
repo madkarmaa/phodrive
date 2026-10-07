@@ -1,6 +1,5 @@
-import { json } from '@sveltejs/kit';
-import { receiveUpload } from '$server/upload/input';
-import { uploadStream } from '$server/upload/stream';
+import { receiveUpload } from '#server/upload/input';
+import { uploadStream } from '#server/upload/stream';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -9,7 +8,7 @@ export const POST: RequestHandler = async ({ request }) => {
     return received.match({
         Ok: (input) => uploadStream(input),
         Err: (error) =>
-            json(
+            Response.json(
                 { error: error.message },
                 {
                     status: 400,

@@ -1,14 +1,14 @@
 <script lang="ts">
     import { Button, LoadingIndicator } from 'noph-ui';
-    import { FileLayout, FileSort } from '$lib/models';
+    import { FileLayout, FileSort } from '#lib/models';
     import { fade } from 'svelte/transition';
     import { flip } from 'svelte/animate';
     import { prefersReducedMotion } from 'svelte/motion';
-    import type { FileGroup, FileAction } from '$lib/files';
-    import { fileKey } from '$lib/files';
-    import FileCard from '$components/FileCard.svelte';
-    import FileList from '$components/FileList.svelte';
-    import EmptyFiles from '$components/EmptyFiles.svelte';
+    import type { FileGroup, FileAction } from '#lib/files';
+    import { fileKey } from '#lib/files';
+    import FileCard from '#components/FileCard.svelte';
+    import FileList from '#components/FileList.svelte';
+    import EmptyFiles from '#components/EmptyFiles.svelte';
 
     interface Props {
         files: FileGroup[];

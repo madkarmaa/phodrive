@@ -1,7 +1,7 @@
-import { UploadEventType, UploadPhase, type UploadEvent } from '$lib/models';
+import { UploadEventType, UploadPhase, type UploadEvent } from '#lib/models';
 import { afterEach, expect, vi, test } from 'vitest';
 import { Ok } from 'results-ts';
-import { uploadRequest } from '$browser/upload/request';
+import { uploadRequest } from '#browser/upload/request';
 
 const encoder = new TextEncoder();
 afterEach(() => vi.restoreAllMocks());

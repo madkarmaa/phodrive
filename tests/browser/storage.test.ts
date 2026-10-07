@@ -11,7 +11,7 @@ import {
     MAX_CONCURRENT_WORKERS,
     MAX_REFRESH_INTERVAL_SECONDS,
     type PreferencesDefaults
-} from '$lib/models';
+} from '#lib/models';
 import { afterAll, afterEach, beforeEach, expect, vi, test } from 'vitest';
 import {
     ACCOUNTS_SERIALIZER,
@@ -27,7 +27,7 @@ import {
     SELECTED_ACCOUNT_SERIALIZER,
     THEME_SERIALIZER,
     THEME_KEY
-} from '$browser/storage';
+} from '#browser/storage';
 
 const { storage } = vi.hoisted(() => {
     class MemoryStorage implements Storage {

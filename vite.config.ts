@@ -22,13 +22,6 @@ export default defineConfig({
         },
         tailwindcss(),
         sveltekit({
-            alias: {
-                $components: 'src/lib/components',
-                $browser: 'src/lib/browser',
-                $server: 'src/lib/server',
-                $assets: 'src/lib/assets',
-                $package: 'package.json'
-            },
             compilerOptions: {
                 // Force runes mode for the project, except for libraries. Can be removed in svelte 6.
                 runes: ({ filename }) =>

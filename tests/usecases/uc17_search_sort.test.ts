@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { FileSort } from '$lib/models';
+import { FileSort } from '#lib/models';
 import {
     filterFiles,
     fileType,
@@ -7,7 +7,7 @@ import {
     sortFiles,
     type FileGroup,
     type UploadedChunk
-} from '$lib/files';
+} from '#lib/files';
 
 function file(name: string, at: number): FileGroup {
     return {

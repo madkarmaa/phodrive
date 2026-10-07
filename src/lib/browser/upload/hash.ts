@@ -1,8 +1,8 @@
 import { createSHA1, createSHA256, sha256, type IHasher } from 'hash-wasm';
 import { Err, Ok, type AsyncResult } from 'results-ts';
-import type { ApplicationError } from '$lib/errors';
-import { MAX_CONCURRENT_WORKERS, type SplitHeader } from '$lib/models';
-import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '$lib/bmp/format';
+import type { ApplicationError } from '#lib/errors';
+import { MAX_CONCURRENT_WORKERS, type SplitHeader } from '#lib/models';
+import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '#lib/bmp/format';
 
 export const HASH_BLOCK_BYTES = 1024 * 1024;
 // Avoid native digest call overhead for tiny files.

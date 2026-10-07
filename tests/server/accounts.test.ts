@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-import { connectGoogleAccount } from '$server/accounts';
-import type { Fetcher } from '$server/fetcher';
-import { SERVER_ERRORS } from '$server/errors';
+import { connectGoogleAccount } from '#server/accounts';
+import type { Fetcher } from '#server/fetcher';
+import { SERVER_ERRORS } from '#server/errors';
 
 test('account connection exchanges OAuth2 then validates the AAS token before returning it', async () => {
     let calls = 0;

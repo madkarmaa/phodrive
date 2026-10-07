@@ -1,15 +1,15 @@
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
+import { SERVER_ERRORS, type ServerError } from '#server/errors';
 import { Err, Ok, type Result } from 'results-ts';
 import Varint from 'varint';
-import { SplitHeaderSchema, type SplitHeader } from '$lib/models';
-import { encodeSplitPrefix, BMP_HEADER_BYTES, SPLIT_MAGIC, FILE_HASH_BYTES } from '$lib/bmp/format';
+import { SplitHeaderSchema, type SplitHeader } from '#lib/models';
+import { encodeSplitPrefix, BMP_HEADER_BYTES, SPLIT_MAGIC, FILE_HASH_BYTES } from '#lib/bmp/format';
 export {
     MAX_PHOTOS_BMP_BYTES,
     MAX_CHUNK_PAYLOAD_BYTES,
     MAX_SPLIT_HEADER_BYTES,
     splitHeaderByteLength,
     splitBmpByteLength
-} from '$lib/bmp/format';
+} from '#lib/bmp/format';
 
 const UTF8 = new TextDecoder('utf-8', { fatal: true });
 

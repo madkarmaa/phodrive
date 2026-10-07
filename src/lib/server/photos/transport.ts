@@ -1,6 +1,6 @@
-import type { ServerError } from '$server/errors';
+import type { ServerError } from '#server/errors';
 import { Err, Ok, type AsyncResult } from 'results-ts';
-import type { Fetcher } from '$server/fetcher';
+import type { Fetcher } from '#server/fetcher';
 
 export function send(
     fetcher: Fetcher,

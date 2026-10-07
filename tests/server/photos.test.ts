@@ -1,12 +1,12 @@
-import { UploadStatus } from '$lib/models';
+import { UploadStatus } from '#lib/models';
 import { expect, test, vi } from 'vitest';
 import { bmpResponse, downloadFixture } from '../helpers/download';
 import { createHash } from 'node:crypto';
 import Varint from 'varint';
-import { encodeSplitBmp } from '$server/bmp';
-import { downloadBmp, listBmps, moveToTrash, uploadBmp, validateAasAccount } from '$server/photos';
-import type { Fetcher } from '$server/fetcher';
-import { nested } from '$server/protobuf';
+import { encodeSplitBmp } from '#server/bmp';
+import { downloadBmp, listBmps, moveToTrash, uploadBmp, validateAasAccount } from '#server/photos';
+import type { Fetcher } from '#server/fetcher';
+import { nested } from '#server/protobuf';
 
 function varint(value: number): Buffer {
     return Buffer.from(Varint.encode(value));

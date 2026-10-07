@@ -1,15 +1,15 @@
-import { FileRequestSchema, UploadJobStatus, UploadEventType, type RemoteBmp } from '$lib/models';
+import { FileRequestSchema, UploadJobStatus, UploadEventType, type RemoteBmp } from '#lib/models';
 import { afterEach, expect, vi, test } from 'vitest';
 import { createHash } from 'node:crypto';
-import { groupChunks, type UploadedChunk } from '$lib/files';
+import { groupChunks, type UploadedChunk } from '#lib/files';
 import {
     downloadFile,
     uploadFiles,
     deleteFile,
     saveDownloadedFile,
     type UploadJob
-} from '$browser/files';
-import { HASH_BLOCK_BYTES, hashFile } from '$browser/upload/hash';
+} from '#browser/files';
+import { HASH_BLOCK_BYTES, hashFile } from '#browser/upload/hash';
 import { browserUploadResponse } from '../helpers/upload';
 
 const PAYLOAD = Uint8Array.of(0, 255, 13, 10, 42);

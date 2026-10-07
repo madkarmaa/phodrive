@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { expect, test } from 'vitest';
-import { receiveUpload } from '$server/upload/input';
-import { encodeUploadBmp } from '$server/upload/bmp';
+import { receiveUpload } from '#server/upload/input';
+import { encodeUploadBmp } from '#server/upload/bmp';
 import { uploadForm } from '../helpers/upload';
-import { MAX_CHUNK_PAYLOAD_BYTES, MAX_PHOTOS_BMP_BYTES, splitBmpByteLength } from '$server/bmp';
-import { planUpload } from '$server/upload';
+import { MAX_CHUNK_PAYLOAD_BYTES, MAX_PHOTOS_BMP_BYTES, splitBmpByteLength } from '#server/bmp';
+import { planUpload } from '#server/upload';
 
 const FILE_HASH = 'a'.repeat(64);
 

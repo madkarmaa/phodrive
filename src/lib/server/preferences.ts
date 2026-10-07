@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import * as env from '$app/env/private';
 import {
     ConcurrentWorkersSchema,
     DEFAULT_PREFERENCES_DEFAULTS,
@@ -6,7 +6,7 @@ import {
     RefreshIntervalSchema,
     ThemeSchema,
     type PreferencesDefaults
-} from '$lib/models';
+} from '#lib/models';
 
 /** Blank deployment values are absent, rather than Number('') becoming an explicit zero. */
 function environmentNumber(value: string | undefined): number | undefined {

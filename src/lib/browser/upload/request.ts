@@ -1,10 +1,10 @@
-import type { ApplicationError } from '$lib/errors';
-import { UploadEventType, UploadEventSchema, type UploadEvent } from '$lib/models';
+import type { ApplicationError } from '#lib/errors';
+import { UploadEventType, UploadEventSchema, type UploadEvent } from '#lib/models';
 import { EventSourceParserStream } from 'eventsource-parser/stream';
 import type { EventSourceMessage } from 'eventsource-parser';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import { schemaResult } from '$lib/validation';
-import { request } from '$browser/api';
+import { schemaResult } from '#lib/validation';
+import { request } from '#browser/api';
 
 const UPLOAD_STREAM_ERROR = 'Upload connection ended before Google confirmed every file.';
 const MAX_EVENT_CHARACTERS = 16 * 1024;

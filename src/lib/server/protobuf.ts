@@ -1,4 +1,4 @@
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
+import { SERVER_ERRORS, type ServerError } from '#server/errors';
 import { Err, Ok, type Result } from 'results-ts';
 import Varint from 'varint';
 

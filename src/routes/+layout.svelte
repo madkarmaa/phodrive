@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { Snippet } from 'svelte';
-    import { APP_MOTTO, APP_NAME } from '$lib/app';
+    import { APP_MOTTO, APP_NAME } from '#lib/app';
     import './theme.css';
     import './layout.css';
     import '@fontsource-variable/google-sans-flex/opsz.css';

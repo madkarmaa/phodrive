@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { ThemeMode, UploadEventType, UploadJobStatus, UploadRequestSchema } from '$lib/models';
+import { ThemeMode, UploadEventType, UploadJobStatus, UploadRequestSchema } from '#lib/models';
 import { browserUploadResponse } from '../helpers/upload';
-import { DriveController } from '$browser/drive/index.svelte';
+import { DriveController } from '#browser/drive/index.svelte';
 
 const { storage } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -29,8 +29,8 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('#browser/accounts', () => ({ validateAccount: vi.fn() }));
+vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {

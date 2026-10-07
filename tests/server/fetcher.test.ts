@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { buffer } from 'node:stream/consumers';
-import { photosFetchWithProgress } from '$server/fetcher';
+import { photosFetchWithProgress } from '#server/fetcher';
 
 test.each(['buffer', 'stream'] as const)(
     'Photos %s transport reports incremental socket writes and preserves exact bytes',

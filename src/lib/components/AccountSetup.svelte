@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Button, Card, TextField } from 'noph-ui';
-    import { NewAccountSchema } from '$lib/models';
+    import { NewAccountSchema } from '#lib/models';
 
     interface Props {
         email?: string;

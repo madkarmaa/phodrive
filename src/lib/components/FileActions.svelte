@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Button, IconButton } from 'noph-ui';
-    import { FileActionKind } from '$lib/models';
-    import type { FileGroup } from '$lib/files';
+    import { FileActionKind } from '#lib/models';
+    import type { FileGroup } from '#lib/files';
     import IconDownload from '~icons/material-symbols/download';
     import IconDelete from '~icons/material-symbols/delete-outline';
 

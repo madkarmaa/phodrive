@@ -1,4 +1,4 @@
-import type { ApplicationError } from '$lib/errors';
+import type { ApplicationError } from '#lib/errors';
 import { PersistedState } from 'runed';
 import { Err, Ok, type Result } from 'results-ts';
 import {
@@ -18,7 +18,7 @@ import {
     FileSort,
     type PreferencesDefaults,
     ThemeMode
-} from '$lib/models';
+} from '#lib/models';
 
 export const ACCOUNTS_KEY = 'accounts';
 export const SELECTED_KEY = 'selectedAccount';

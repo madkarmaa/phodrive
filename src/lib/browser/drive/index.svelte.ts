@@ -6,12 +6,12 @@ import {
     NewAccountSchema,
     ThemeSchema,
     type PreferencesDefaults
-} from '$lib/models';
+} from '#lib/models';
 import { watch } from 'runed';
-import { fileKey, type FileGroup, type FileAction } from '$lib/files';
-import { useAutomaticRefresh } from '$browser/drive/refresh.svelte';
-import { validateAccount } from '$browser/accounts';
-import { createBrowserPreferences, type BrowserPreferences } from '$browser/storage';
+import { fileKey, type FileGroup, type FileAction } from '#lib/files';
+import { useAutomaticRefresh } from '#browser/drive/refresh.svelte';
+import { validateAccount } from '#browser/accounts';
+import { createBrowserPreferences, type BrowserPreferences } from '#browser/storage';
 import {
     createUploadJobs,
     uploadFiles,
@@ -19,9 +19,9 @@ import {
     saveDownloadedFile,
     deleteFile,
     type UploadJob
-} from '$browser/files';
-import { DriveLibrary } from '$browser/drive/library.svelte';
-import { DriveSettings } from '$browser/drive/settings.svelte';
+} from '#browser/files';
+import { DriveLibrary } from '#browser/drive/library.svelte';
+import { DriveSettings } from '#browser/drive/settings.svelte';
 
 export type ConfirmTarget =
     { kind: ConfirmKind.Account; email: string } | { kind: ConfirmKind.File; item: FileGroup };

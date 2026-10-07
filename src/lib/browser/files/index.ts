@@ -1,14 +1,14 @@
-import type { ApplicationError } from '$lib/errors';
-import { FileActionKind, ConcurrentWorkersSchema, FileDeleteResponseSchema } from '$lib/models';
+import type { ApplicationError } from '#lib/errors';
+import { FileActionKind, ConcurrentWorkersSchema, FileDeleteResponseSchema } from '#lib/models';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import type { FileGroup, UploadedChunk } from '$lib/files';
-import { schemaResult } from '$lib/validation';
-import { apiJson, request } from '$browser/api';
+import type { FileGroup, UploadedChunk } from '#lib/files';
+import { schemaResult } from '#lib/validation';
+import { apiJson, request } from '#browser/api';
 
-export { createUploadJobs, type UploadJob } from '$browser/upload/jobs';
+export { createUploadJobs, type UploadJob } from '#browser/upload/jobs';
 
-export type { UploadProgress } from '$lib/models';
-export { uploadFiles } from '$browser/upload';
+export type { UploadProgress } from '#lib/models';
+export { uploadFiles } from '#browser/upload';
 
 const FILES_API_URL = '/api/files';
 const DOWNLOAD_URL_LIFETIME_MS = 60_000;

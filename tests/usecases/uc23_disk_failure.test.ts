@@ -1,12 +1,12 @@
 import { open, mkdtemp, writeFile } from 'node:fs/promises';
 import { afterEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
-import { downloadFile } from '$server/files';
-import { downloadBmp } from '$server/photos';
+import { downloadFile } from '#server/files';
+import { downloadBmp } from '#server/photos';
 import { bmpResponse, downloadFixture } from '../helpers/download';
 import { uploadForm } from '../helpers/upload';
-import { encodeUploadBmp } from '$server/upload/bmp';
-import { receiveUpload } from '$server/upload/input';
+import { encodeUploadBmp } from '#server/upload/bmp';
+import { receiveUpload } from '#server/upload/input';
 
 vi.mock('node:fs/promises', async (importOriginal) => {
     const actual = await importOriginal<typeof import('node:fs/promises')>();
@@ -17,7 +17,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
         writeFile: vi.fn().mockRejectedValue(new Error('ENOSPC'))
     };
 });
-vi.mock('$server/photos', () => ({ downloadBmp: vi.fn(), moveToTrash: vi.fn() }));
+vi.mock('#server/photos', () => ({ downloadBmp: vi.fn(), moveToTrash: vi.fn() }));
 afterEach(() => vi.clearAllMocks());
 
 test('uploads need no temporary storage even when all disk allocations would fail', async () => {

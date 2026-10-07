@@ -1,6 +1,6 @@
-import { FileSort, ThemeMode, DEFAULT_PREFERENCES_DEFAULTS } from '$lib/models';
+import { FileSort, ThemeMode, DEFAULT_PREFERENCES_DEFAULTS } from '#lib/models';
 import { expect, test, vi } from 'vitest';
-import { parsePreferencesDefaults, readPreferencesDefaults } from '$server/preferences';
+import { parsePreferencesDefaults, readPreferencesDefaults } from '#server/preferences';
 
 const { environment } = vi.hoisted(() => ({
     environment: {
@@ -11,7 +11,7 @@ const { environment } = vi.hoisted(() => ({
     }
 }));
 
-vi.mock('$env/dynamic/private', () => ({ env: environment }));
+vi.mock('$app/env/private', () => environment);
 
 test('missing deployment preferences use hardcoded defaults', () => {
     expect(parsePreferencesDefaults({})).toEqual(DEFAULT_PREFERENCES_DEFAULTS);

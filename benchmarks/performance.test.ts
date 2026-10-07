@@ -2,19 +2,19 @@ import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { test, vi } from 'vitest';
-import { hashFile, hashUploadChunk, uploadIdentity } from '$browser/upload/hash';
-import { uploadFiles } from '$browser/upload';
-import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES as CHUNK } from '$lib/bmp/format';
-import { planChunks } from '$lib/upload';
-import { FileSort, UploadJobStatus, type SplitHeader } from '$lib/models';
-import { groupChunks, sortFiles, type UploadedChunk } from '$lib/files';
-import { encodeSplitBmp } from '$server/bmp';
-import { SplitBmpReader } from '$server/bmp/stream';
-import { receiveUpload } from '$server/upload/input';
-import { encodeUploadBmp } from '$server/upload/bmp';
-import { uploadStream } from '$server/upload/stream';
-import { parseLibraryPage } from '$server/photos/library/metadata';
-import { bytesField, numberField, message } from '$server/protobuf';
+import { hashFile, hashUploadChunk, uploadIdentity } from '#browser/upload/hash';
+import { uploadFiles } from '#browser/upload';
+import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES as CHUNK } from '#lib/bmp/format';
+import { planChunks } from '#lib/upload';
+import { FileSort, UploadJobStatus, type SplitHeader } from '#lib/models';
+import { groupChunks, sortFiles, type UploadedChunk } from '#lib/files';
+import { encodeSplitBmp } from '#server/bmp';
+import { SplitBmpReader } from '#server/bmp/stream';
+import { receiveUpload } from '#server/upload/input';
+import { encodeUploadBmp } from '#server/upload/bmp';
+import { uploadStream } from '#server/upload/stream';
+import { parseLibraryPage } from '#server/photos/library/metadata';
+import { bytesField, numberField, message } from '#server/protobuf';
 import { uploadForm } from '../tests/helpers/upload';
 import { provider } from './transport';
 
@@ -22,7 +22,7 @@ const transport = vi.hoisted(() => ({
     fetcher: null as typeof fetch | null,
     fetcherWithProgress: null as ((callback: (sent: number) => void) => typeof fetch) | null
 }));
-vi.mock('$server/fetcher', () => ({
+vi.mock('#server/fetcher', () => ({
     photosFetch: (...args: Parameters<typeof fetch>) => transport.fetcher!(...args),
     photosFetchWithProgress:
         (callback: (sent: number) => void) =>

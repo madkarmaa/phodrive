@@ -1,16 +1,16 @@
-import type { ApplicationError } from '$lib/errors';
+import type { ApplicationError } from '#lib/errors';
 import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { Ok } from 'results-ts';
 import type { AsyncResult } from 'results-ts';
-import { readLibrarySnapshot } from '$browser/library';
-import * as api from '$browser/api';
-import { DriveController } from '$browser/drive/index.svelte';
+import { readLibrarySnapshot } from '#browser/library';
+import * as api from '#browser/api';
+import { DriveController } from '#browser/drive/index.svelte';
 import {
     ThemeMode,
     LibraryResponseSchema,
     type LibraryResponse,
     type RemoteBmp
-} from '$lib/models';
+} from '#lib/models';
 
 const { storage } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -32,8 +32,8 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('$browser/accounts', () => ({ validateAccount: vi.fn() }));
-vi.mock('$browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('#browser/accounts', () => ({ validateAccount: vi.fn() }));
+vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {

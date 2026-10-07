@@ -1,19 +1,19 @@
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
+import { SERVER_ERRORS, type ServerError } from '#server/errors';
 import { Err, Ok, type AsyncResult } from 'results-ts';
-import type { RemoteBmp } from '$lib/models';
+import type { RemoteBmp } from '#lib/models';
 import pLimit from 'p-limit';
-import { authenticatedHeaders, type PhotosHeaders } from '$server/photos/auth';
-import { photosFetch, type Fetcher } from '$server/fetcher';
-import { send, readBody } from '$server/photos/transport';
-import { bodyBytes } from '$server/protobuf';
+import { authenticatedHeaders, type PhotosHeaders } from '#server/photos/auth';
+import { photosFetch, type Fetcher } from '#server/fetcher';
+import { send, readBody } from '#server/photos/transport';
+import { bodyBytes } from '#server/protobuf';
 import {
     pageRequest,
     parseLibraryPage,
     type LibraryCandidate
-} from '$server/photos/library/metadata';
-import { decodeSplitHeader, MAX_SPLIT_HEADER_BYTES } from '$server/bmp';
-import { LIBRARY_STATE_REQUEST } from '$server/photos/library/requests';
-import { preparedDownloadUrl } from '$server/photos/download';
+} from '#server/photos/library/metadata';
+import { decodeSplitHeader, MAX_SPLIT_HEADER_BYTES } from '#server/bmp';
+import { LIBRARY_STATE_REQUEST } from '#server/photos/library/requests';
+import { preparedDownloadUrl } from '#server/photos/download';
 
 const LIBRARY_URL = 'https://photosdata-pa.googleapis.com/6439526531001121323/18047484249733410717';
 const HEADER_PROBE_BYTES = MAX_SPLIT_HEADER_BYTES;

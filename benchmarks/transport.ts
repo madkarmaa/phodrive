@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
-import type { Fetcher } from '$server/fetcher';
-import { bytesField, message, nested, numberField } from '$server/protobuf';
+import type { Fetcher } from '#server/fetcher';
+import { bytesField, message, nested, numberField } from '#server/protobuf';
 
 /** No provider latency or retained upload bodies; consume every transferred byte. */
 export function provider(options: { duplicate?: boolean; failCommit?: boolean } = {}) {

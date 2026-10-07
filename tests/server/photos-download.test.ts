@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-import { parsePhotoDownloadUrl } from '$server/photos/download';
-import { bytesField, message, numberField } from '$server/protobuf';
-import { SERVER_ERRORS } from '$server/errors';
+import { parsePhotoDownloadUrl } from '#server/photos/download';
+import { bytesField, message, numberField } from '#server/protobuf';
+import { SERVER_ERRORS } from '#server/errors';
 
 const MEDIA_KEY = 'fixture-key';
 const SHA1 = 'a'.repeat(40);

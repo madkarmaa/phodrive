@@ -1,6 +1,6 @@
 <script lang="ts">
-    import catPhoto from '$assets/empty-files-cat.png';
-    import { APP_MOTTO } from '$lib/app';
+    import catPhoto from '#assets/empty-files-cat.png';
+    import { APP_MOTTO } from '#lib/app';
 </script>
 
 <div class="empty-files" role="status">

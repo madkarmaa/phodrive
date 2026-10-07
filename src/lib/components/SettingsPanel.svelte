@@ -4,7 +4,7 @@
     import { watch } from 'runed';
     import { fade } from 'svelte/transition';
     import { prefersReducedMotion } from 'svelte/motion';
-    import AppFooter from '$components/AppFooter.svelte';
+    import AppFooter from '#components/AppFooter.svelte';
     import {
         MAX_REFRESH_INTERVAL_SECONDS,
         MAX_CONCURRENT_WORKERS,
@@ -12,7 +12,7 @@
         ConcurrentWorkersSchema,
         type PreferencesDefaults,
         type ThemeMode
-    } from '$lib/models';
+    } from '#lib/models';
 
     interface Props {
         refreshIntervalSeconds: number;

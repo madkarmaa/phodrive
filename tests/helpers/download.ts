@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { FileActionKind, type FileRequest, type RemoteBmp } from '$lib/models';
-import { encodeSplitBmp } from '$server/bmp';
+import { FileActionKind, type FileRequest, type RemoteBmp } from '#lib/models';
+import { encodeSplitBmp } from '#server/bmp';
 
 export function bmpResponse(
     bmp: Uint8Array,

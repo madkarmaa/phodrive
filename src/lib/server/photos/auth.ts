@@ -1,9 +1,9 @@
-import { SERVER_ERRORS, type ServerError } from '$server/errors';
+import { SERVER_ERRORS, type ServerError } from '#server/errors';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import { randomBytes } from 'node:crypto';
-import { photosFetch, type Fetcher } from '$server/fetcher';
-import { send, readBody } from '$server/photos/transport';
-import { utf8 } from '$server/protobuf';
+import { photosFetch, type Fetcher } from '#server/fetcher';
+import { send, readBody } from '#server/photos/transport';
+import { utf8 } from '#server/protobuf';
 
 const AUTH_URL = 'https://android.googleapis.com/auth';
 const APP = 'com.google.android.apps.photos';

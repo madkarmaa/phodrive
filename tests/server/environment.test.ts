@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { parseServerEnvironment } from '$server/environment';
+import { parseServerEnvironment } from '#server/environment';
 
 test('unset server environment uses the local defaults', () => {
     const parsed = parseServerEnvironment({});

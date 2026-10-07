@@ -1,13 +1,13 @@
 import { test, expect, vi, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { groupChunks, type UploadedChunk } from '$lib/files';
-import { UploadEventType, type UploadEvent, FileActionKind, type FileRequest } from '$lib/models';
-import { planUpload, uploadFiles } from '$server/upload';
-import { receiveUpload } from '$server/upload/input';
-import * as photos from '$server/photos';
-import { decodeSplitBmp, encodeSplitBmp, MAX_CHUNK_PAYLOAD_BYTES } from '$server/bmp';
-import { fileIdentity } from '$server/chunks';
-import { downloadFile } from '$server/files';
+import { groupChunks, type UploadedChunk } from '#lib/files';
+import { UploadEventType, type UploadEvent, FileActionKind, type FileRequest } from '#lib/models';
+import { planUpload, uploadFiles } from '#server/upload';
+import { receiveUpload } from '#server/upload/input';
+import * as photos from '#server/photos';
+import { decodeSplitBmp, encodeSplitBmp, MAX_CHUNK_PAYLOAD_BYTES } from '#server/bmp';
+import { fileIdentity } from '#server/chunks';
+import { downloadFile } from '#server/files';
 import { uploadForm, photosUploadHarness } from '../helpers/upload';
 
 const PAYLOAD = Buffer.from([1, 2, 3, 4]);

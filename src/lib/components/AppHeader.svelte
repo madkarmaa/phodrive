@@ -2,10 +2,10 @@
     import { onMount } from 'svelte';
     import { AppBar, IconButton, Search } from 'noph-ui';
     import { MediaQuery } from 'svelte/reactivity';
-    import { ThemeMode } from '$lib/models';
-    import ThemeButton from '$components/ThemeButton.svelte';
-    import darkLogo from '$assets/favicon.svg';
-    import lightLogo from '$assets/favicon-light.svg';
+    import { ThemeMode } from '#lib/models';
+    import ThemeButton from '#components/ThemeButton.svelte';
+    import darkLogo from '#assets/favicon.svg';
+    import lightLogo from '#assets/favicon-light.svg';
     import IconRefresh from '~icons/material-symbols/refresh';
     import IconMenu from '~icons/material-symbols/menu';
     import IconPerson from '~icons/material-symbols/person';
