@@ -29,6 +29,9 @@
     }
 
     :global(:root .error-feedback.np-snackbar .np-snackbar-label) {
+        display: block;
+        -webkit-line-clamp: unset;
+        line-clamp: unset;
         text-wrap: wrap;
         overflow-wrap: anywhere;
     }
