@@ -8,7 +8,7 @@
     import { fileKey } from '$lib/file-groups';
     import FileCard from '$components/FileCard.svelte';
     import FileList from '$components/FileList.svelte';
-    import IconFolderOpen from '~icons/material-symbols/folder-open-outline';
+    import EmptyFiles from '$components/EmptyFiles.svelte';
 
     interface Props {
         files: FileGroup[];
@@ -43,7 +43,7 @@
     }: Props = $props();
 </script>
 
-<section aria-labelledby="files-heading">
+<section class="flex min-h-0 flex-1 flex-col" aria-labelledby="files-heading">
     {#if files.length}
         {#if layout === FileLayout.List}
             <FileList {files} bind:sort {disabled} {action} {ondownload} {ondelete} />
@@ -69,7 +69,9 @@
             </ul>
         {/if}
     {:else}
-        <div class="grid justify-items-center gap-3 px-6 py-22.5 text-center text-sm text-muted">
+        <div
+            class="grid min-h-90 flex-1 place-items-center px-6 py-12 text-center text-sm text-muted"
+        >
             {#if loading}
                 <LoadingIndicator aria-label="Loading Google Photos files" />
             {:else if loadFailed}
@@ -77,9 +79,7 @@
             {:else if filtered && hasFiles}
                 <p>No files match your search or filters.</p>
             {:else}
-                <IconFolderOpen aria-hidden="true" class="size-12" />
-                <h3 class="text-lg text-text">No files yet</h3>
-                <p>Choose Upload to add your first file.</p>
+                <EmptyFiles />
             {/if}
         </div>
     {/if}
