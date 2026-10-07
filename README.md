@@ -37,7 +37,6 @@ bun --bun run dev
 
 > [!NOTE]
 > Credentials are stored only in your browser. The server uses them for each request and does not save them.
-> Files use private temporary server storage while processing and are removed when the operation finishes.
 
 ### Deployment defaults
 
