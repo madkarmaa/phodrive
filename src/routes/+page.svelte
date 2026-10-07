@@ -17,6 +17,7 @@
     import LayoutToggle from '$components/LayoutToggle.svelte';
     import SettingsPanel from '$components/SettingsPanel.svelte';
     import ErrorFeedback from '$components/ErrorFeedback.svelte';
+    import FileDrop from '$components/FileDrop.svelte';
 
     interface Props {
         data: PageData;
@@ -37,7 +38,16 @@
         drive.adding = true;
         drive.feedbackMessage = '';
     }
+
+    function upload(files: File[]) {
+        drive.adding = false;
+        void drive.upload(files);
+    }
 </script>
+
+{#if !drive.ready || !drive.selectedEmail || drive.adding || view !== AppView.Files}
+    <FileDrop disabled={true} onupload={upload} />
+{/if}
 
 <div
     class="grid min-h-screen grid-cols-[256px_minmax(0,1fr)] grid-rows-[64px_minmax(calc(100vh-64px),auto)] max-[800px]:grid-cols-1 max-[800px]:grid-rows-[72px_minmax(calc(100vh-72px),auto)]"
@@ -87,10 +97,7 @@
         {view}
         onnavigate={(nextView) => (view = nextView)}
         onconnect={addAccount}
-        onupload={(files) => {
-            drive.adding = false;
-            void drive.upload(files);
-        }}
+        onupload={upload}
     />
 
     <main
@@ -130,7 +137,10 @@
                 />
             </div>
         {:else if drive.ready}
-            <div in:fade={{ duration: prefersReducedMotion.current ? 0 : 160 }}>
+            <div
+                class="flex flex-1 flex-col"
+                in:fade={{ duration: prefersReducedMotion.current ? 0 : 160 }}
+            >
                 <div class="workspace-heading">
                     <h1 id="files-heading">
                         My files <span class="text-subtle">({drive.visibleUploads.length})</span>
@@ -144,28 +154,36 @@
                     bind:days={drive.modifiedDays}
                     bind:sort={drive.fileSort}
                 />
-                <FileGrid
-                    files={drive.visibleUploads}
-                    layout={drive.fileLayout}
-                    bind:sort={drive.fileSort}
-                    loading={drive.libraryLoading}
-                    loadFailed={drive.libraryLoadFailed}
-                    filtered={!!(drive.searchTerm || drive.typeFilter || drive.modifiedDays)}
-                    hasFiles={!!drive.files.length}
-                    hasMore={!!drive.nextPageToken}
-                    disabled={actionsDisabled || drive.libraryLoading}
-                    action={drive.fileAction}
-                    ondownload={(item) => {
-                        void drive.actOnFile(item, FileActionKind.Download);
-                    }}
-                    ondelete={(item) => {
-                        drive.confirmTarget = { kind: ConfirmKind.File, item };
-                        drive.confirmOpen = true;
-                    }}
-                    onmore={() => {
-                        void drive.loadFiles(false);
-                    }}
-                />
+                <FileDrop
+                    disabled={actionsDisabled ||
+                        drive.libraryLoading ||
+                        drive.confirmOpen ||
+                        drive.accountMenuOpen}
+                    onupload={upload}
+                >
+                    <FileGrid
+                        files={drive.visibleUploads}
+                        layout={drive.fileLayout}
+                        bind:sort={drive.fileSort}
+                        loading={drive.libraryLoading}
+                        loadFailed={drive.libraryLoadFailed}
+                        filtered={!!(drive.searchTerm || drive.typeFilter || drive.modifiedDays)}
+                        hasFiles={!!drive.files.length}
+                        hasMore={!!drive.nextPageToken}
+                        disabled={actionsDisabled || drive.libraryLoading}
+                        action={drive.fileAction}
+                        ondownload={(item) => {
+                            void drive.actOnFile(item, FileActionKind.Download);
+                        }}
+                        ondelete={(item) => {
+                            drive.confirmTarget = { kind: ConfirmKind.File, item };
+                            drive.confirmOpen = true;
+                        }}
+                        onmore={() => {
+                            void drive.loadFiles(false);
+                        }}
+                    />
+                </FileDrop>
             </div>
         {/if}
     </main>
