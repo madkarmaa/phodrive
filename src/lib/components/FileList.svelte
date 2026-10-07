@@ -180,10 +180,11 @@
     }
 
     .file-list :global(.column-sort) {
-        --np-button-padding: 0px;
+        --np-button-padding: 12px;
         --np-button-gap: 4px;
         --np-button-icon-size: 18px;
         --np-text-button-label-text-color: var(--np-color-on-surface);
+        margin-inline: -12px;
         font-size: 14px;
     }
 
