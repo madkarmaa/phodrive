@@ -48,3 +48,24 @@ Memory impact and interpretation: Prefix latency improves 36.0%; RSS is flat. Pl
 Correctness: check, 171 tests, build and perf:check pass; fixed pre-change Unicode/index128 protocol golden bytes pass.
 
 Decision: **KEEP**.
+
+## Iteration 3: Borrow immutable protobuf response byte fields
+
+Change: Borrow immutable protobuf response byte fields.
+
+Hypothesis: Avoid copying each nested field while preserving complete bounds, wire-format and duplicate-field checks.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark        | Baseline | Previous | Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| ---------------- | -------: | -------: | ------: | ---------------------------------: | ------------------------------: |
+| protocol-page    |   49.150 |   49.150 |  42.230 |                    +14.1% / +14.1% |                   113.5 → 114.5 |
+| upload-many      |  411.040 |  375.908 | 384.427 |                      +6.5% / -2.3% |                   314.2 → 334.4 |
+| upload-duplicate |   63.713 |   63.713 |  58.108 |                      +8.8% / +8.8% |                   219.4 → 220.0 |
+| upload-retry     |   86.975 |   86.975 |  88.378 |                      -1.6% / -1.6% |                   239.1 → 231.0 |
+
+Memory impact and interpretation: Library parsing improves 14.1%, below the 20% target but material for a one-line allocation reduction. Process RSS is unchanged; payload copies are removed by construction, not an allocation-count measurement. Upload metrics are within prior variation and are not attributed to this change. Parsed field views are internal and their production consumers do not mutate response buffers.
+
+Correctness: check, 172 tests, build and perf:check pass; nonzero backing offsets, malformed siblings and duplicate-field checks covered.
+
+Decision: **KEEP**.
