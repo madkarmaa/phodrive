@@ -18,38 +18,51 @@ export function fileKey(file: { email: string; fileId: string }): string {
 }
 
 export function groupChunks(items: UploadedChunk[]): FileGroup[] {
-    const groups = new Map<string, FileGroup>();
+    const groups = new Map<string, { file: FileGroup; indexes?: Map<number, number> }>();
 
     for (const chunk of items) {
         const key = fileKey(chunk);
-        let group = groups.get(key);
+        let entry = groups.get(key);
 
-        if (!group) {
-            group = {
+        if (!entry) {
+            const file: FileGroup = {
                 email: chunk.email,
                 fileHash: chunk.fileHash,
                 fileId: chunk.fileId,
                 name: chunk.originalName ?? `File ${chunk.fileHash.slice(0, 12)}`,
                 at: chunk.at,
                 chunkCount: null,
-                chunks: [],
+                chunks: [chunk],
                 complete: false
             };
-            groups.set(key, group);
+            entry = { file };
+            groups.set(key, entry);
+
+            continue;
         }
 
-        const current = group.chunks.find((saved) => saved.chunkIndex === chunk.chunkIndex);
+        const group = entry.file;
+        const index = entry.indexes
+            ? entry.indexes.get(chunk.chunkIndex)
+            : group.chunks[0].chunkIndex === chunk.chunkIndex
+              ? 0
+              : undefined;
+        const current = index === undefined ? undefined : group.chunks[index];
         group.at = Math.max(group.at, chunk.at);
         if (current && !(current.at <= chunk.at)) continue;
 
-        group.chunks = [
-            ...group.chunks.filter((saved) => saved.chunkIndex !== chunk.chunkIndex),
-            chunk
-        ];
+        if (index === undefined) {
+            // Most files have one chunk; create an index only for a split file.
+            entry.indexes ??= new Map([[group.chunks[0].chunkIndex, 0]]);
+            entry.indexes.set(chunk.chunkIndex, group.chunks.length);
+            group.chunks.push(chunk);
+        } else {
+            group.chunks[index] = chunk;
+        }
         if (chunk.chunkIndex === 0 && chunk.originalName) group.name = chunk.originalName;
     }
 
-    return [...groups.values()].map((group) => {
+    return [...groups.values()].map(({ file: group }) => {
         group.chunks.sort((first, second) => first.chunkIndex - second.chunkIndex);
 
         const last = group.chunks.find((chunk) => chunk.isLast);

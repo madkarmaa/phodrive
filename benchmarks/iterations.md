@@ -89,3 +89,22 @@ Memory impact and interpretation: Large groups improve 90.7% and RSS drops 149.8
 Correctness: check, 173 tests, build and perf:check pass.
 
 Decision: **REJECT**.
+
+## Iteration 4b: Create chunk indexes only for split files
+
+Change: Create chunk indexes only for split files.
+
+Hypothesis: Keep one owned chunk array, update duplicate positions in place and create a position Map only when a second distinct chunk arrives.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark        | Baseline | Previous | Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| ---------------- | -------: | -------: | ------: | ---------------------------------: | ------------------------------: |
+| group-chunks     |  112.526 |  112.526 |   9.911 |                    +91.2% / +91.2% |                   149.8 → 110.3 |
+| group-many-files |   44.756 |   44.756 |  27.889 |                    +37.7% / +37.7% |                   356.9 → 164.0 |
+
+Memory impact and interpretation: Both classes improve: large groups 91.2%, many one-chunk files 37.7%. RSS falls 149.8 to 110.3 MiB and 356.9 to 164.0 MiB respectively. Compared with rejected eager indexes, elapsed time drops 5.0% and 46.5%; no common-case regression remains. Previous column means last accepted version (original grouping), not the rejected attempt.
+
+Correctness: check, 173 tests, build and perf:check pass; duplicate timestamp ties, naming, ordering, completeness and input immutability preserved.
+
+Decision: **KEEP**.

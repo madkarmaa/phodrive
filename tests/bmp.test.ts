@@ -152,3 +152,28 @@ test('prefix encoding preserves original protocol bytes for Unicode and multibyt
     );
     expect([later.totalSize, later.paddingSize]).toEqual([195011766, 11633]);
 });
+
+test('grouping retains newest duplicate, tie replacement, group time and first-chunk naming', () => {
+    const base = {
+        email: 'test@example.com',
+        fileHash: 'ab'.repeat(32),
+        fileId: 'cd'.repeat(32),
+        sha1: 'ab'.repeat(20),
+        size: 1,
+        at: 10,
+        mediaKey: 'base'
+    };
+    const chunks = [
+        { ...base, chunkIndex: 1, isLast: true },
+        { ...base, chunkIndex: 0, isLast: false, originalName: 'original.bin' },
+        { ...base, chunkIndex: 0, isLast: false, at: 9, originalName: 'older.bin' },
+        { ...base, chunkIndex: 0, isLast: false, originalName: 'tie.bin', mediaKey: 'tie' },
+        { ...base, chunkIndex: 1, isLast: true, at: 12, mediaKey: 'newest' }
+    ];
+    const before = structuredClone(chunks);
+    const groups = groupChunks(chunks);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ name: 'tie.bin', at: 12, chunkCount: 2, complete: true });
+    expect(groups[0].chunks.map((chunk) => chunk.mediaKey)).toEqual(['tie', 'newest']);
+    expect(chunks).toEqual(before);
+});
