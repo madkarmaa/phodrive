@@ -1,12 +1,13 @@
 <script lang="ts">
     import catPhoto from '$assets/empty-files-cat.png';
+    import { APP_MOTTO } from '$lib/app-info';
 </script>
 
 <div class="empty-files" role="status">
     <div class="cat-illustration" aria-hidden="true">
-        <img src={catPhoto} alt="" width="1254" height="1254" />
+        <img src={catPhoto} alt="" width="1254" height="1254" draggable="false" />
     </div>
-    <h3>A place for all of your files</h3>
+    <h3>{APP_MOTTO}</h3>
     <p>
         <span class="desktop-hint">Drag your files here or use Upload to add your first file.</span>
         <span class="mobile-hint">Use Upload to add your first file.</span>
