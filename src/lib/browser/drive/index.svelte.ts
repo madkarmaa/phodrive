@@ -317,14 +317,14 @@ export class DriveController {
     }
 
     async upload(files: readonly File[]) {
-        if (
-            this.busy ||
-            this.fileAction ||
-            this.library.loading ||
-            !this.selectedEmail ||
-            files.length === 0
-        )
+        if (this.busy || this.fileAction || !this.selectedEmail || files.length === 0) return;
+
+        if (this.library.loading) {
+            this.feedbackMessage =
+                'Files are refreshing. Wait for the refresh to finish, then select your files again.';
+
             return;
+        }
 
         this.uploadSources = [...files];
         this.uploadJobs = createUploadJobs(files);

@@ -3,6 +3,7 @@ import { Ok } from 'results-ts';
 import { ThemeMode } from '#lib/models';
 import { DriveController } from '#browser/drive/index.svelte';
 import { readLibraryPage, readLibrarySnapshot } from '#browser/library';
+import * as filesApi from '#browser/files';
 
 const { storage } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -133,4 +134,45 @@ test('manual refresh replaces completed initial data and clears the loading stat
     expect(drive.library.loading).toBe(false);
     expect(drive.library.chunks.map(({ mediaKey }) => mediaKey)).toEqual(['refreshed']);
     expect(drive.feedbackMessage).toBe('');
+});
+
+test('file selection during refresh shows feedback and can be submitted again after refresh', async () => {
+    const pendingRefresh = deferred<Snapshot>();
+    vi.mocked(readLibrarySnapshot).mockReturnValueOnce(
+        Ok(undefined).andThenAsync(() => pendingRefresh.promise)
+    );
+    const upload = vi
+        .spyOn(filesApi, 'uploadFiles')
+        .mockImplementation(() => Ok(undefined).andThenAsync(async () => Ok(undefined)));
+    const drive = new DriveController();
+    drive.initialize();
+    drive.ready = false;
+
+    const previousJobs = filesApi.createUploadJobs([new File(['existing'], 'existing.txt')]);
+    drive.uploadJobs = previousJobs;
+    const files = [new File(['selected'], 'selected.txt')];
+
+    const refresh = drive.library.refresh();
+    expect(drive.library.loading).toBe(true);
+    await drive.upload(files);
+
+    expect(upload).not.toHaveBeenCalled();
+    expect(drive.uploadJobs).toEqual(previousJobs);
+    expect(drive.uploadPanelOpen).toBe(false);
+    expect(drive.busy).toBe(false);
+    expect(drive.feedbackMessage).toBe(
+        'Files are refreshing. Wait for the refresh to finish, then select your files again.'
+    );
+
+    pendingRefresh.resolve(Ok({ items: [], nextPageToken: '', pages: 1 }));
+    await refresh;
+    expect(drive.library.loading).toBe(false);
+    expect(drive.feedbackMessage).toContain('Files are refreshing.');
+
+    await drive.upload(files);
+
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(upload.mock.calls[0][0]).toEqual(files);
+    expect(drive.feedbackMessage).toBe('');
+    expect(drive.uploadJobs[0].name).toBe('selected.txt');
 });
