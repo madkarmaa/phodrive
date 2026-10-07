@@ -13,6 +13,7 @@ import { fileIdentity } from '$server/chunks';
 import { downloadFile } from '$server/files';
 import { downloadBmp } from '$server/photos';
 import { planUpload } from '$server/uploads';
+import { bmpResponse } from '../helpers/download';
 
 vi.mock('$server/photos', () => ({ downloadBmp: vi.fn(), uploadBmp: vi.fn() }));
 
@@ -106,7 +107,7 @@ test('old 64 MB chunks and a larger-chunk reupload coexist and both download int
         const bmp = stored.get(mediaKey);
         expect(bmp).toBeDefined();
 
-        return Ok(bmp!).andThenAsync(async (bytes) => Ok(bytes));
+        return Ok(bmpResponse(bmp!)).andThenAsync(async (response) => Ok(response));
     });
 
     try {

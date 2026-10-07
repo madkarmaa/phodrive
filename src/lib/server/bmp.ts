@@ -5,6 +5,7 @@ import { SplitHeaderSchema, type SplitHeader } from '$lib/models';
 
 export const MAX_PHOTOS_BMP_BYTES = 200_000_000;
 export const MAX_CHUNK_PAYLOAD_BYTES = 195_000_000;
+export const MAX_SPLIT_HEADER_BYTES = 65_536;
 
 const BMP_HEADER_BYTES = 54;
 const SPLIT_MAGIC = new TextEncoder().encode('BMSPLIT\x01');
@@ -62,8 +63,8 @@ function readVarint(
     }
 }
 
-/** Exact projected BMP size before a file slice is read. */
-export function splitBmpByteLength(input: SplitHeader): Result<number, ServerError> {
+/** Exact prefix size, including the BMP header, before the payload begins. */
+export function splitHeaderByteLength(input: SplitHeader): Result<number, ServerError> {
     const parsed = SplitHeaderSchema.safeParse(input);
     if (!parsed.success) return Err(SERVER_ERRORS.INVALID_CHUNK_METADATA);
 
@@ -71,17 +72,24 @@ export function splitBmpByteLength(input: SplitHeader): Result<number, ServerErr
     const nameBytes = header.fileName
         ? new TextEncoder().encode(header.fileName)
         : new Uint8Array();
-    const contentLength =
+    const length =
+        BMP_HEADER_BYTES +
         SPLIT_MAGIC.length +
         FILE_HASH_BYTES +
         FILE_HASH_BYTES +
         Varint.encodingLength(header.chunkIndex) +
         1 +
         Varint.encodingLength(header.payloadSize) +
-        (header.chunkIndex === 0 ? Varint.encodingLength(nameBytes.length) + nameBytes.length : 0) +
-        header.payloadSize;
+        (header.chunkIndex === 0 ? Varint.encodingLength(nameBytes.length) + nameBytes.length : 0);
 
-    return bmpLayout(contentLength).map(({ total }) => total);
+    return Ok(length);
+}
+
+/** Exact projected BMP size before a file slice is read. */
+export function splitBmpByteLength(input: SplitHeader): Result<number, ServerError> {
+    return splitHeaderByteLength(input).andThen((length) =>
+        bmpLayout(length - BMP_HEADER_BYTES + input.payloadSize).map(({ total }) => total)
+    );
 }
 
 /** Encode one chunk; the Zod schema is the source of truth for its metadata shape. */

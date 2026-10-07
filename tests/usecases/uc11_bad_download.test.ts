@@ -1,110 +1,48 @@
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { createHash } from 'node:crypto';
-import { access } from 'node:fs/promises';
+import { afterEach, expect, test, vi } from 'vitest';
 import { Err, Ok } from 'results-ts';
-import { FileActionKind, type FileRequest, type RemoteBmp } from '$lib/models';
-import { encodeSplitBmp } from '$server/bmp';
 import { downloadFile } from '$server/files';
 import { downloadBmp } from '$server/photos';
-import * as temporary from '$server/temporary-files';
+import { bmpResponse, downloadFixture } from '../helpers/download';
 
 vi.mock('$server/photos', () => ({ downloadBmp: vi.fn(), moveToTrash: vi.fn() }));
+afterEach(() => vi.clearAllMocks());
 
-const ORIGINAL = Buffer.from('original file bytes');
-const FILE_HASH = createHash('sha256').update(ORIGINAL).digest('hex');
-const directories: string[] = [];
-
-beforeEach(() => {
-    const createDirectory = temporary.createTemporaryDirectory;
-    vi.spyOn(temporary, 'createTemporaryDirectory').mockImplementation(() =>
-        createDirectory().inspect((directory) => directories.push(directory))
-    );
-});
-
-afterEach(async () => {
-    vi.restoreAllMocks();
-    vi.clearAllMocks();
-    for (const directory of directories.splice(0))
-        await temporary.removeTemporaryDirectory(directory);
-});
-
-function setup(): { input: FileRequest; bmps: Buffer[] } {
-    const payloads = [ORIGINAL.subarray(0, 8), ORIGINAL.subarray(8)];
-    const bmps = payloads.map((payload, index) =>
-        Buffer.from(
-            encodeSplitBmp(payload, {
-                fileHash: FILE_HASH,
-                fileId: FILE_HASH,
-                chunkIndex: index,
-                flags: index === 1 ? 1 : 0,
-                payloadSize: payload.length,
-                fileName: index === 0 ? 'sample.bin' : undefined
-            }).unwrap()
+function setup() {
+    const original = Buffer.from('original file bytes');
+    const fixture = downloadFixture(original, 'sample.bin', [
+        original.subarray(0, 8),
+        original.subarray(8)
+    ]);
+    vi.mocked(downloadBmp).mockImplementation((_email, _token, key) =>
+        Ok(bmpResponse(fixture.bmps[Number(key.slice(-1))])).andThenAsync(async (response) =>
+            Ok(response)
         )
     );
-    const chunks: RemoteBmp[] = bmps.map((bmp, index) => ({
-        fileHash: FILE_HASH,
-        fileId: FILE_HASH,
-        chunkIndex: index,
-        isLast: index === 1,
-        originalName: index === 0 ? 'sample.bin' : undefined,
-        size: payloads[index].length,
-        at: 1,
-        mediaKey: `part-${index}`,
-        sha1: createHash('sha1').update(bmp).digest('hex')
-    }));
-    vi.mocked(downloadBmp).mockImplementation((_email, _token, key) =>
-        Ok(bmps[Number(key.slice(-1))]).andThenAsync(async (bmp) => Ok(bmp))
-    );
-
-    return {
-        input: {
-            action: FileActionKind.Download,
-            email: 'user@example.test',
-            token: 'fake-token',
-            name: 'sample.bin',
-            fileHash: FILE_HASH,
-            fileId: FILE_HASH,
-            chunks,
-            workers: 2
-        },
-        bmps
-    };
+    return fixture;
 }
 
-async function expectTemporaryDirectoriesRemoved(): Promise<void> {
-    for (const directory of directories) await expect(access(directory)).rejects.toThrow();
-}
-
-test('incomplete groups and a failed remote chunk return an error without a response', async () => {
+test('incomplete groups return an error and a failed later chunk aborts the download body', async () => {
     const { input, bmps } = setup();
     const incomplete = await downloadFile({ ...input, chunks: input.chunks.slice(1) });
     expect(incomplete.isErr()).toBe(true);
     expect(incomplete.unwrapErr().message).toContain('remaining');
     expect(downloadBmp).not.toHaveBeenCalled();
 
+    const failure = { code: 'REQUEST_FAILED', message: 'remote chunk unavailable' } as const;
     vi.mocked(downloadBmp).mockImplementation((_email, _token, key) =>
-        key === 'part-1'
-            ? Err({
-                  code: 'REQUEST_FAILED',
-                  message: 'remote chunk unavailable'
-              } as const).andThenAsync(async () => Ok(Buffer.alloc(0)))
-            : Ok(bmps[0]).andThenAsync(async (bmp) => Ok(bmp))
+        key === 'chunk-1'
+            ? Err(failure).andThenAsync(async () => Ok(new Response()))
+            : Ok(bmpResponse(bmps[0])).andThenAsync(async (response) => Ok(response))
     );
     const failed = await downloadFile(input);
-    expect(failed.isErr()).toBe(true);
-    expect(failed.unwrapErr()).toEqual({
-        code: 'REQUEST_FAILED',
-        message: 'remote chunk unavailable'
-    });
-    await expectTemporaryDirectoriesRemoved();
+    await expect(failed.unwrap().arrayBuffer()).rejects.toEqual(failure);
 });
 
-test('shuffled valid chunks reconstruct in order; mismatched metadata and damaged bytes fail cleanly', async () => {
-    const { input, bmps } = setup();
+test('shuffled valid chunks stream in order; mismatched metadata and damaged bytes fail cleanly', async () => {
+    const { input, bmps, original } = setup();
     const shuffled = await downloadFile({ ...input, chunks: input.chunks.toReversed() });
-    expect(Buffer.from(await shuffled.unwrap().arrayBuffer())).toEqual(ORIGINAL);
-    await expectTemporaryDirectoriesRemoved();
+    const bytes = await shuffled.unwrap().arrayBuffer();
+    expect(Buffer.from(bytes)).toEqual(original);
 
     const wrongIndex = await downloadFile({
         ...input,
@@ -116,7 +54,7 @@ test('shuffled valid chunks reconstruct in order; mismatched metadata and damage
 
     bmps[1][bmps[1].length - 1] ^= 1;
     const corrupted = await downloadFile(input);
-    expect(corrupted.isErr()).toBe(true);
-    expect(corrupted.unwrapErr().message).toMatch(/damaged|integrity|Invalid chunk|match|SHA-256/i);
-    await expectTemporaryDirectoriesRemoved();
+    await expect(corrupted.unwrap().arrayBuffer()).rejects.toMatchObject({
+        message: 'Downloaded BMP is invalid or damaged'
+    });
 });

@@ -18,7 +18,7 @@ export const POST: RequestHandler = async ({ request }) => {
     if (input instanceof Response) return input;
 
     if (input.action === FileActionKind.Download) {
-        const downloaded = await downloadFile(input);
+        const downloaded = await downloadFile(input, request.signal);
         return downloaded.match({
             Ok: (response) => response,
             Err: (error) =>

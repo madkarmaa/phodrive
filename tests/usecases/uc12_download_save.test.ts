@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
-import { access } from 'node:fs/promises';
-import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Err, Ok } from 'results-ts';
 import { ThemeMode, FileActionKind, type FileRequest, type RemoteBmp } from '$lib/models';
 import type { FileGroup } from '$lib/file-groups';
@@ -9,11 +8,10 @@ import * as browserFiles from '$browser/files';
 import { downloadFile as downloadServerFile } from '$server/files';
 import { encodeSplitBmp } from '$server/bmp';
 import { downloadBmp } from '$server/photos';
-import * as temporary from '$server/temporary-files';
+import { bmpResponse } from '../helpers/download';
 
 const EMAIL = 'test@example.com';
 const TOKEN = 'aas_et/synthetic';
-const directories: string[] = [];
 
 const { storage } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -44,18 +42,7 @@ vi.mock('$server/photos', () => ({ downloadBmp: vi.fn() }));
 beforeEach(() => {
     storage.clear();
     storage.setItem('accounts', JSON.stringify({ [EMAIL]: TOKEN }));
-    directories.length = 0;
     vi.restoreAllMocks();
-
-    const createDirectory = temporary.createTemporaryDirectory;
-    vi.spyOn(temporary, 'createTemporaryDirectory').mockImplementation(() =>
-        createDirectory().inspect((directory) => directories.push(directory))
-    );
-});
-
-afterEach(async () => {
-    for (const directory of directories.splice(0))
-        await temporary.removeTemporaryDirectory(directory);
 });
 
 afterAll(() => vi.unstubAllGlobals());
@@ -112,7 +99,7 @@ function requestFor(
     };
 }
 
-test('downloads empty and large originals byte-for-byte and removes server temporaries after completion or cancellation', async () => {
+test('streams empty and large originals byte-for-byte and supports cancellation', async () => {
     const large = Uint8Array.from({ length: 2_000_000 }, (_, index) => (index * 31) % 256);
     const cases = [
         { name: 'empty.bin', payload: new Uint8Array() },
@@ -122,7 +109,9 @@ test('downloads empty and large originals byte-for-byte and removes server tempo
     for (const { name, payload } of cases) {
         const { input, bmps } = requestFor(payload, name);
         vi.mocked(downloadBmp).mockImplementation((_email, _token, mediaKey) =>
-            Ok(Buffer.from(bmps[Number(mediaKey.slice(-1))])).andThenAsync(async (bmp) => Ok(bmp))
+            Ok(bmpResponse(bmps[Number(mediaKey.slice(-1))])).andThenAsync(async (response) =>
+                Ok(response)
+            )
         );
 
         const response = await downloadServerFile(input);
@@ -130,20 +119,17 @@ test('downloads empty and large originals byte-for-byte and removes server tempo
         const body = await downloaded.arrayBuffer();
         const downloadedBytes = Buffer.from(body);
         expect(downloadedBytes.equals(payload)).toBe(true);
-        await expect(access(directories.at(-1) ?? '')).rejects.toThrow();
     }
 
     const cancellationCase = requestFor(large, 'cancel.bin');
     vi.mocked(downloadBmp).mockImplementation((_email, _token, mediaKey) =>
-        Ok(Buffer.from(cancellationCase.bmps[Number(mediaKey.slice(-1))])).andThenAsync(
-            async (bmp) => Ok(bmp)
+        Ok(bmpResponse(cancellationCase.bmps[Number(mediaKey.slice(-1))])).andThenAsync(
+            async (response) => Ok(response)
         )
     );
     const response = await downloadServerFile(cancellationCase.input);
-    const directory = directories.at(-1);
     const downloaded = response.unwrap();
     await downloaded.body?.cancel();
-    await expect(access(directory ?? '')).rejects.toThrow();
 });
 
 test('browser save failures show an error and always clear the active file action', async () => {

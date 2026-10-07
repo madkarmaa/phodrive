@@ -292,3 +292,24 @@ test('batch deletion reports confirmed chunks even when the server returns parti
     expect(removed).toEqual(group.chunks);
     expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+test('an interrupted download body returns a receive error instead of a partial Blob', async () => {
+    const group = groupChunks([{ ...chunk(), email: 'test@example.com' }])[0];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+        async () =>
+            new Response(
+                new ReadableStream<Uint8Array>({
+                    start(controller) {
+                        controller.enqueue(Uint8Array.of(1, 2, 3));
+                        controller.error(new Error('synthetic late integrity failure'));
+                    }
+                })
+            )
+    );
+
+    const downloaded = await downloadFile(group, 'aas_et/test');
+    expect(downloaded.unwrapErr()).toEqual({
+        code: 'DOWNLOAD_RECEIVE_FAILED',
+        message: 'Could not receive the downloaded file.'
+    });
+});

@@ -16,7 +16,7 @@ import {
     type Field
 } from '$server/protobuf';
 import { pageRequest, parseLibraryPage, type LibraryCandidate } from '$server/library-metadata';
-import { decodeSplitHeader } from '$server/bmp';
+import { decodeSplitHeader, MAX_SPLIT_HEADER_BYTES } from '$server/bmp';
 import { photosFetch, type Fetcher } from '$server/fetcher';
 import { LIBRARY_STATE_REQUEST } from '$server/library-requests';
 import { parsePhotoDownloadUrl } from '$server/photos-download';
@@ -32,7 +32,7 @@ const LIBRARY_URL = 'https://photosdata-pa.googleapis.com/6439526531001121323/18
 const APP = 'com.google.android.apps.photos';
 const SIGNATURE = '24bb24c05e47e0aefa68a58a766179d9b613a600';
 const DOWNLOAD_MASK = Buffer.from([10, 4, 58, 2, 18, 0, 42, 10, 18, 0, 26, 0, 42, 4, 10, 0, 24, 0]);
-const HEADER_PROBE_BYTES = 65_536;
+const HEADER_PROBE_BYTES = MAX_SPLIT_HEADER_BYTES;
 const LIBRARY_PROBE_CONCURRENCY = 4;
 
 type PhotosHeaders = {
@@ -209,11 +209,18 @@ function send(
                 message: init.signal?.aborted ? `${stage} timed out` : `${stage} failed`
             } as const);
         }
-        if (response.status !== 200)
+        if (response.status !== 200) {
+            try {
+                await response.body?.cancel();
+            } catch {
+                // Preserve the HTTP failure when cancelling its response body also fails.
+            }
+
             return Err({
                 code: 'REQUEST_FAILED',
                 message: `${stage} failed (HTTP ${response.status})`
             } as const);
+        }
 
         return Ok(response);
     });
@@ -526,17 +533,22 @@ export function downloadBmp(
     token: string,
     mediaKey: string,
     sha1: string,
-    fetcher: Fetcher = photosFetch
-): AsyncResult<Buffer, ServerError> {
+    fetcher: Fetcher = photosFetch,
+    signal?: AbortSignal
+): AsyncResult<Response, ServerError> {
     const validReference =
         mediaKey && mediaKey.length <= 1024 && /^[a-f0-9]{40}$/.test(sha1)
             ? Ok(undefined)
             : Err(SERVER_ERRORS.INVALID_FILE_REFERENCE);
 
     return validReference
-        .andThenAsync(() => authenticatedHeaders(email, token, fetcher))
+        .andThenAsync(() =>
+            authenticatedHeaders(email, token, (url, init) => fetcher(url, { ...init, signal }))
+        )
         .andThenAsync(({ commonHeaders, rpcHeaders }) =>
-            preparedDownloadUrl(mediaKey, sha1, rpcHeaders, fetcher).map((url) => ({
+            preparedDownloadUrl(mediaKey, sha1, rpcHeaders, (url, init) =>
+                fetcher(url, { ...init, signal })
+            ).map((url) => ({
                 url,
                 commonHeaders
             }))
@@ -550,23 +562,23 @@ export function downloadBmp(
                 {
                     method: 'GET',
                     redirect: 'manual',
-                    headers: commonHeaders
+                    headers: commonHeaders,
+                    signal
                 },
                 'Download'
             );
         })
-        .andThen((response) => {
-            if (!response.headers.get('content-type')?.startsWith('image/'))
+        .andThenAsync(async (response) => {
+            if (!response.headers.get('content-type')?.startsWith('image/')) {
+                try {
+                    await response.body?.cancel();
+                } catch {
+                    // Preserve the content-type error if the transport cannot cancel its body.
+                }
                 return Err(SERVER_ERRORS.INVALID_DOWNLOAD_CONTENT_TYPE);
+            }
 
             return Ok(response);
-        })
-        .andThenAsync((response) => readBody(response, 'Download'))
-        .andThen((bmp) => {
-            if (createHash('sha1').update(bmp).digest('hex') !== sha1)
-                return Err(SERVER_ERRORS.DOWNLOAD_INTEGRITY_FAILED);
-
-            return Ok(bmp);
         });
 }
 

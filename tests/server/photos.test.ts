@@ -1,5 +1,6 @@
 import { UploadStatus } from '$lib/models';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
+import { bmpResponse, downloadFixture } from '../helpers/download';
 import { createHash } from 'node:crypto';
 import Varint from 'varint';
 import { encodeSplitBmp } from '$server/bmp';
@@ -142,7 +143,7 @@ test('a connection timeout during commit remains uncertain and is never retried 
     expect(requests).toBe(5);
 });
 
-test('download verifies the original and trash targets its dedup key', async () => {
+test('download opens the original response stream and trash targets its dedup key', async () => {
     const bmp = Buffer.from('BM test pixels');
     const sha1 = createHash('sha1').update(bmp).digest();
     const signed = 'https://lh3.googleusercontent.com/p/test=d';
@@ -183,7 +184,9 @@ test('download verifies the original and trash targets its dedup key', async () 
         sha1.toString('hex'),
         fakeFetch
     );
-    expect(downloaded.unwrap()).toEqual(bmp);
+    const response = downloaded.unwrap();
+    const downloadedBytes = await response.arrayBuffer();
+    expect(Buffer.from(downloadedBytes)).toEqual(bmp);
     const deleted = await moveToTrash(
         'test@example.com',
         'aas_et/test',
@@ -394,3 +397,53 @@ test('library lookahead propagates failures and rejects repeated continuation to
     expect(failed.unwrapErr().message).toBe('Library list failed (HTTP 503)');
     expect(libraryCalls).toBe(2);
 });
+
+test.each(['stream', 'content-type', 'http'] as const)(
+    'photo download %s preserves cancellation and does not buffer the image body',
+    async (mode) => {
+        const { input, bmps } = downloadFixture();
+        const chunk = input.chunks[0];
+        const metadata = bytes(
+            1,
+            Buffer.concat([
+                bytes(1, chunk.mediaKey),
+                bytes(2, bytes(13, bytes(1, Buffer.from(chunk.sha1, 'hex')))),
+                bytes(5, bytes(2, bytes(5, 'https://lh3.googleusercontent.com/stream=d')))
+            ])
+        );
+        const cancelled = vi.fn();
+        const read = vi.fn();
+        const raw = bmpResponse(bmps[0], 256, { onRead: read, onCancel: cancelled });
+        const response = new Response(raw.body, {
+            status: mode === 'http' ? 503 : 200,
+            headers: { 'content-type': mode === 'content-type' ? 'text/plain' : 'image/bmp' }
+        });
+        const responses = [
+            new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`),
+            new Response(Uint8Array.from(metadata)),
+            response
+        ];
+        const abort = new AbortController();
+        const fetcher: Fetcher = async (_url, init) => {
+            expect(init?.signal).toBe(abort.signal);
+            return responses.shift()!;
+        };
+
+        const downloaded = await downloadBmp(
+            input.email,
+            input.token,
+            chunk.mediaKey,
+            chunk.sha1,
+            fetcher,
+            abort.signal
+        );
+        expect(read).not.toHaveBeenCalled();
+        if (mode === 'stream') {
+            expect(downloaded.unwrap()).toBe(response);
+            await downloaded.unwrap().body!.cancel();
+        } else {
+            expect(downloaded.isErr()).toBe(true);
+        }
+        expect(cancelled).toHaveBeenCalledOnce();
+    }
+);

@@ -1,13 +1,11 @@
-import { createHash } from 'node:crypto';
 import { access, mkdtemp, open, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { Err, Ok } from 'results-ts';
-import { FileActionKind, type FileRequest } from '$lib/models';
-import { encodeSplitBmp } from '$server/bmp';
 import { downloadFile } from '$server/files';
 import { downloadBmp } from '$server/photos';
+import { bmpResponse, downloadFixture } from '../helpers/download';
 import { receiveUpload } from '$server/upload-input';
 import { readFileRange, removeTemporaryDirectory } from '$server/temporary-files';
 
@@ -132,69 +130,27 @@ test('range open and short-read failures return errors without leaking a handle'
     expect(handleState.closeAttempted).toBe(true);
 });
 
-function downloadInput(payload: Buffer): { input: FileRequest; bmp: Uint8Array<ArrayBuffer> } {
-    const fileHash = createHash('sha256').update(payload).digest('hex');
-    const encoded = encodeSplitBmp(payload, {
-        fileHash,
-        fileId: fileHash,
-        chunkIndex: 0,
-        flags: 1,
-        payloadSize: payload.length,
-        fileName: 'proof.bin'
-    });
-    const bmp = encoded.unwrap();
-    const input: FileRequest = {
-        action: FileActionKind.Download,
-        email: 'test@example.com',
-        token: 'synthetic-token',
-        name: 'proof.bin',
-        fileHash,
-        fileId: fileHash,
-        workers: 1,
-        chunks: [
-            {
-                fileHash,
-                fileId: fileHash,
-                chunkIndex: 0,
-                isLast: true,
-                originalName: 'proof.bin',
-                size: payload.length,
-                at: 1,
-                mediaKey: 'synthetic-key',
-                sha1: createHash('sha1').update(bmp).digest('hex')
-            }
-        ]
-    };
+test.each(['createDirectory', 'openDownload', 'writeDownload'] as const)(
+    'downloads succeed even when %s fails because reconstruction needs no disk',
+    async (failure) => {
+        const { input, bmps, original } = downloadFixture();
+        failures[failure] = true;
+        vi.mocked(downloadBmp).mockImplementation((_email, _token, key) =>
+            Ok(bmpResponse(bmps[Number(key.slice(-1))])).andThenAsync(async (response) =>
+                Ok(response)
+            )
+        );
+        const directoryCalls = vi.mocked(mkdtemp).mock.calls.length;
+        const openCalls = vi.mocked(open).mock.calls.length;
 
-    return { input, bmp };
-}
+        const downloaded = await downloadFile(input);
+        const bytes = await downloaded.unwrap().arrayBuffer();
 
-test('download file creation failure returns an error and removes its temporary directory', async () => {
-    const { input } = downloadInput(Buffer.from([1]));
-    failures.openDownload = true;
-
-    const result = await downloadFile(input);
-
-    expect(result.isErr()).toBe(true);
-    expect(result.unwrapErr().message).toBe('Could not create the downloaded file.');
-    expect(directories).toHaveLength(1);
-    await expect(access(directories[0])).rejects.toThrow();
-});
-
-test('download write failure returns an error, closes the output handle, and cleans storage', async () => {
-    const { input, bmp } = downloadInput(Buffer.from([1]));
-    vi.mocked(downloadBmp).mockImplementation(() =>
-        Ok(Buffer.from(bmp)).andThenAsync(async (bytes) => Ok(bytes))
-    );
-    failures.writeDownload = true;
-
-    const result = await downloadFile(input);
-
-    expect(result.isErr()).toBe(true);
-    expect(result.unwrapErr().message).toBe('Could not save the downloaded file.');
-    expect(directories).toHaveLength(1);
-    await expect(access(directories[0])).rejects.toThrow();
-});
+        expect(Buffer.from(bytes)).toEqual(Buffer.from(original));
+        expect(vi.mocked(mkdtemp).mock.calls.length).toBe(directoryCalls);
+        expect(vi.mocked(open).mock.calls.length).toBe(openCalls);
+    }
+);
 
 test('temporary directory removal failure is returned after cleanup was attempted', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'phodrive-uc23-'));
