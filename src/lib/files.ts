@@ -82,10 +82,13 @@ export function fileType(name: string): string {
 
 export function sortFiles(files: readonly FileGroup[], order: FileSort): FileGroup[] {
     return files.toSorted((first, second) => {
+        if (order === FileSort.ModifiedDescending)
+            return second.at - first.at || first.name.localeCompare(second.name);
+        if (order === FileSort.ModifiedAscending)
+            return first.at - second.at || first.name.localeCompare(second.name);
+
         const byName = first.name.localeCompare(second.name);
         if (order === FileSort.NameDescending) return -byName;
-        if (order === FileSort.ModifiedDescending) return second.at - first.at || byName;
-        if (order === FileSort.ModifiedAscending) return first.at - second.at || byName;
 
         return byName;
     });

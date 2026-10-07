@@ -108,3 +108,21 @@ Memory impact and interpretation: Both classes improve: large groups 91.2%, many
 Correctness: check, 173 tests, build and perf:check pass; duplicate timestamp ties, naming, ordering, completeness and input immutability preserved.
 
 Decision: **KEEP**.
+
+## Iteration 5: Compare names only when date sorting needs a tie-breaker
+
+Change: Compare names only when date sorting needs a tie-breaker.
+
+Hypothesis: Avoid locale-aware collation on every comparison when timestamps already establish ordering.
+
+Benchmark results (milliseconds per unchanged workload):
+
+| Benchmark  | Baseline | Previous | Current | Improvement vs baseline / previous | Peak RSS previous → current MiB |
+| ---------- | -------: | -------: | ------: | ---------------------------------: | ------------------------------: |
+| sort-files |   43.038 |   43.038 |  18.409 |                    +57.2% / +57.2% |                   112.4 → 107.0 |
+
+Memory impact and interpretation: Sorting drops 57.2% against baseline and 59.2% against the immediately preceding 45.17 ms measurement. RSS falls from 114.5 to 107.0 MiB; avoid attributing all process-memory variation to this small comparator change.
+
+Correctness: check, 173 tests, build and perf:check pass; existing Unicode, case, date-tie and immutable sorting coverage retained.
+
+Decision: **KEEP**.
