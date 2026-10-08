@@ -190,7 +190,7 @@ export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, Ser
                             ...chunk,
                             payload,
                             signal: request.signal,
-                            finished: () => Ok(undefined).andThenAsync(async () => await completed),
+                            finished: () => Ok(undefined).and(completed),
                             cancel: () =>
                                 Ok(undefined).andThenAsync(async () => {
                                     active?.destroy();

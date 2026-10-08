@@ -133,7 +133,7 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
         },
         { highWaterMark: 0 }
     );
-    const verified = Ok(undefined).andThenAsync(async () => await verification);
+    const verified = Ok(undefined).and(verification);
 
     return {
         body,
