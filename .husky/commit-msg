@@ -1,1 +1,4 @@
-commitlint --edit "$1"
+#!/bin/sh
+set -eu
+
+bunx commitlint --edit "$1"
