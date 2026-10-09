@@ -1,0 +1,11 @@
+{
+    "version": 1,
+    "skills": {
+        "results-ts": {
+            "source": "madkarmaa/results-ts",
+            "sourceType": "github",
+            "skillPath": "skills/results-ts/SKILL.md",
+            "computedHash": "497ef1d97b722b1859422ab98cbe4e70e607daac9389097db9c56891ad2c7d8a"
+        }
+    }
+}
