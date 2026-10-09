@@ -51,7 +51,7 @@
     "devDependencies": {
         "@commitlint/cli": "^21.2.3",
         "@commitlint/config-conventional": "^21.2.3",
-        "@iconify-json/material-symbols": "^1.2.94",
+        "@iconify-json/material-symbols": "^1.2.95",
         "@semantic-release/commit-analyzer": "^13.0.1",
         "@semantic-release/git": "^11.0.1",
         "@semantic-release/github": "^12.0.10",
@@ -88,7 +88,7 @@
         "noph-ui": "^0.51.2",
         "p-limit": "^7.3.3",
         "pretty-bytes": "^7.2.0",
-        "results-ts": "^4.3.0",
+        "results-ts": "^4.3.1",
         "runed": "^0.37.1",
         "undici": "^8.11.2",
         "varint": "^6.0.0",
