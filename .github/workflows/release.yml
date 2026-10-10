@@ -31,6 +31,12 @@ jobs:
                   fetch-depth: 0
                   persist-credentials: false
 
+            - name: Cache dependencies
+              uses: actions/cache@v6
+              with:
+                  path: '**/node_modules'
+                  key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+
             - name: Set up Node.js
               uses: actions/setup-node@v7
               with:
@@ -40,7 +46,7 @@ jobs:
             - name: Set up Bun
               uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: '1.4.2'
+                  bun-version: '1.4.3'
 
             - name: Install dependencies
               run: bun install --frozen-lockfile
