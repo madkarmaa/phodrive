@@ -1,5 +1,5 @@
 import { createSHA1, createSHA256, sha256, type IHasher } from 'hash-wasm';
-import { Err, Ok, type AsyncResult } from 'results-ts';
+import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import type { ApplicationError } from '#lib/errors';
 import { MAX_CONCURRENT_WORKERS, type SplitHeader } from '#lib/models';
 import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '#lib/bmp/format';
@@ -9,6 +9,10 @@ export const HASH_BLOCK_BYTES = 1024 * 1024;
 const NATIVE_HASH_MIN_BYTES = 32 * 1024;
 const ZERO_BLOCK = new Uint8Array(64 * 1024);
 const FILE_HASHES = new WeakMap<File, string>();
+const HASH_ERROR: ApplicationError = {
+    code: 'HASH_INITIALIZATION_FAILED',
+    message: 'Could not prepare file hashing.'
+};
 
 // Only idle states are pooled; an operation owns its hasher through reads and digesting.
 const AVAILABLE_SHA256_HASHERS: IHasher[] = [];
@@ -27,10 +31,7 @@ function acquireHasher(
 
             return Ok(hasher);
         } catch {
-            return Err({
-                code: 'HASH_INITIALIZATION_FAILED',
-                message: 'Could not prepare file hashing.'
-            } as const);
+            return Err(HASH_ERROR);
         }
     });
 }
@@ -53,12 +54,32 @@ function hashBlob(
                 } as const);
             }
 
-            hasher.update(new Uint8Array(bytes));
+            const updated = updateHasher(hasher, new Uint8Array(bytes));
+            if (updated.isErr()) return updated;
+
             onProgress(Math.min(offset + HASH_BLOCK_BYTES, blob.size));
         }
 
         return Ok(undefined);
     });
+}
+
+function updateHasher(hasher: IHasher, bytes: Uint8Array): Result<void, ApplicationError> {
+    try {
+        hasher.update(bytes);
+
+        return Ok(undefined);
+    } catch {
+        return Err(HASH_ERROR);
+    }
+}
+
+function digestHasher(hasher: IHasher): Result<string, ApplicationError> {
+    try {
+        return Ok(hasher.digest('hex'));
+    } catch {
+        return Err(HASH_ERROR);
+    }
 }
 
 /** The caller limits native hashing to one read block to bound memory and preserve progress. */
@@ -84,10 +105,7 @@ function hashFileNatively(file: File, subtle: SubtleCrypto): AsyncResult<string,
                 ).join('')
             );
         } catch {
-            return Err({
-                code: 'HASH_INITIALIZATION_FAILED',
-                message: 'Could not prepare file hashing.'
-            } as const);
+            return Err(HASH_ERROR);
         }
     });
 }
@@ -129,15 +147,18 @@ function hashFileIncrementally(
 ): AsyncResult<string, ApplicationError> {
     return acquireHasher(createSHA256, AVAILABLE_SHA256_HASHERS).andThenAsync(async (hasher) => {
         const hashed = await hashBlob(file, hasher, onProgress);
-        const result = hashed.map(() => {
-            const digest = hasher.digest('hex');
-            FILE_HASHES.set(file, digest);
-
-            return digest;
+        const result = hashed
+            .andThen(() => digestHasher(hasher))
+            .inspect((digest) => {
+                FILE_HASHES.set(file, digest);
+            });
+        const reusable = result.match({
+            Ok: () => true,
+            Err: (error) => error.code === 'FILE_READ_FAILED'
         });
 
-        // Limit retained WASM states, including states returned after a failed read.
-        if (AVAILABLE_SHA256_HASHERS.length < MAX_CONCURRENT_WORKERS)
+        // A failed WASM operation may leave its state unusable.
+        if (reusable && AVAILABLE_SHA256_HASHERS.length < MAX_CONCURRENT_WORKERS)
             AVAILABLE_SHA256_HASHERS.push(hasher);
 
         return result;
@@ -154,10 +175,7 @@ export function uploadIdentity(
 
             return Ok(identity);
         } catch {
-            return Err({
-                code: 'HASH_INITIALIZATION_FAILED',
-                message: 'Could not prepare file hashing.'
-            } as const);
+            return Err(HASH_ERROR);
         }
     });
 }
@@ -169,17 +187,27 @@ export function hashUploadChunk(
 ): AsyncResult<{ sha1: string; size: number }, ApplicationError> {
     return encodeSplitPrefix(header).andThenAsync(({ prefix, totalSize, paddingSize }) =>
         acquireHasher(createSHA1, AVAILABLE_SHA1_HASHERS).andThenAsync(async (hasher) => {
-            hasher.update(prefix);
+            const prefixed = updateHasher(hasher, prefix);
+            if (prefixed.isErr()) return prefixed;
 
             const hashed = await hashBlob(payload, hasher, () => {});
-            const result = hashed.map(() => {
-                for (let offset = 0; offset < paddingSize; offset += ZERO_BLOCK.length)
-                    hasher.update(ZERO_BLOCK.subarray(0, paddingSize - offset));
+            const result = hashed.andThen(() => {
+                for (let offset = 0; offset < paddingSize; offset += ZERO_BLOCK.length) {
+                    const updated = updateHasher(
+                        hasher,
+                        ZERO_BLOCK.subarray(0, paddingSize - offset)
+                    );
+                    if (updated.isErr()) return updated;
+                }
 
-                return { sha1: hasher.digest('hex'), size: totalSize };
+                return digestHasher(hasher).map((sha1) => ({ sha1, size: totalSize }));
+            });
+            const reusable = result.match({
+                Ok: () => true,
+                Err: (error) => error.code === 'FILE_READ_FAILED'
             });
 
-            if (AVAILABLE_SHA1_HASHERS.length < MAX_CONCURRENT_WORKERS)
+            if (reusable && AVAILABLE_SHA1_HASHERS.length < MAX_CONCURRENT_WORKERS)
                 AVAILABLE_SHA1_HASHERS.push(hasher);
 
             return result;
