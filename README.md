@@ -4,7 +4,7 @@
     <p align="center"><i>Files worth a thousand pixels.</i></p>
 </p>
 
-Store files in Google Photos by encoding them as BMP images. Phodrive identifies itself as a Pixel XL to use unlimited photo storage.
+Use Google Photos as a cloud storage provider by spoofing a Pixel XL device to get unlimited storage.
 
 > [!CAUTION]
 > Using this project may violate Google's terms or policies and could result in your Google account being restricted or banned.
@@ -22,7 +22,7 @@ Store files in Google Photos by encoding them as BMP images. Phodrive identifies
 
 ## Development
 
-Use Node.js 22.22.2 (22.x) or 24.15 or newer, or Bun.
+Use Node.js 24.15 or newer, or Bun.
 
 ```sh
 bun install
