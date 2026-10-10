@@ -264,7 +264,7 @@ export class DriveController {
 
         const token = this.accounts[item.email];
         if (item.email !== this.selectedEmail || !token) {
-            this.feedbackMessage = 'Select the file’s connected account before continuing.';
+            this.feedbackMessage = 'Select the connected account for this file before continuing.';
 
             return;
         }

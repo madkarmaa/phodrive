@@ -70,7 +70,7 @@ export function streamDownload(
         if (requestSignal?.aborted) await cleanup();
         if (closed) return Err(SERVER_ERRORS.COULD_NOT_READ_THE_DOWNLOADED_FILE);
 
-        // Prepare only the first header so authentication and metadata errors remain actionable.
+        // Validate the first header before sending a response so HTTP errors reach the browser.
         const first = await openChunk(input, chunks[0], abort.signal);
         if (first.isErr()) {
             await cleanup();

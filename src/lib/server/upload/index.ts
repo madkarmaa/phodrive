@@ -28,7 +28,7 @@ export function planUpload(file: UploadFile): Result<UploadPlan, ServerError> {
     return planChunks(file, fileIdentity(file.name, file.fileHash));
 }
 
-/** One incoming split is encoded and forwarded directly, with no disk or whole-chunk buffer. */
+/** Encode and forward one incoming chunk without disk storage or a whole-chunk buffer. */
 export function uploadFiles(
     input: ReceivedUpload,
     emit: (event: UploadEvent) => void,

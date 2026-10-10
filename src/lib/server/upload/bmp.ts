@@ -34,7 +34,7 @@ export function encodeUploadBmp(input: ReceivedUpload): UploadBmpSource {
         try {
             await reader.cancel();
         } catch {
-            // Keep the primary verification/transport failure.
+            // Preserve the verification or transport error if cancellation fails.
         } finally {
             reader.releaseLock();
         }

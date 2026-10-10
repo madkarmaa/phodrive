@@ -1,13 +1,13 @@
 <p align="center">
-    <img src="./src/lib/assets/favicon.svg" alt="result-ts logo" width="100" height="auto" />
+    <img src="./src/lib/assets/favicon.svg" alt="Phodrive logo" width="100" height="auto" />
     <h1 align="center">Phodrive</h1>
     <p align="center"><i>Files worth a thousand pixels.</i></p>
 </p>
 
-Use Google Photos as a cloud storage provider by spoofing a Pixel XL device to get unlimited storage.
+Store files in Google Photos by encoding them as BMP images. Phodrive identifies itself as a Pixel XL to use unlimited photo storage.
 
 > [!CAUTION]
-> Using this project may violate Google’s terms or policies and could result in your Google account being restricted or banned.
+> Using this project may violate Google's terms or policies and could result in your Google account being restricted or banned.
 
 <table>
     <tr>
@@ -29,27 +29,28 @@ bun install
 bun --bun run dev
 ```
 
-1. Open `http://127.0.0.1:5173`
-2. Add a Google account email and the one-time `oauth2_4/` token from the [Google Embedded Setup](https://accounts.google.com/EmbeddedSetup) cookies
-3. In developer tools, open **Application → Cookies → https://accounts.google.com** and copy the cookie value starting with `oauth2_4/`.
+1. Open `http://127.0.0.1:5173`.
+2. Sign in at [Google Embedded Setup](https://accounts.google.com/EmbeddedSetup).
+3. In developer tools, open Application, then Cookies, then `https://accounts.google.com`. Copy the cookie value starting with `oauth2_4/`.
+4. Enter your Google account email and paste the token into Phodrive.
 
 ![How to get the token](./docs/screenshots/token.png)
 
 > [!NOTE]
-> Credentials are stored only in your browser. The server uses them for each request and does not save them.
+> Your browser stores the credentials. The server uses them for each request and does not save them.
 
 ### Deployment defaults
 
-Settings use this order: **saved user choice → deployment default → hardcoded default**. Unset browser preferences are not saved automatically, so changing deployment defaults still affects users who have not chosen their own values.
+Settings use your saved choice first, then the deployment default, then the built-in default. Phodrive saves a browser preference only when you choose a value. Users without a saved choice receive updated deployment defaults.
 
-| Environment variable                        | Hardcoded default | Allowed values                                           |
-| ------------------------------------------- | ----------------- | -------------------------------------------------------- |
-| `PHODRIVE_DEFAULT_REFRESH_INTERVAL_SECONDS` | `60`              | Whole seconds from `0` to `86400`; `0` disables refresh  |
-| `PHODRIVE_DEFAULT_CONCURRENT_WORKERS`       | `8`               | Whole numbers from `1` to `32`                           |
-| `PHODRIVE_DEFAULT_THEME`                    | `auto`            | `auto`, `light`, `dark`                                  |
-| `PHODRIVE_DEFAULT_SORT`                     | `modified-desc`   | `modified-desc`, `modified-asc`, `name-asc`, `name-desc` |
+| Environment variable                        | Built-in default | Allowed values                                           |
+| ------------------------------------------- | ---------------- | -------------------------------------------------------- |
+| `PHODRIVE_DEFAULT_REFRESH_INTERVAL_SECONDS` | `60`             | Whole seconds from `0` to `86400`; `0` disables refresh  |
+| `PHODRIVE_DEFAULT_CONCURRENT_WORKERS`       | `8`              | Whole numbers from `1` to `32`                           |
+| `PHODRIVE_DEFAULT_THEME`                    | `auto`           | `auto`, `light`, `dark`                                  |
+| `PHODRIVE_DEFAULT_SORT`                     | `modified-desc`  | `modified-desc`, `modified-asc`, `name-asc`, `name-desc` |
 
-Set these variables in the server environment before starting the app. Missing or invalid values use the hardcoded defaults. The server publishes only the validated settings defaults; credentials stay private. For example:
+Set these variables in the server environment before starting the app. Missing or invalid values use the built-in defaults. The server publishes the validated settings defaults. For example:
 
 ```sh
 bunx cross-env PHODRIVE_DEFAULT_REFRESH_INTERVAL_SECONDS=120 PHODRIVE_DEFAULT_CONCURRENT_WORKERS=4 bun run dev
@@ -57,7 +58,7 @@ bunx cross-env PHODRIVE_DEFAULT_REFRESH_INTERVAL_SECONDS=120 PHODRIVE_DEFAULT_CO
 
 For Docker, pass the same variables with `-e`, for example `-e PHODRIVE_DEFAULT_CONCURRENT_WORKERS=4`.
 
-For a production build on this computer, using Node.js for the standard adapter launch:
+To build and run with Node.js:
 
 ```sh
 bun run build
@@ -76,7 +77,7 @@ Open `http://127.0.0.1:3000` for the production build.
 > [!WARNING]
 > Do not expose this server to other machines.
 >
-> The local API is not designed as a public service: it has no user authentication. A person who can reach it could send requests through your server to Google Photos and could use your machine's network and resources.
+> The API has no user authentication. Anyone who can reach it can send Google Photos requests through your server and use your machine's network and resources.
 
 ## Run with Docker
 
@@ -100,7 +101,7 @@ bun run build
 
 Copyright © 2026 MadKarma (madkarmaa). Phodrive is licensed under the MIT License; see [LICENSE](./LICENSE).
 
-Google Photos protocol implementation is based on [xob0t/gotohp](https://github.com/xob0t/gotohp) (MIT).
+The Google Photos protocol code is based on [xob0t/gotohp](https://github.com/xob0t/gotohp) (MIT).
 
 The Photos library request mask is based on [xob0t/gpmc](https://github.com/xob0t/gpmc) (MIT).
 
@@ -110,4 +111,4 @@ The OAuth2 exchange's DroidGuard compatibility field follows [simon-weber/gpsoau
 
 ## AI use
 
-AI tools assisted with upstream research, implementation, refactoring, visual assets, testing, and documentation. The project maintainer directs the work and is responsible for reviewing and accepting AI-assisted contributions.
+The maintainer uses AI tools for research, code, visual assets, tests, and documentation, and reviews and accepts their contributions.

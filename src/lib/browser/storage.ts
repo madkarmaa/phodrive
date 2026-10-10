@@ -36,7 +36,7 @@ export const NEXT_THEME: Record<ThemeMode, ThemeMode> = {
 type Accounts = Record<string, string>;
 const STORAGE_ERROR = 'Browser storage is unavailable. Enable it to save your preferences.';
 
-/** Handle malformed JSON here: Runed's default parser logs the raw stored value. */
+/** Runed's default parser logs raw values on malformed JSON, which could expose credentials. */
 function parseStoredJson(raw: string): Result<unknown, ApplicationError> {
     try {
         const value: unknown = JSON.parse(raw);
@@ -118,7 +118,7 @@ export const CONCURRENT_WORKERS_SERIALIZER = {
     }
 };
 
-/** JSON keeps the empty selection nonempty in storage, so Runed reads it as the source of truth. */
+/** JSON encodes an empty selection as a nonempty string so Runed reads it from storage. */
 export const SELECTED_ACCOUNT_SERIALIZER = {
     serialize: (email: string) => JSON.stringify(email),
     deserialize: (raw: string): string => {
@@ -195,7 +195,7 @@ export class BrowserPreferences {
     private readonly selectedState = new PersistedState(SELECTED_KEY, '', {
         serializer: SELECTED_ACCOUNT_SERIALIZER
     });
-    // Runed skips undefined writes, keeping deployment defaults free to change until a user chooses.
+    // Runed skips undefined writes, so deployment defaults apply until the user saves a choice.
     private readonly themeState = new PersistedState<ThemeMode | undefined>(THEME_KEY, undefined, {
         serializer: THEME_SERIALIZER
     });
