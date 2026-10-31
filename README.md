@@ -22,16 +22,18 @@ Use Google Photos as a cloud storage provider by spoofing a Pixel XL device to g
 
 ## Development
 
-Use Node.js 24.21 or newer, or Bun.
+Use Node.js 24.21 or newer, or Bun, and Docker for PostgreSQL.
 
 ```sh
 bun install
+cp .env.example .env    # then set BETTER_AUTH_SECRET, for example with: openssl rand -base64 32
+docker compose up -d db
 bun --bun run dev
 ```
 
-Open `http://127.0.0.1:5173`. With Node.js, use `npm install` and `npm run dev` instead.
+Open `http://127.0.0.1:5173`. With Node.js, use `npm install` and `npm run dev` instead. The app applies database migrations when it starts. After changing `app/src/lib/server/db/schema.ts`, run `bun run --cwd app db:generate` to add a migration.
 
-The repository uses [Bun workspaces](https://bun.sh/docs/pm/workspaces), also supported by npm. `app/` contains the SvelteKit web app. `core/` is the standalone `@madkarmaa/phodrive-core` library for the file format, Google Photos protocol, and transfers. `cli/` is the `phodrive` command line. Root commands build core before running the app. Run the command line from source with `bun run cli <command>`, for example `bun run cli file list`. See [core usage](./core/README.md) for using the library elsewhere.
+The repository uses [Bun workspaces](https://bun.sh/docs/pm/workspaces), also supported by npm. `app/` contains the SvelteKit web app and its Hono API. `core/` is the standalone `@madkarmaa/phodrive-core` library for the file format, Google Photos protocol, and transfers. `cli/` is the `phodrive` command line. Root commands build core before running the app. Run the command line from source with `bun run cli <command>`, for example `bun run cli file list`. See [core usage](./core/README.md) for using the library elsewhere.
 
 Keep environment files at the repository root, for example `.env`.
 
@@ -48,13 +50,11 @@ bun run build
 ## Deployment
 
 > [!WARNING]
-> Do not expose this server to other machines.
->
-> The API has no user authentication. Anyone who can reach it can send Google Photos requests through your server and use your machine's network and resources.
+> If other machines can reach the server, serve it over HTTPS and set `PHODRIVE_DISABLE_SIGNUP=true` once your users have signed up.
 
 ### From source
 
-Install dependencies with `bun install`.
+Install dependencies with `bun install`, then set up `.env` and PostgreSQL as in [Development](#development). The start commands read `.env` from the repository root.
 
 To build and run with Node.js:
 
@@ -74,11 +74,23 @@ Open `http://127.0.0.1:3000` for the production build.
 
 ### Docker
 
+[`compose.yaml`](./compose.yaml) runs the app with PostgreSQL. Set `BETTER_AUTH_SECRET` in `.env` next to it, then:
+
 ```sh
-docker run --pull always --rm --init --name phodrive -p 127.0.0.1:3000:3000 ghcr.io/madkarmaa/phodrive:latest
+docker compose pull
+docker compose up -d
 ```
 
-Open `http://localhost:3000` or `http://127.0.0.1:3000`. The server derives the upload origin from the request host and port, including a different published port. To override it, pass `-e ORIGIN=http://localhost:3000` with the exact origin used in your browser.
+Open `http://localhost:3000` or `http://127.0.0.1:3000`. The server derives its origin from the request host and port, including a different published port. To override it, set `ORIGIN` and `BETTER_AUTH_URL` to the exact origin used in your browser, for example `http://localhost:3000`.
+
+### Server settings
+
+| Environment variable      | Required | Description                                                                                                                                 |
+| ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`            | Yes      | PostgreSQL connection URL                                                                                                                   |
+| `BETTER_AUTH_SECRET`      | Yes      | At least 32 characters. Signs sessions and encrypts stored Google tokens; changing it signs everyone out and makes them replace their token |
+| `BETTER_AUTH_URL`         | No       | Public origin of the app; derived from each request when unset                                                                              |
+| `PHODRIVE_DISABLE_SIGNUP` | No       | `true` stops new signups; defaults to `false`                                                                                               |
 
 ### Deployment defaults
 
@@ -99,17 +111,21 @@ bunx cross-env PHODRIVE_DEFAULT_REFRESH_INTERVAL_SECONDS=120 PHODRIVE_DEFAULT_CO
 
 For Docker, pass the same variables with `-e`, for example `-e PHODRIVE_DEFAULT_CONCURRENT_WORKERS=4`.
 
-## Connect a Google account
+## Create an account
 
-1. Open the app at the address shown above for your setup.
+Each Phodrive account belongs to one Google account.
+
+1. Open the app at the address shown above for your setup and choose **Create account**.
 2. Sign in at [Google Embedded Setup](https://accounts.google.com/EmbeddedSetup).
 3. In developer tools, open Application, then Cookies, then `https://accounts.google.com`. Copy the cookie value starting with `oauth2_4/`.
-4. Enter your Google account email and paste the token into Phodrive.
+4. Enter your Google account email, a password, and the token.
 
 ![How to get the token](./docs/screenshots/token.png)
 
+Afterwards, sign in with the email and password. To use another Google account, sign out and sign in with, or create, its Phodrive account. If Google stops accepting the token, replace it in Settings.
+
 > [!NOTE]
-> Your browser stores the credentials. The server uses them for each request and does not save them.
+> The server exchanges the token, stores it encrypted in the database, and makes every Google Photos request itself. The browser never receives the token.
 
 ## Command line
 
