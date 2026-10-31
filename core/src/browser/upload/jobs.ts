@@ -100,7 +100,7 @@ export function createUploadEventHandler(
     jobs: UploadJob[],
     email: string,
     onJob: (job: UploadJob) => void,
-    onChunk: (chunk: UploadedChunk) => void
+    onChunk: (chunk: UploadedChunk, jobId: number) => void
 ): (event: UploadEvent) => Result<void, ApplicationError> {
     const confirmed = jobs.map(() => new Map<number, UploadedChunk>());
 
@@ -156,7 +156,7 @@ export function createUploadEventHandler(
                     return invalidProgress();
 
                 saved.set(chunk.chunkIndex, chunk);
-                onChunk(chunk);
+                onChunk(chunk, jobId);
 
                 return Ok(undefined);
             }

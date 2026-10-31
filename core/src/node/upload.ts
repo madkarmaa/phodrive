@@ -189,7 +189,7 @@ export function uploadFiles(
     token: string,
     workers: number,
     onJob: (job: UploadJob) => void,
-    onChunk: (chunk: UploadedChunk) => void,
+    onChunk: (chunk: UploadedChunk, jobId: number) => void,
     options: TransferOptions = {}
 ): AsyncResult<void, ApplicationError> {
     return validateWorkers(workers).andThenAsync((concurrency) =>

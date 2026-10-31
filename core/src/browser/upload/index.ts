@@ -252,7 +252,7 @@ export function uploadFiles(
     email: string,
     workers: number,
     onJob: (job: UploadJob) => void,
-    onChunk: (chunk: UploadedChunk) => void,
+    onChunk: (chunk: UploadedChunk, jobId: number) => void,
     processing: ProcessingMode
 ): AsyncResult<void, ApplicationError> {
     return schemaResult(
@@ -272,7 +272,7 @@ function sendFiles(
     email: string,
     concurrency: number,
     onJob: (job: UploadJob) => void,
-    onChunk: (chunk: UploadedChunk) => void
+    onChunk: (chunk: UploadedChunk, jobId: number) => void
 ): AsyncResult<void, ApplicationError> {
     return Ok(undefined).andThenAsync(async () => {
         const jobs = createUploadJobs(files);
@@ -307,7 +307,7 @@ export function transferFiles(
     email: string,
     concurrency: number,
     onJob: (job: UploadJob) => void,
-    onChunk: (chunk: UploadedChunk) => void,
+    onChunk: (chunk: UploadedChunk, jobId: number) => void,
     transport: ChunkTransport
 ): AsyncResult<void, ApplicationError> {
     return Ok(undefined).andThenAsync(async () => {
