@@ -21,7 +21,8 @@ function fileRequest(item: FileGroup, action: FileActionKind, workers: number): 
             name: item.name,
             fileHash: item.fileHash,
             fileId: item.fileId,
-            chunks: item.chunks,
+            // Chunks carry their owner's email locally; the server uses the signed-in account.
+            chunks: item.chunks.map(({ email: _email, ...chunk }) => chunk),
             workers
         })
     };

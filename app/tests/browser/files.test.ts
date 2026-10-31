@@ -178,6 +178,7 @@ test('download asks for one reconstructed file and preserves its original bytes'
         if (typeof init?.body !== 'string') throw new Error('Expected JSON');
         const body: unknown = JSON.parse(init.body);
         expect(body).not.toHaveProperty('token');
+        expect(init.body).not.toContain('test@example.com');
         const request = FileActionRequestSchema.parse(body);
         expect(request.action).toBe('download');
         expect(request.chunks).toHaveLength(1);
