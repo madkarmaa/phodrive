@@ -23,6 +23,8 @@ export const FILE_SORT_KEY = 'phodrive-sort';
 export const FILE_LAYOUT_KEY = 'phodrive-layout';
 export const REFRESH_INTERVAL_KEY = 'phodrive-refresh-interval';
 export const CONCURRENT_WORKERS_KEY = 'phodrive-concurrent-workers';
+/** Earlier versions kept Google accounts and their tokens here; the server holds them now. */
+export const LEGACY_CREDENTIAL_KEYS = ['accounts', 'selectedAccount'] as const;
 export const NEXT_THEME: Record<ThemeMode, ThemeMode> = {
     [ThemeMode.Auto]: ThemeMode.Light,
     [ThemeMode.Light]: ThemeMode.Dark,
@@ -229,6 +231,17 @@ export class BrowserPreferences {
     resetConcurrentWorkers(): Result<void, ApplicationError> {
         return resetState(this.concurrentWorkersState);
     }
+}
+
+/** Delete tokens an earlier version left in this browser; they are not carried over. */
+export function removeLegacyCredentials(): Result<void, ApplicationError> {
+    try {
+        for (const key of LEGACY_CREDENTIAL_KEYS) window.localStorage.removeItem(key);
+    } catch {
+        return Err(STORAGE_UNAVAILABLE);
+    }
+
+    return Ok(undefined);
 }
 
 export function createBrowserPreferences(

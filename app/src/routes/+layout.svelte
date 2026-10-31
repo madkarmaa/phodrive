@@ -1,6 +1,7 @@
 <script lang="ts">
-    import type { Snippet } from 'svelte';
+    import { onMount, type Snippet } from 'svelte';
     import { APP_MOTTO, APP_NAME } from '#lib/app';
+    import { removeLegacyCredentials } from '#browser/storage';
     import './theme.css';
     import './layout.css';
     import '@fontsource-variable/google-sans-flex/opsz.css';
@@ -10,6 +11,11 @@
     }
 
     let { children }: Props = $props();
+
+    onMount(() => {
+        // Blocked storage cannot hold old tokens either, so there is nothing else to do.
+        removeLegacyCredentials().inspectErr(() => {});
+    });
 </script>
 
 <svelte:head>

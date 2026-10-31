@@ -21,10 +21,12 @@ import {
     FILE_SORT_KEY,
     FILE_LAYOUT_KEY,
     FILE_LAYOUT_SERIALIZER,
+    LEGACY_CREDENTIAL_KEYS,
     REFRESH_INTERVAL_SERIALIZER,
     REFRESH_INTERVAL_KEY,
     THEME_SERIALIZER,
-    THEME_KEY
+    THEME_KEY,
+    removeLegacyCredentials
 } from '#browser/storage';
 
 const { storage } = vi.hoisted(() => {
@@ -88,6 +90,17 @@ test('file layout rejects invalid stored values and persists the selected view',
 
     expect(preferences.saveFileLayout(FileLayout.List).isOk()).toBe(true);
     expect(new BrowserPreferences().fileLayout).toBe(FileLayout.List);
+});
+
+test('tokens left by earlier versions are deleted while preferences stay', () => {
+    storage.setItem('accounts', JSON.stringify({ 'test@example.com': 'aas_et/legacy' }));
+    storage.setItem('selectedAccount', JSON.stringify('test@example.com'));
+    storage.setItem(THEME_KEY, ThemeMode.Dark);
+
+    expect(removeLegacyCredentials().isOk()).toBe(true);
+
+    for (const key of LEGACY_CREDENTIAL_KEYS) expect(storage.getItem(key)).toBeNull();
+    expect(storage.getItem(THEME_KEY)).toBe(ThemeMode.Dark);
 });
 
 test('plain-text theme serialization retains its storage format', () => {
