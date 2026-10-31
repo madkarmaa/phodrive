@@ -26,7 +26,7 @@ Use Node.js 24.21 or newer, or Bun, and Docker for PostgreSQL.
 
 ```sh
 bun install
-cp .env.example .env    # then set BETTER_AUTH_SECRET, for example with: openssl rand -base64 32
+cp .env.example .env    # then set BETTER_AUTH_SECRET and PHODRIVE_PROCESSING
 docker compose up -d db
 bun --bun run dev
 ```
@@ -74,7 +74,7 @@ Open `http://127.0.0.1:3000` for the production build.
 
 ### Docker
 
-[`compose.yaml`](./compose.yaml) runs the app with PostgreSQL. Set `BETTER_AUTH_SECRET` in `.env` next to it, then:
+[`compose.yaml`](./compose.yaml) runs the app with PostgreSQL. Set `BETTER_AUTH_SECRET` and `PHODRIVE_PROCESSING` in `.env` next to it, then:
 
 ```sh
 docker compose pull
@@ -90,7 +90,15 @@ Open `http://localhost:3000` or `http://127.0.0.1:3000`. The server derives its 
 | `DATABASE_URL`            | Yes      | PostgreSQL connection URL                                                                                                                   |
 | `BETTER_AUTH_SECRET`      | Yes      | At least 32 characters. Signs sessions and encrypts stored Google tokens; changing it signs everyone out and makes them replace their token |
 | `BETTER_AUTH_URL`         | No       | Public origin of the app; derived from each request when unset                                                                              |
+| `PHODRIVE_PROCESSING`     | Yes      | `browser` or `server`, chosen for your hardware; see [File processing](#file-processing)                                                    |
 | `PHODRIVE_DISABLE_SIGNUP` | No       | `true` stops new signups; defaults to `false`                                                                                               |
+
+### File processing
+
+`PHODRIVE_PROCESSING` decides where files are hashed, split into chunks, and encoded as images, and where downloads are verified and rebuilt. It has no default; the server does not start until it is set.
+
+- `browser`: each browser does the work, and the server only relays finished chunks to and from Google Photos. Use this on small servers, such as a Raspberry Pi or a low-tier VPS.
+- `server`: the browser sends whole files and the server does the work. The server stores each upload in its temporary folder until Google Photos has every chunk, so it needs free disk space for the files being uploaded. Use this on powerful servers, or when browsers run on slow devices.
 
 ### Deployment defaults
 
