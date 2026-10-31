@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Button, Card, Tab, Tabs, TextField } from 'noph-ui';
     import { invalidateAll } from '$app/navigation';
-    import { SignInSchema, SignUpSchema, type SignInInput, type SignUpInput } from '#lib/auth';
+    import { SignInSchema, SignUpFormSchema, type SignInInput, type SignUpInput } from '#lib/auth';
     import { APP_MOTTO, APP_NAME } from '#lib/app';
     import { signIn, signUp } from '#browser/auth';
     import TokenHelp from '#components/TokenHelp.svelte';
@@ -15,21 +15,34 @@
     let { signupEnabled }: Props = $props();
 
     type Mode = 'sign-in' | 'sign-up';
-    type Field = 'email' | 'password' | 'token';
+    type Field = 'email' | 'password' | 'confirmPassword' | 'token';
+    const FIELDS: readonly Field[] = ['email', 'password', 'confirmPassword', 'token'];
+    const UNTOUCHED: Record<Field, boolean> = {
+        email: false,
+        password: false,
+        confirmPassword: false,
+        token: false
+    };
 
     let mode = $state<Mode>('sign-in');
     let email = $state('');
     let password = $state('');
+    let confirmPassword = $state('');
     let token = $state('');
     let submitting = $state(false);
     let feedback = $state('');
-    let touched = $state<Record<Field, boolean>>({ email: false, password: false, token: false });
+    let touched = $state<Record<Field, boolean>>({ ...UNTOUCHED });
     let inputs = $state<Partial<Record<Field, HTMLInputElement | HTMLTextAreaElement>>>({});
 
     const signingUp = $derived(mode === 'sign-up' && signupEnabled);
     const validation = $derived(
         signingUp
-            ? SignUpSchema.safeParse({ email: email.trim(), password, token: token.trim() })
+            ? SignUpFormSchema.safeParse({
+                  email: email.trim(),
+                  password,
+                  confirmPassword,
+                  token: token.trim()
+              })
             : SignInSchema.safeParse({ email: email.trim(), password })
     );
 
@@ -42,14 +55,17 @@
     function chooseMode(next: Mode) {
         mode = next;
         feedback = '';
-        touched = { email: false, password: false, token: false };
+        touched = { ...UNTOUCHED };
     }
 
     async function submit(input: SignInInput | SignUpInput) {
         submitting = true;
         feedback = '';
 
-        const result = 'token' in input ? await signUp(input) : await signIn(input);
+        const result =
+            'token' in input
+                ? await signUp({ email: input.email, password: input.password, token: input.token })
+                : await signIn(input);
 
         submitting = false;
 
@@ -105,11 +121,16 @@
                     novalidate
                     onsubmit={(event) => {
                         event.preventDefault();
-                        touched = { email: true, password: true, token: signingUp };
+                        touched = {
+                            email: true,
+                            password: true,
+                            confirmPassword: signingUp,
+                            token: signingUp
+                        };
                         if (!validation.success) {
-                            const field = validation.error.issues[0]?.path[0];
-                            if (field === 'email' || field === 'password' || field === 'token')
-                                inputs[field]?.focus();
+                            const path = validation.error.issues[0]?.path[0];
+                            const field = FIELDS.find((name) => name === path);
+                            if (field) inputs[field]?.focus();
 
                             return;
                         }
@@ -144,6 +165,19 @@
                         />
                     </div>
                     {#if signingUp}
+                        <div class="field min-w-0">
+                            <TextField
+                                label="Repeat password"
+                                type="password"
+                                bind:value={confirmPassword}
+                                bind:inputElement={inputs.confirmPassword}
+                                issues={issues('confirmPassword')}
+                                onblur={() => (touched.confirmPassword = true)}
+                                disabled={submitting}
+                                autocomplete="new-password"
+                                required
+                            />
+                        </div>
                         <div class="field min-w-0">
                             <TextField
                                 label="OAuth2 or AAS token"

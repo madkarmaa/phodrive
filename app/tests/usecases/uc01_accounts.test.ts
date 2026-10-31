@@ -7,6 +7,7 @@ import { replaceGoogleToken, signOut, signUp } from '#browser/auth';
 import {
     GoogleTokenRequestSchema,
     SignInSchema,
+    SignUpFormSchema,
     SignUpRequestSchema,
     SignUpSchema,
     TOKEN_ENCRYPTION
@@ -66,6 +67,28 @@ test('signup needs a Google email, a valid password, and a Google token before a
     expect(SignUpSchema.safeParse({ ...valid, token: 'not-a-token' }).success).toBe(false);
     expect(SignUpSchema.safeParse({ ...valid, email: 'not-an-email' }).success).toBe(false);
     expect(SignInSchema.safeParse({ email: valid.email, password: '' }).success).toBe(false);
+});
+
+test('the signup form needs the password repeated exactly, even while other fields are invalid', () => {
+    const form = {
+        email: 'test@example.com',
+        password: 'long enough',
+        confirmPassword: 'long enough',
+        token: 'oauth2_4/fake'
+    };
+
+    expect(SignUpFormSchema.safeParse(form).success).toBe(true);
+
+    const mismatch = SignUpFormSchema.safeParse({ ...form, confirmPassword: 'long enougH' });
+    expect(mismatch.error?.issues.map((issue) => issue.path[0])).toEqual(['confirmPassword']);
+
+    const incomplete = SignUpFormSchema.safeParse({
+        ...form,
+        email: '',
+        token: '',
+        confirmPassword: 'different'
+    });
+    expect(incomplete.error?.issues.map((issue) => issue.path[0])).toContain('confirmPassword');
 });
 
 /** A stand-in server: publishes a public key and records every request body it receives. */
