@@ -4,7 +4,13 @@ import { ThemeMode } from '@madkarmaa/phodrive-core/models';
 import { invalidateAll } from '$app/navigation';
 import { DriveController } from '#browser/drive/index.svelte';
 import { replaceGoogleToken, signOut, signUp } from '#browser/auth';
-import { SignInSchema, SignUpSchema } from '#lib/auth';
+import {
+    GoogleTokenRequestSchema,
+    SignInSchema,
+    SignUpRequestSchema,
+    SignUpSchema,
+    TOKEN_ENCRYPTION
+} from '#lib/auth';
 
 const { storage } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -62,25 +68,76 @@ test('signup needs a Google email, a valid password, and a Google token before a
     expect(SignInSchema.safeParse({ email: valid.email, password: '' }).success).toBe(false);
 });
 
-test('signup posts once to the account endpoint and never stores the token in the browser', async () => {
-    const fetchMock = vi
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(Response.json({ signedUp: true }));
+/** A stand-in server: publishes a public key and records every request body it receives. */
+async function tokenServer(reply: Response = Response.json({ signedUp: true })) {
+    const pair = await crypto.subtle.generateKey(
+        {
+            ...TOKEN_ENCRYPTION,
+            modulusLength: 2048,
+            publicExponent: new Uint8Array([1, 0, 1])
+        },
+        false,
+        ['encrypt', 'decrypt']
+    );
+    const key = await crypto.subtle.exportKey('jwk', pair.publicKey);
+    const bodies: string[] = [];
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+        bodies.push(typeof init?.body === 'string' ? init.body : '');
+        if (url === '/api/account/key') return Response.json({ key });
+
+        return reply;
+    });
+    const decrypt = async (encrypted: string) => {
+        const plaintext = await crypto.subtle.decrypt(
+            TOKEN_ENCRYPTION,
+            pair.privateKey,
+            Buffer.from(encrypted, 'base64')
+        );
+
+        return new TextDecoder().decode(plaintext);
+    };
+
+    return { fetchMock, bodies, decrypt };
+}
+
+test('signup sends only an encrypted token and never stores it in the browser', async () => {
+    const server = await tokenServer();
     const input = { email: 'test@example.com', password: 'long enough', token: 'oauth2_4/fake' };
 
     const signedUp = await signUp(input);
 
     expect(signedUp.isOk()).toBe(true);
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/account');
+    expect(server.fetchMock.mock.calls.map(([url]) => url)).toEqual([
+        '/api/account/key',
+        '/api/account'
+    ]);
+    expect(server.bodies.some((body) => body.includes('oauth2_4'))).toBe(false);
+
+    const sent = SignUpRequestSchema.parse(JSON.parse(server.bodies[1]));
+    expect(sent).toMatchObject({ email: input.email, password: input.password });
+    expect(await server.decrypt(sent.encryptedToken)).toBe(input.token);
     expect(storage.length).toBe(0);
-    fetchMock.mockRestore();
+    server.fetchMock.mockRestore();
+});
+
+test('token replacement sends only an encrypted token', async () => {
+    const server = await tokenServer(Response.json({ connected: true }));
+    const actual = await vi.importActual<typeof import('#browser/auth')>('#browser/auth');
+
+    const replaced = await actual.replaceGoogleToken('aas_et/replacement');
+
+    expect(replaced.isOk()).toBe(true);
+    expect(server.bodies.some((body) => body.includes('aas_et'))).toBe(false);
+
+    const sent = GoogleTokenRequestSchema.parse(JSON.parse(server.bodies[1]));
+    expect(await server.decrypt(sent.encryptedToken)).toBe('aas_et/replacement');
+    server.fetchMock.mockRestore();
 });
 
 test('signup surfaces the server error message', async () => {
-    const fetchMock = vi
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(Response.json({ error: 'Signup is disabled.' }, { status: 403 }));
+    const server = await tokenServer(
+        Response.json({ error: 'Signup is disabled.' }, { status: 403 })
+    );
 
     const signedUp = await signUp({
         email: 'test@example.com',
@@ -89,7 +146,7 @@ test('signup surfaces the server error message', async () => {
     });
 
     expect(signedUp.unwrapErr().message).toBe('Signup is disabled.');
-    fetchMock.mockRestore();
+    server.fetchMock.mockRestore();
 });
 
 test('a rejected replacement token keeps the library and shows a safe error', async () => {

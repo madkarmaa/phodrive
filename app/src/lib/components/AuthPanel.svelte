@@ -93,8 +93,8 @@
             >
                 <p class="mt-5 text-sm leading-normal text-muted">
                     {#if signingUp}
-                        Use your Google account email. Phodrive exchanges the token on the server
-                        and stores it there, encrypted. Your browser never receives it again.
+                        Use your Google account email. This page encrypts the token for the server,
+                        which exchanges it and stores it encrypted. No request carries the token.
                     {:else}
                         Sign in with the email and password of your Phodrive account.
                     {/if}

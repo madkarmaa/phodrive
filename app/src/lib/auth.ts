@@ -22,8 +22,23 @@ export const SignUpSchema = NewAccountSchema.extend({ password: PasswordSchema }
 
 export const GoogleTokenSchema = NewAccountSchema.pick({ token: true });
 
+/**
+ * Pasted Google tokens are encrypted in the page with the server's public key, so no request
+ * carries a token: the server decrypts it, exchanges it, and keeps it.
+ */
+export const TOKEN_ENCRYPTION = { name: 'RSA-OAEP', hash: 'SHA-256' } as const;
+export const TokenKeySchema = z.object({
+    key: z.looseObject({ kty: z.literal('RSA'), n: z.string().min(1), e: z.string().min(1) })
+});
+export const EncryptedTokenSchema = z.base64().min(1);
+export const SignUpRequestSchema = SignUpSchema.omit({ token: true }).extend({
+    encryptedToken: EncryptedTokenSchema
+});
+export const GoogleTokenRequestSchema = z.object({ encryptedToken: EncryptedTokenSchema });
+
 export const SignedInUserSchema = z.object({ email: z.email() });
 
 export type SignInInput = z.infer<typeof SignInSchema>;
 export type SignUpInput = z.infer<typeof SignUpSchema>;
+export type SignUpRequest = z.infer<typeof SignUpRequestSchema>;
 export type SignedInUser = z.infer<typeof SignedInUserSchema>;

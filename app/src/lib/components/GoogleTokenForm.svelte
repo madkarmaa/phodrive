@@ -40,8 +40,8 @@
     <div>
         <h2 class="text-base font-medium">Google token</h2>
         <p id="token-description" class="mt-1 text-sm leading-relaxed text-muted">
-            Replace the stored token for {email} if Google stops accepting it. The server validates and
-            encrypts the new token; it is never sent back to this browser.
+            Replace the stored token for {email} if Google stops accepting it. This page encrypts the
+            token for the server, which validates and stores it; it never comes back to this browser.
         </p>
     </div>
 

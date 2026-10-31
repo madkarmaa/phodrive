@@ -133,7 +133,7 @@ Each Phodrive account belongs to one Google account.
 Afterwards, sign in with the email and password. To use another Google account, sign out and sign in with, or create, its Phodrive account. If Google stops accepting the token, replace it in Settings.
 
 > [!NOTE]
-> The server exchanges the token, stores it encrypted in the database, and makes every Google Photos request itself. The browser never receives the token.
+> The page encrypts the token with a key only the server holds, so no request carries it. The server exchanges it, stores it encrypted in the database, and makes every Google Photos request itself; the browser never receives it.
 
 ## Command line
 

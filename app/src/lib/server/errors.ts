@@ -11,6 +11,7 @@ export type AuthError = {
         | 'DATABASE_UNAVAILABLE'
         | 'GOOGLE_ACCOUNT_MISSING'
         | 'GOOGLE_ACCOUNT_UNREADABLE'
+        | 'TOKEN_DECRYPTION_FAILED'
         | 'NOT_FOUND';
     readonly message: string;
     readonly status: ContentfulStatusCode;
@@ -52,6 +53,11 @@ export const AUTH_ERRORS = {
         code: 'GOOGLE_ACCOUNT_UNREADABLE',
         message: 'Your saved Google token could not be read. Replace it in Settings.',
         status: 409
+    },
+    TOKEN_DECRYPTION_FAILED: {
+        code: 'TOKEN_DECRYPTION_FAILED',
+        message: 'The server could not read the token. Reload the page and try again.',
+        status: 400
     },
     NOT_FOUND: { code: 'NOT_FOUND', message: 'Not found.', status: 404 }
 } as const satisfies Record<string, AuthError>;

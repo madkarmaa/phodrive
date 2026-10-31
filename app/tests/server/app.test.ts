@@ -12,6 +12,7 @@ import { AUTH_ERRORS } from '#server/errors';
 import { readGoogleAccount, readGoogleEmail, saveGoogleAccount } from '#server/google';
 import { processingMode } from '#server/processing';
 import { signUp } from '#server/signup';
+import { TOKEN_ENCRYPTION, TokenKeySchema } from '#lib/auth';
 
 const USER = { id: 'user-id', email: 'test@example.com' };
 const ACCOUNT = { email: 'test@example.com', token: 'aas_et/stored' };
@@ -51,6 +52,22 @@ function call(path: string, init: RequestInit = {}) {
     return api.fetch(new Request(`http://localhost${path}`, init), {
         clientAddress: CLIENT_ADDRESS
     });
+}
+
+/** Encrypt like the browser does, with the key the server publishes. */
+async function encrypted(token: string): Promise<string> {
+    const response = await call('/api/account/key');
+    const { key } = TokenKeySchema.parse(await response.json());
+    const publicKey = await crypto.subtle.importKey('jwk', key, TOKEN_ENCRYPTION, false, [
+        'encrypt'
+    ]);
+    const ciphertext = await crypto.subtle.encrypt(
+        TOKEN_ENCRYPTION,
+        publicKey,
+        new TextEncoder().encode(token)
+    );
+
+    return Buffer.from(ciphertext).toString('base64');
 }
 
 function postJson(path: string, body: unknown, method = 'POST') {
@@ -180,7 +197,7 @@ test('signup forwards session cookies and never returns the Google token', async
     const response = await postJson('/api/account', {
         email: 'test@example.com',
         password: 'long enough',
-        token: 'oauth2_4/fake'
+        encryptedToken: await encrypted('oauth2_4/fake')
     });
     const text = await response.text();
 
@@ -190,14 +207,40 @@ test('signup forwards session cookies and never returns the Google token', async
         'data=two; HttpOnly'
     ]);
     expect(text).not.toContain('oauth2_4');
-    expect(vi.mocked(signUp).mock.calls[0][1]).toBe(CLIENT_ADDRESS);
+    expect(vi.mocked(signUp).mock.calls[0].slice(1)).toEqual([
+        CLIENT_ADDRESS,
+        { email: 'test@example.com', password: 'long enough', token: 'oauth2_4/fake' }
+    ]);
+});
+
+test('plaintext tokens are refused, and so are tokens the server cannot decrypt', async () => {
+    const plaintext = await postJson('/api/account', {
+        email: 'test@example.com',
+        password: 'long enough',
+        token: 'oauth2_4/fake'
+    });
+    const forged = await postJson('/api/account', {
+        email: 'test@example.com',
+        password: 'long enough',
+        encryptedToken: btoa('oauth2_4/fake')
+    });
+    const notAToken = await postJson('/api/account', {
+        email: 'test@example.com',
+        password: 'long enough',
+        encryptedToken: await encrypted('not-a-token')
+    });
+
+    expect(plaintext.status).toBe(400);
+    expect(await forged.json()).toEqual({ error: AUTH_ERRORS.TOKEN_DECRYPTION_FAILED.message });
+    expect(notAToken.status).toBe(400);
+    expect(signUp).not.toHaveBeenCalled();
 });
 
 test('signup rejects invalid input before creating a user', async () => {
     const response = await postJson('/api/account', {
         email: 'test@example.com',
         password: 'short',
-        token: 'oauth2_4/fake'
+        encryptedToken: await encrypted('oauth2_4/fake')
     });
 
     expect(response.status).toBe(400);
@@ -209,7 +252,11 @@ test('replacing the Google token validates it for the stored email and saves onl
     vi.mocked(connectGoogleAccount).mockReturnValue(resolved('aas_et/new'));
     vi.mocked(saveGoogleAccount).mockReturnValue(resolved(undefined));
 
-    const response = await postJson('/api/account/google', { token: 'oauth2_4/new' }, 'PUT');
+    const response = await postJson(
+        '/api/account/google',
+        { encryptedToken: await encrypted('oauth2_4/new') },
+        'PUT'
+    );
     const text = await response.text();
 
     expect(response.status).toBe(200);
@@ -225,7 +272,11 @@ test('replacing the Google token validates it for the stored email and saves onl
     );
     vi.mocked(saveGoogleAccount).mockClear();
 
-    const refused = await postJson('/api/account/google', { token: 'oauth2_4/bad' }, 'PUT');
+    const refused = await postJson(
+        '/api/account/google',
+        { encryptedToken: await encrypted('oauth2_4/bad') },
+        'PUT'
+    );
 
     expect(refused.status).toBe(400);
     expect(saveGoogleAccount).not.toHaveBeenCalled();
