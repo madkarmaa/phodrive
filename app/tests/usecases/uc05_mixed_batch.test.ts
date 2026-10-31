@@ -28,13 +28,11 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('@madkarmaa/phodrive-core/browser/accounts', () => ({ validateAccount: vi.fn() }));
 vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();
     vi.restoreAllMocks();
-    storage.setItem('accounts', JSON.stringify({ 'test@example.com': 'aas_et/synthetic' }));
 });
 
 test('mixed tiny-file batch preserves local IDs across invalid names and rejects overlapping submit', async () => {
@@ -52,7 +50,7 @@ test('mixed tiny-file batch preserves local IDs across invalid names and rejects
         await gate;
         return browserUploadResponse(init);
     });
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
     const first = drive.upload(files);
     expect(drive.busy).toBe(true);

@@ -34,13 +34,11 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('@madkarmaa/phodrive-core/browser/accounts', () => ({ validateAccount: vi.fn() }));
 vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();
     vi.restoreAllMocks();
-    storage.setItem('accounts', JSON.stringify({ 'test@example.com': 'aas_et/fake-test-token' }));
 });
 
 afterAll(() => vi.unstubAllGlobals());
@@ -92,7 +90,7 @@ test('partial confirmations survive one failed file while others finish; retry i
     });
     const upload = vi
         .spyOn(filesApi, 'uploadFiles')
-        .mockImplementation((files, _email, _token, _workers, onJob, onChunk) => {
+        .mockImplementation((files, _email, _workers, onJob, onChunk) => {
             attempt++;
             const submitted = filesApi.createUploadJobs(files);
 
@@ -137,7 +135,7 @@ test('partial confirmations survive one failed file while others finish; retry i
                 return Ok(undefined);
             });
         });
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
 
     const uploading = drive.upload(sources);

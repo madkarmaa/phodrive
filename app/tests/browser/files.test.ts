@@ -1,5 +1,5 @@
 import {
-    FileRequestSchema,
+    FileActionRequestSchema,
     UploadJobStatus,
     UploadEventType,
     type RemoteBmp
@@ -45,7 +45,6 @@ test('browser hashes incrementally and posts raw slices with stable verified BMP
     const uploaded = await uploadFiles(
         files,
         'test@example.com',
-        'aas_et/test',
         2,
         (job) => jobs.set(job.id, job),
         (chunk) => saved.push(chunk)
@@ -93,7 +92,6 @@ test('global transfer pool respects workers and mixed failures preserve other fi
     const result = await uploadFiles(
         files,
         'test@example.com',
-        'aas_et/test',
         2,
         (job) => jobs.set(job.id, job),
         () => {}
@@ -138,7 +136,6 @@ test.each(['sha1', 'index', 'name', 'missing'] as const)(
         await uploadFiles(
             [new File([PAYLOAD], 'proof.bin')],
             'test@example.com',
-            'aas_et/test',
             1,
             (job) => jobs.push(job),
             (chunk) => saved.push(chunk)
@@ -156,7 +153,6 @@ test('selection validates names and worker count, preserving empty files', async
     const uploaded = await uploadFiles(
         [new File([], 'bad/path'), new File([], 'empty.bin')],
         'test@example.com',
-        'aas_et/test',
         1,
         (job) => jobs.set(job.id, job),
         () => {}
@@ -168,7 +164,6 @@ test('selection validates names and worker count, preserving empty files', async
     const invalid = await uploadFiles(
         [new File([], 'proof.bin')],
         'test@example.com',
-        'aas_et/test',
         0,
         () => {},
         () => {}
@@ -181,15 +176,17 @@ test('download asks for one reconstructed file and preserves its original bytes'
     const group = groupChunks([{ ...chunk(), email: 'test@example.com' }])[0];
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
         if (typeof init?.body !== 'string') throw new Error('Expected JSON');
-        const request = FileRequestSchema.parse(JSON.parse(init.body));
+        const body: unknown = JSON.parse(init.body);
+        expect(body).not.toHaveProperty('token');
+        const request = FileActionRequestSchema.parse(body);
         expect(request.action).toBe('download');
         expect(request.chunks).toHaveLength(1);
         return new Response(PAYLOAD);
     });
-    const downloaded = await downloadFile(group, 'aas_et/test');
+    const downloaded = await downloadFile(group);
     const recovered = await downloaded.unwrap().arrayBuffer();
     expect(new Uint8Array(recovered)).toEqual(PAYLOAD);
-    const incomplete = await downloadFile({ ...group, complete: false }, 'aas_et/test');
+    const incomplete = await downloadFile({ ...group, complete: false });
     expect(incomplete.isErr()).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
 });
@@ -199,12 +196,12 @@ test('batch deletion reports confirmed chunks even when the server returns parti
     const removed: UploadedChunk[] = [];
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
         if (typeof init?.body !== 'string') throw new Error('Expected JSON');
-        const request = FileRequestSchema.parse(JSON.parse(init.body));
+        const request = FileActionRequestSchema.parse(JSON.parse(init.body));
         expect(request.action).toBe('delete');
         expect(request.workers).toBe(2);
         return Response.json({ deleted: [chunk()], error: 'One chunk failed' });
     });
-    const result = await deleteFile(group, 'aas_et/test', (item) => removed.push(item), 2);
+    const result = await deleteFile(group, (item) => removed.push(item), 2);
     expect(result.unwrapErr().message).toBe('One chunk failed');
     expect(removed).toEqual(group.chunks);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -224,7 +221,7 @@ test('an interrupted download body returns a receive error instead of a partial 
             )
     );
 
-    const downloaded = await downloadFile(group, 'aas_et/test');
+    const downloaded = await downloadFile(group);
     expect(downloaded.unwrapErr()).toEqual({
         code: 'DOWNLOAD_RECEIVE_FAILED',
         message: 'Could not receive the downloaded file.'

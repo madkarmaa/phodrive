@@ -40,13 +40,11 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('@madkarmaa/phodrive-core/browser/accounts', () => ({ validateAccount: vi.fn() }));
 vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 vi.mock('@madkarmaa/phodrive-core/server/photos', () => ({ downloadBmp: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();
-    storage.setItem('accounts', JSON.stringify({ [EMAIL]: TOKEN }));
     vi.restoreAllMocks();
 });
 
@@ -146,7 +144,7 @@ test('browser save failures show an error and always clear the active file actio
         throw new Error('synthetic browser save failure');
     });
 
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
     const item: FileGroup = {
         email: EMAIL,
@@ -174,7 +172,7 @@ test('failed download is surfaced and clears the active file action', async () =
         } as const).andThenAsync(async (file) => Ok(file))
     );
 
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
     const item: FileGroup = {
         email: EMAIL,

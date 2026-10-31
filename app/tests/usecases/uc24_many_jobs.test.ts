@@ -10,7 +10,7 @@ import {
     UploadStatus
 } from '@madkarmaa/phodrive-core/models';
 import type { UploadedChunk } from '@madkarmaa/phodrive-core/files';
-import { CONCURRENT_WORKERS_KEY, SELECTED_KEY } from '#browser/storage';
+import { CONCURRENT_WORKERS_KEY } from '#browser/storage';
 
 const { storage, tab } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -35,7 +35,6 @@ const { storage, tab } = vi.hoisted(() => {
 });
 
 const OWNER = 'owner@example.com';
-const OTHER = 'other@example.com';
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
 vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
@@ -43,14 +42,6 @@ vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }
 beforeEach(() => {
     vi.restoreAllMocks();
     storage.clear();
-    storage.setItem(
-        'accounts',
-        JSON.stringify({
-            [OWNER]: 'aas_et/owner-token',
-            [OTHER]: 'aas_et/other-token'
-        })
-    );
-    storage.setItem(SELECTED_KEY, JSON.stringify(OWNER));
     storage.setItem(CONCURRENT_WORKERS_KEY, '1');
 });
 
@@ -77,7 +68,7 @@ function uploadedChunk(name: string): UploadedChunk {
     };
 }
 
-test('large queue stays single-flight, takes current worker preference on retry, and ignores old-account completion', async () => {
+test('large queue stays single-flight and takes the current worker preference on retry', async () => {
     const largeSelection = Array.from(
         { length: 80 },
         (_, index) => new File([new Uint8Array(64 * 1024)], `photo-${index}.bin`)
@@ -87,7 +78,7 @@ test('large queue stays single-flight, takes current worker preference on retry,
     let attempt = 0;
     const upload = vi
         .spyOn(filesApi, 'uploadFiles')
-        .mockImplementation((files, email, _token, workers, onJob) => {
+        .mockImplementation((files, email, workers, onJob) => {
             calls.push({ names: files.map((file) => file.name), email, workers });
             const gate = new Promise<void>((resolve) => gates.push(resolve));
             const submitted = filesApi.createUploadJobs(files);
@@ -122,9 +113,9 @@ test('large queue stays single-flight, takes current worker preference on retry,
         .mockReturnValue(
             Ok({ items: [], nextPageToken: '' }).andThenAsync(async (page) => Ok(page))
         );
-    const drive = new DriveController();
+    const drive = new DriveController(OWNER);
     drive.initialize();
-    drive.library.chunks = [uploadedChunk('old-account.bin')];
+    drive.library.chunks = [uploadedChunk('existing.bin')];
 
     const firstUpload = drive.upload(largeSelection);
     await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
@@ -136,10 +127,10 @@ test('large queue stays single-flight, takes current worker preference on retry,
 
     await drive.upload([new File(['overlap'], 'overlap.bin')]);
     await drive.retryUpload(0);
-    const oldAccountFile = drive.library.files[0];
-    if (!oldAccountFile) throw new Error('Expected a synthetic file group.');
-    await drive.actOnFile(oldAccountFile, FileActionKind.Delete);
-    await drive.actOnFile(oldAccountFile, FileActionKind.Download);
+    const existingFile = drive.library.files[0];
+    if (!existingFile) throw new Error('Expected a synthetic file group.');
+    await drive.actOnFile(existingFile, FileActionKind.Delete);
+    await drive.actOnFile(existingFile, FileActionKind.Download);
     expect(upload).toHaveBeenCalledTimes(1);
     expect(deletion).not.toHaveBeenCalled();
     expect(download).not.toHaveBeenCalled();
@@ -155,15 +146,12 @@ test('large queue stays single-flight, takes current worker preference on retry,
     await drive.retryUpload(0);
     expect(calls[1]).toEqual({ names: ['photo-0.bin'], email: OWNER, workers: 32 });
 
-    fromOtherTab(SELECTED_KEY, JSON.stringify(OTHER));
-    await vi.waitFor(() => expect(drive.selectedEmail).toBe(OTHER));
     gates[1]();
     await retry;
 
     expect(calls).toHaveLength(2);
-    expect(calls.every((call) => call.email === OWNER)).toBe(true);
-    expect(drive.uploadJobs).toHaveLength(0);
+    expect(drive.uploadJobs.every((job) => job.status === UploadJobStatus.Complete)).toBe(true);
     expect(deletion).not.toHaveBeenCalled();
     expect(download).not.toHaveBeenCalled();
-    expect(library).toHaveBeenCalledWith(OTHER, 'aas_et/other-token', '');
+    expect(library).not.toHaveBeenCalled();
 });

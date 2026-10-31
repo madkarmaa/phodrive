@@ -32,13 +32,11 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('@madkarmaa/phodrive-core/browser/accounts', () => ({ validateAccount: vi.fn() }));
 vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {
     storage.clear();
-    storage.setItem('accounts', JSON.stringify({ 'test@example.com': 'aas_et/test' }));
 });
 afterAll(() => vi.unstubAllGlobals());
 
@@ -73,7 +71,7 @@ test('snapshot returns an error when Google Photos repeats a page token', async 
         apiResult(page([remoteFile('part-1', 1), remoteFile('part-2', 2)], 'repeat-token'))
     );
 
-    const snapshot = await readLibrarySnapshot('test@example.com', 'aas_et/test', 12);
+    const snapshot = await readLibrarySnapshot(12);
 
     expect(snapshot.isErr()).toBe(true);
     expect(snapshot.unwrapErr().message).toContain('repeated a library page');
@@ -89,7 +87,7 @@ test('snapshot deduplicates media keys across pages while retaining chunk order'
         apiResult(page([remoteFile('part-1', 1), remoteFile('part-2', 2)], ''))
     );
 
-    const snapshot = await readLibrarySnapshot('test@example.com', 'aas_et/test', 10);
+    const snapshot = await readLibrarySnapshot(10);
 
     if (snapshot.isErr()) throw snapshot.unwrapErr();
     expect(snapshot.unwrap().items.map(({ mediaKey }) => mediaKey)).toEqual([
@@ -106,7 +104,7 @@ test('empty pages with new page tokens are followed until the library ends', asy
     apiJson.mockReturnValueOnce(apiResult(page([], 'empty-page-two')));
     apiJson.mockReturnValueOnce(apiResult(page([remoteFile('last-item')], '')));
 
-    const snapshot = await readLibrarySnapshot('test@example.com', 'aas_et/test', 10);
+    const snapshot = await readLibrarySnapshot(10);
 
     if (snapshot.isErr()) throw snapshot.unwrapErr();
     expect(snapshot.unwrap().items.map(({ mediaKey }) => mediaKey)).toEqual(['last-item']);
@@ -116,7 +114,7 @@ test('empty pages with new page tokens are followed until the library ends', asy
 
 test('load more deduplicates chunks and disables further loading after a cyclic token', async () => {
     const apiJson = vi.spyOn(api, 'apiJson').mockImplementation(() => apiResult(page([], '')));
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
     await new Promise((resolve) => setTimeout(resolve, 0));
     apiJson.mockClear();

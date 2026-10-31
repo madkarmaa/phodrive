@@ -111,8 +111,8 @@
             size="s"
             variant="filled"
             bind:element={accountButton}
-            title="Manage accounts"
-            aria-label="Manage accounts"
+            title="Account"
+            aria-label="Account"
             aria-haspopup="menu"
             aria-controls="account-menu"
             aria-expanded={menuOpen}

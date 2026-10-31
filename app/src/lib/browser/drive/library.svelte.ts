@@ -8,7 +8,7 @@ import {
 import { FileSort } from '@madkarmaa/phodrive-core/models';
 import { readLibraryPage, readLibrarySnapshot } from '@madkarmaa/phodrive-core/browser/library';
 
-/** Library pagination, filtering, and stale-request protection for the selected account. */
+/** Library pagination, filtering, and stale-request protection for the signed-in account. */
 export class DriveLibrary {
     chunks = $state<UploadedChunk[]>([]);
     nextPageToken = $state('');
@@ -33,7 +33,7 @@ export class DriveLibrary {
     );
 
     constructor(
-        private readonly account: () => { email: string; token: string | undefined },
+        private readonly email: string,
         private readonly actionsDisabled: () => boolean,
         private readonly sortOrder: () => FileSort,
         private readonly feedback: (message: string) => void
@@ -55,7 +55,7 @@ export class DriveLibrary {
     async load(reset = true) {
         if (this.actionsDisabled() || (!reset && (this.loading || !this.nextPageToken))) return;
 
-        const { email, token } = this.account();
+        const email = this.email;
         const pageToken = reset ? '' : this.nextPageToken;
         const request = ++this.libraryRequest;
         if (reset) {
@@ -66,18 +66,12 @@ export class DriveLibrary {
             this.loadFailed = false;
         }
 
-        if (!email || !token) {
-            this.loading = false;
-
-            return;
-        }
-
         this.loading = true;
         this.feedback('');
 
-        const loaded = await readLibraryPage(email, token, pageToken);
+        const loaded = await readLibraryPage(pageToken);
 
-        if (request !== this.libraryRequest || email !== this.account().email) return;
+        if (request !== this.libraryRequest) return;
 
         loaded.match({
             Ok: (data) => {
@@ -114,14 +108,12 @@ export class DriveLibrary {
     async refresh() {
         if (this.actionsDisabled() || this.loading || document.hidden) return;
 
-        const { email, token } = this.account();
-        if (!email || !token) return;
-
+        const email = this.email;
         const request = ++this.libraryRequest;
         this.loading = true;
 
-        const refreshed = await readLibrarySnapshot(email, token, this.loadedPages);
-        if (request !== this.libraryRequest || email !== this.account().email) return;
+        const refreshed = await readLibrarySnapshot(this.loadedPages);
+        if (request !== this.libraryRequest) return;
 
         refreshed.match({
             Ok: (snapshot) => {

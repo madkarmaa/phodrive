@@ -5,6 +5,7 @@
     import { fade } from 'svelte/transition';
     import { prefersReducedMotion } from 'svelte/motion';
     import AppFooter from '#components/AppFooter.svelte';
+    import GoogleTokenForm from '#components/GoogleTokenForm.svelte';
     import {
         MAX_REFRESH_INTERVAL_SECONDS,
         MAX_CONCURRENT_WORKERS,
@@ -15,6 +16,9 @@
     } from '@madkarmaa/phodrive-core/models';
 
     interface Props {
+        email: string;
+        replacingToken: boolean;
+        onreplacetoken: (token: string) => Promise<boolean>;
         refreshIntervalSeconds: number;
         concurrentWorkers: number;
         defaults: PreferencesDefaults;
@@ -26,6 +30,9 @@
     }
 
     let {
+        email,
+        replacingToken,
+        onreplacetoken,
         refreshIntervalSeconds,
         concurrentWorkers,
         defaults,
@@ -100,6 +107,8 @@
     </div>
 
     <div class="mt-4 grid max-w-180 gap-8 pb-16">
+        <GoogleTokenForm {email} replacing={replacingToken} onreplace={onreplacetoken} />
+
         <form
             class="grid gap-3"
             novalidate

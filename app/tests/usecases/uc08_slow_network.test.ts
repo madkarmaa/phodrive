@@ -34,7 +34,6 @@ test.each([1, 32])(
             uploadFiles(
                 files,
                 'test@example.com',
-                'aas_et/test',
                 workers,
                 (job) => jobs.set(job.id, job),
                 () => {}

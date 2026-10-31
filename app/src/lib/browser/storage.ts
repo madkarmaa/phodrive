@@ -3,7 +3,6 @@ import { PersistedState } from 'runed';
 import { Err, Ok, type Result } from 'results-ts';
 import type { z } from 'zod';
 import {
-    AccountSchema,
     ConcurrentWorkersSchema,
     DEFAULT_PREFERENCES_DEFAULTS,
     FileSortSchema,
@@ -13,16 +12,12 @@ import {
     MAX_CONCURRENT_WORKERS,
     MAX_REFRESH_INTERVAL_SECONDS,
     RefreshIntervalSchema,
-    SelectedAccountSchema,
-    StoredAccountsSchema,
     ThemeSchema,
     FileSort,
     type PreferencesDefaults,
     ThemeMode
 } from '@madkarmaa/phodrive-core/models';
 
-export const ACCOUNTS_KEY = 'accounts';
-export const SELECTED_KEY = 'selectedAccount';
 export const THEME_KEY = 'phodrive-theme';
 export const FILE_SORT_KEY = 'phodrive-sort';
 export const FILE_LAYOUT_KEY = 'phodrive-layout';
@@ -34,13 +29,12 @@ export const NEXT_THEME: Record<ThemeMode, ThemeMode> = {
     [ThemeMode.Dark]: ThemeMode.Auto
 };
 
-type Accounts = Record<string, string>;
 const STORAGE_UNAVAILABLE = {
     code: 'STORAGE_UNAVAILABLE',
     message: 'Browser storage is unavailable. Enable it to save your preferences.'
 } as const satisfies ApplicationError;
 
-/** Runed's default parser logs raw values on malformed JSON, which could expose credentials. */
+/** Runed's default parser logs raw values on malformed JSON, so stored values are parsed here. */
 function parseStoredJson(raw: string): Result<unknown, ApplicationError> {
     try {
         const value: unknown = JSON.parse(raw);
@@ -83,39 +77,11 @@ function nullableNumberSerializer(schema: z.ZodType<number>) {
     };
 }
 
-export const ACCOUNTS_SERIALIZER = {
-    serialize: (accounts: Accounts) => JSON.stringify(accounts),
-    deserialize: (raw: string): Accounts => {
-        const parsed = StoredAccountsSchema.safeParse(readStoredJson(raw));
-        if (!parsed.success) return {};
-
-        const valid: Accounts = {};
-        for (const [email, token] of Object.entries(parsed.data)) {
-            const account = AccountSchema.safeParse({ email, token });
-            if (!account.success) continue;
-
-            valid[account.data.email] = account.data.token;
-        }
-
-        return valid;
-    }
-};
-
 export const THEME_SERIALIZER = enumSerializer(ThemeSchema);
 export const FILE_SORT_SERIALIZER = enumSerializer(FileSortSchema);
 export const FILE_LAYOUT_SERIALIZER = enumSerializer(FileLayoutSchema);
 export const REFRESH_INTERVAL_SERIALIZER = nullableNumberSerializer(RefreshIntervalSchema);
 export const CONCURRENT_WORKERS_SERIALIZER = nullableNumberSerializer(ConcurrentWorkersSchema);
-
-/** JSON encodes an empty selection as a nonempty string so Runed reads it from storage. */
-export const SELECTED_ACCOUNT_SERIALIZER = {
-    serialize: (email: string) => JSON.stringify(email),
-    deserialize: (raw: string): string => {
-        const parsed = SelectedAccountSchema.safeParse(readStoredJson(raw));
-
-        return parsed.success ? parsed.data : '';
-    }
-};
 
 function readState<T>(state: PersistedState<T>): Result<T, ApplicationError> {
     try {
@@ -167,16 +133,6 @@ function resetState<T>(
 export class BrowserPreferences {
     constructor(private readonly defaults: PreferencesDefaults = DEFAULT_PREFERENCES_DEFAULTS) {}
 
-    private readonly accountsState = new PersistedState<Accounts>(
-        ACCOUNTS_KEY,
-        {},
-        {
-            serializer: ACCOUNTS_SERIALIZER
-        }
-    );
-    private readonly selectedState = new PersistedState(SELECTED_KEY, '', {
-        serializer: SELECTED_ACCOUNT_SERIALIZER
-    });
     // Runed skips undefined writes, so deployment defaults apply until the user saves a choice.
     private readonly themeState = new PersistedState<ThemeMode | undefined>(THEME_KEY, undefined, {
         serializer: THEME_SERIALIZER
@@ -204,17 +160,6 @@ export class BrowserPreferences {
         { serializer: CONCURRENT_WORKERS_SERIALIZER }
     );
 
-    get accounts(): Accounts {
-        return readState(this.accountsState).unwrapOr({});
-    }
-
-    get selectedEmail(): string {
-        const preferred = readState(this.selectedState).unwrapOr('');
-        const accounts = this.accounts;
-
-        return Object.hasOwn(accounts, preferred) ? preferred : (Object.keys(accounts)[0] ?? '');
-    }
-
     get theme(): ThemeMode {
         return readState(this.themeState).unwrapOr(undefined) ?? this.defaults.theme;
     }
@@ -239,16 +184,6 @@ export class BrowserPreferences {
             readState(this.concurrentWorkersState).unwrapOr(undefined) ??
             this.defaults.concurrentWorkers
         );
-    }
-
-    saveAccounts(accounts: Accounts, selected: string): Result<void, ApplicationError> {
-        return writeState(this.accountsState, accounts).andThen(() =>
-            writeState(this.selectedState, selected)
-        );
-    }
-
-    selectAccount(email: string): Result<void, ApplicationError> {
-        return writeState(this.selectedState, email);
     }
 
     saveTheme(mode: ThemeMode): Result<void, ApplicationError> {

@@ -31,13 +31,11 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('@madkarmaa/phodrive-core/browser/accounts', () => ({ validateAccount: vi.fn() }));
 vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 beforeEach(() => {
     storage.clear();
     vi.restoreAllMocks();
-    storage.setItem('accounts', JSON.stringify({ 'test@example.com': 'aas_et/test' }));
 });
 
 afterAll(() => vi.unstubAllGlobals());
@@ -51,7 +49,7 @@ test('retry keeps the original job ID and sends only its file, preserving other 
     let attempt = 0;
     const upload = vi
         .spyOn(filesApi, 'uploadFiles')
-        .mockImplementation((files, _email, _token, _workers, onJob) => {
+        .mockImplementation((files, _email, _workers, onJob) => {
             attempt++;
 
             for (const job of filesApi.createUploadJobs(files)) {
@@ -75,7 +73,7 @@ test('retry keeps the original job ID and sends only its file, preserving other 
 
             return Ok(undefined).andThenAsync(async () => Ok(undefined));
         });
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
 
     await drive.upload(sources);
@@ -127,7 +125,7 @@ test('dismissing a library error preserves failed-load state and repeated errors
             Ok(undefined).andThenAsync(async () => Ok({ items: [], nextPageToken: '', pages: 1 }))
         );
 
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
     await drive.library.load();
 

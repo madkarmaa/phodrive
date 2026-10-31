@@ -9,23 +9,13 @@
 
     interface Props {
         open?: boolean;
-        connected: boolean;
         disabled: boolean;
         view: AppView;
         onnavigate: (view: AppView) => void;
         onupload: (files: File[]) => void;
-        onconnect: () => void;
     }
 
-    let {
-        open = $bindable(false),
-        connected,
-        disabled,
-        view,
-        onnavigate,
-        onupload,
-        onconnect
-    }: Props = $props();
+    let { open = $bindable(false), disabled, view, onnavigate, onupload }: Props = $props();
 
     let picker: HTMLInputElement;
     const mobile = new MediaQuery('(width < 800px)');
@@ -40,14 +30,14 @@
     }
 </script>
 
-<aside class="upload-sidebar min-w-0 px-4 pt-2 pb-8" aria-label="Navigation and accounts">
+<aside class="upload-sidebar min-w-0 px-4 pt-2 pb-8" aria-label="Navigation">
     <ExtendedFab
         class="upload-button"
         label="Upload"
         aria-label="Upload"
         variant="secondary-container"
         {disabled}
-        onclick={() => (connected ? picker.click() : onconnect())}
+        onclick={() => picker.click()}
     >
         {#snippet icon()}<IconAdd aria-hidden="true" class="size-6" />{/snippet}
     </ExtendedFab>
@@ -110,7 +100,7 @@
             variant="secondary-container"
             shape="square"
             {disabled}
-            onclick={() => (connected ? picker.click() : onconnect())}
+            onclick={() => picker.click()}
         >
             {#snippet icon()}<IconAdd aria-hidden="true" class="size-6" />{/snippet}
         </Fab>

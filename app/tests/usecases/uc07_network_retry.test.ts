@@ -3,7 +3,7 @@ import {
     ThemeMode,
     UploadEventType,
     UploadJobStatus,
-    UploadRequestSchema
+    UploadChunkSchema
 } from '@madkarmaa/phodrive-core/models';
 import { browserUploadResponse } from '../../../core/tests/helpers/upload';
 import { DriveController } from '#browser/drive/index.svelte';
@@ -34,13 +34,11 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('@madkarmaa/phodrive-core/browser/accounts', () => ({ validateAccount: vi.fn() }));
 vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {
     storage.clear();
-    storage.setItem('accounts', JSON.stringify({ 'test@example.com': 'aas_et/test' }));
 });
 afterAll(() => vi.unstubAllGlobals());
 
@@ -52,7 +50,9 @@ test('truncated batch marks only unfinished work failed; retry submits that file
         if (!(init?.body instanceof FormData)) throw new Error('Expected upload form');
         const json = init.body.get('metadata');
         if (typeof json !== 'string') throw new Error('Missing upload metadata');
-        const request = UploadRequestSchema.parse(JSON.parse(json));
+        const body: unknown = JSON.parse(json);
+        expect(body).not.toHaveProperty('token');
+        const request = UploadChunkSchema.parse(body);
         if (request.file.name === 'complete.bin') return browserUploadResponse(init);
         expect(request.file.name).toBe('retry.bin');
         metadata.push(json);
@@ -68,7 +68,7 @@ test('truncated batch marks only unfinished work failed; retry submits that file
         );
     });
 
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
     await drive.upload(files);
 
@@ -101,7 +101,7 @@ test('truncated batch marks only unfinished work failed; retry submits that file
 
 test('fetch rejection becomes a retryable failed job and releases the busy state', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('simulated offline'));
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
 
     await drive.upload([new File(['payload'], 'offline.bin')]);

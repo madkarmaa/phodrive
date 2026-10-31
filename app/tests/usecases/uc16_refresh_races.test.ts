@@ -28,7 +28,6 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('@madkarmaa/phodrive-core/browser/accounts', () => ({ validateAccount: vi.fn() }));
 vi.mock('@madkarmaa/phodrive-core/browser/library', () => ({
     readLibraryPage: vi.fn(),
     readLibrarySnapshot: vi.fn()
@@ -38,14 +37,6 @@ vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }
 beforeEach(() => {
     storage.clear();
     vi.restoreAllMocks();
-    storage.setItem(
-        'accounts',
-        JSON.stringify({
-            'first@example.com': 'aas_et/first-fake',
-            'second@example.com': 'aas_et/second-fake'
-        })
-    );
-    storage.setItem('selectedAccount', JSON.stringify('first@example.com'));
 });
 
 afterAll(() => vi.unstubAllGlobals());
@@ -75,37 +66,31 @@ function chunk(mediaKey: string) {
     };
 }
 
-test('switching accounts during pending library requests ignores stale responses and unlocks refresh', async () => {
-    const firstAccountPage = deferred<Page>();
-    const secondAccountPage = deferred<Page>();
+test('a newer library load ignores the stale response and unlocks refresh', async () => {
+    const stalePage = deferred<Page>();
+    const currentPage = deferred<Page>();
     vi.mocked(readLibraryPage)
-        .mockReturnValueOnce(Ok(undefined).andThenAsync(() => firstAccountPage.promise))
-        .mockReturnValueOnce(Ok(undefined).andThenAsync(() => secondAccountPage.promise));
+        .mockReturnValueOnce(Ok(undefined).andThenAsync(() => stalePage.promise))
+        .mockReturnValueOnce(Ok(undefined).andThenAsync(() => currentPage.promise));
 
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
     drive.ready = false;
 
-    const firstLoad = drive.library.load();
+    const staleLoad = drive.library.load();
     expect(drive.library.loading).toBe(true);
-    drive.selectAccount('second@example.com');
-    const secondLoad = drive.library.load();
+    const currentLoad = drive.library.load();
     await vi.waitFor(() => expect(readLibraryPage).toHaveBeenCalledTimes(2));
-    expect(vi.mocked(readLibraryPage).mock.calls.map(([email]) => email)).toEqual([
-        'first@example.com',
-        'second@example.com'
-    ]);
 
-    secondAccountPage.resolve(Ok({ items: [chunk('second-current')], nextPageToken: '' }));
-    await secondLoad;
+    currentPage.resolve(Ok({ items: [chunk('current')], nextPageToken: '' }));
+    await currentLoad;
 
-    firstAccountPage.resolve(Ok({ items: [chunk('first-stale')], nextPageToken: '' }));
-    await firstLoad;
+    stalePage.resolve(Ok({ items: [chunk('stale')], nextPageToken: '' }));
+    await staleLoad;
     await vi.waitFor(() => expect(drive.library.loading).toBe(false));
 
-    expect(drive.selectedEmail).toBe('second@example.com');
     expect(drive.library.chunks.map(({ mediaKey, email }) => [mediaKey, email])).toEqual([
-        ['second-current', 'second@example.com']
+        ['current', 'test@example.com']
     ]);
 });
 
@@ -119,7 +104,7 @@ test('manual refresh replaces completed initial data and clears the loading stat
         Ok(undefined).andThenAsync(() => firstRefresh.promise)
     );
 
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
     drive.ready = false;
 
@@ -147,7 +132,7 @@ test('file selection during refresh shows feedback and can be submitted again af
     const upload = vi
         .spyOn(filesApi, 'uploadFiles')
         .mockImplementation(() => Ok(undefined).andThenAsync(async () => Ok(undefined)));
-    const drive = new DriveController();
+    const drive = new DriveController('test@example.com');
     drive.initialize();
     drive.ready = false;
 

@@ -1,29 +1,24 @@
 <script lang="ts">
     import { IconButton, Item, Menu, MenuItem } from 'noph-ui';
     import Avatar from '#components/Avatar.svelte';
-    import IconAdd from '~icons/material-symbols/add';
     import IconClose from '~icons/material-symbols/close';
     import IconLogout from '~icons/material-symbols/logout';
 
     interface Props {
         open?: boolean;
         anchor?: HTMLElement;
-        emails: string[];
-        selected: string;
+        email: string;
         disabled: boolean;
-        onselect: (email: string) => void;
-        onadd: () => void;
+        signingOut: boolean;
         onsignout: () => void;
     }
 
     let {
         open = $bindable(false),
         anchor,
-        emails,
-        selected,
+        email,
         disabled,
-        onselect,
-        onadd,
+        signingOut,
         onsignout
     }: Props = $props();
     let menuElement = $state<HTMLDivElement>();
@@ -42,7 +37,7 @@
     bind:this={menu}
     {anchor}
     coverAnchor={false}
-    aria-label="Accounts"
+    aria-label="Account"
     class="account-menu"
     ontoggle={(event) => {
         if (event.newState === 'open')
@@ -60,58 +55,28 @@
     </IconButton>
 
     <div class="account-list overflow-hidden rounded-[28px] bg-panel">
-        {#if selected}
-            <Item class="current-account" supportingText="Current account">
-                {#snippet start()}<Avatar email={selected} />{/snippet}
-                <strong class="block truncate text-base font-medium">{selected}</strong>
-            </Item>
-        {/if}
-
-        {#each emails.filter((email) => email !== selected) as email (email)}
-            <MenuItem
-                class="account-row"
-                {disabled}
-                onclick={() => {
-                    onselect(email);
-                    closeMenu();
-                }}
-            >
-                {#snippet start()}<Avatar {email} small />{/snippet}
-                <span class="block min-w-0 truncate">{email}</span>
-            </MenuItem>
-        {/each}
+        <Item class="current-account" supportingText="Signed in">
+            {#snippet start()}<Avatar {email} />{/snippet}
+            <strong class="block truncate text-base font-medium">{email}</strong>
+        </Item>
 
         <MenuItem
             class="account-row"
-            {disabled}
+            disabled={disabled || signingOut}
             onclick={() => {
-                onadd();
+                onsignout();
                 closeMenu();
             }}
         >
-            {#snippet start()}<IconAdd class="size-5.5 text-primary" aria-hidden="true" />{/snippet}
-            Add another account
+            {#snippet start()}
+                <IconLogout class="size-5.5 text-primary" aria-hidden="true" />
+            {/snippet}
+            Sign out
         </MenuItem>
-
-        {#if selected}
-            <MenuItem
-                class="account-row"
-                {disabled}
-                onclick={() => {
-                    onsignout();
-                    closeMenu();
-                }}
-            >
-                {#snippet start()}
-                    <IconLogout class="size-5.5 text-primary" aria-hidden="true" />
-                {/snippet}
-                Sign out
-            </MenuItem>
-        {/if}
     </div>
 
     <p class="mx-2 mt-4 text-center text-xs text-muted">
-        Only saved accounts in this browser are shown here.
+        To use another Google account, sign out and sign in with its Phodrive account.
     </p>
 </Menu>
 

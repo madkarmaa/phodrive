@@ -14,7 +14,6 @@ import {
 } from '@madkarmaa/phodrive-core/models';
 import { afterAll, afterEach, beforeEach, expect, vi, test } from 'vitest';
 import {
-    ACCOUNTS_SERIALIZER,
     BrowserPreferences,
     CONCURRENT_WORKERS_KEY,
     CONCURRENT_WORKERS_SERIALIZER,
@@ -24,7 +23,6 @@ import {
     FILE_LAYOUT_SERIALIZER,
     REFRESH_INTERVAL_SERIALIZER,
     REFRESH_INTERVAL_KEY,
-    SELECTED_ACCOUNT_SERIALIZER,
     THEME_SERIALIZER,
     THEME_KEY
 } from '#browser/storage';
@@ -92,51 +90,13 @@ test('file layout rejects invalid stored values and persists the selected view',
     expect(new BrowserPreferences().fileLayout).toBe(FileLayout.List);
 });
 
-test('stored accounts retain valid entries and reject malformed data without logging credentials', () => {
-    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const stored = {
-        'valid@example.com': 'aas_et/test',
-        'invalid-email': 'aas_et/test',
-        'oauth@example.com': 'oauth2_4/test',
-        'number@example.com': 123
-    };
-
-    expect(ACCOUNTS_SERIALIZER.deserialize(JSON.stringify(stored))).toEqual({
-        'valid@example.com': 'aas_et/test'
-    });
-    expect(ACCOUNTS_SERIALIZER.deserialize('{"secret":"aas_et/test"')).toEqual({});
-    expect(ACCOUNTS_SERIALIZER.deserialize('null')).toEqual({});
-    expect(ACCOUNTS_SERIALIZER.deserialize('[]')).toEqual({});
-    expect(log).not.toHaveBeenCalled();
-    log.mockRestore();
-});
-
-test('account JSON and plain-text theme serialization retain their storage formats', () => {
-    const accounts = { 'valid@example.com': 'aas_et/test' };
-    const serialized = ACCOUNTS_SERIALIZER.serialize(accounts);
-
-    expect(ACCOUNTS_SERIALIZER.deserialize(serialized)).toEqual(accounts);
+test('plain-text theme serialization retains its storage format', () => {
     for (const mode of [ThemeMode.Light, ThemeMode.Dark, ThemeMode.Auto] as const) {
         expect(THEME_SERIALIZER.serialize(mode)).toBe(mode);
         expect(THEME_SERIALIZER.deserialize(mode)).toBe(mode);
     }
     expect(THEME_SERIALIZER.deserialize('invalid')).toBeUndefined();
     expect(THEME_SERIALIZER.deserialize('"dark"')).toBeUndefined();
-});
-
-test('selected account serialization distinguishes an empty selection from missing storage', () => {
-    const empty = SELECTED_ACCOUNT_SERIALIZER.serialize('');
-
-    expect(empty).not.toBe('');
-    expect(SELECTED_ACCOUNT_SERIALIZER.deserialize(empty)).toBe('');
-    expect(
-        SELECTED_ACCOUNT_SERIALIZER.deserialize(
-            SELECTED_ACCOUNT_SERIALIZER.serialize('valid@example.com')
-        )
-    ).toBe('valid@example.com');
-    expect(SELECTED_ACCOUNT_SERIALIZER.deserialize('null')).toBe('');
-    expect(SELECTED_ACCOUNT_SERIALIZER.deserialize('123')).toBe('');
-    expect(SELECTED_ACCOUNT_SERIALIZER.deserialize('"invalid-email"')).toBe('');
 });
 
 test('stored sort choices are validated and invalid values leave deployment defaults available', () => {

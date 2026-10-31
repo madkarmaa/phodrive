@@ -28,7 +28,6 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('@madkarmaa/phodrive-core/browser/accounts', () => ({ validateAccount: vi.fn() }));
 vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
 
 afterAll(() => vi.unstubAllGlobals());
@@ -36,7 +35,6 @@ afterEach(() => vi.restoreAllMocks());
 
 beforeEach(() => {
     storage.clear();
-    storage.setItem('accounts', JSON.stringify({ 'owner@example.com': 'aas_et/synthetic' }));
 });
 
 function remoteChunk(overrides: Partial<RemoteBmp> = {}): RemoteBmp {
@@ -81,7 +79,7 @@ test('partial delete retains exact confirmations, retries remaining chunks, and 
         return Response.json({ deleted: [remaining] });
     });
 
-    const drive = new DriveController();
+    const drive = new DriveController('owner@example.com');
     drive.initialize();
     drive.library.chunks = [
         { ...first, email: 'owner@example.com' },

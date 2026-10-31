@@ -1,8 +1,10 @@
 import { afterAll, beforeEach, expect, test, vi } from 'vitest';
 import { Err, Ok } from 'results-ts';
 import { ThemeMode } from '@madkarmaa/phodrive-core/models';
+import { invalidateAll } from '$app/navigation';
 import { DriveController } from '#browser/drive/index.svelte';
-import { validateAccount } from '@madkarmaa/phodrive-core/browser/accounts';
+import { replaceGoogleToken, signOut, signUp } from '#browser/auth';
+import { SignInSchema, SignUpSchema } from '#lib/auth';
 
 const { storage } = vi.hoisted(() => {
     const values = new Map<string, string>();
@@ -26,97 +28,138 @@ const { storage } = vi.hoisted(() => {
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
-vi.mock('@madkarmaa/phodrive-core/browser/accounts', () => ({ validateAccount: vi.fn() }));
+vi.mock('$app/navigation', () => ({ invalidateAll: vi.fn(async () => {}) }));
 vi.mock('#browser/drive/refresh.svelte', () => ({ useAutomaticRefresh: vi.fn() }));
+vi.mock('#browser/auth', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('#browser/auth')>();
+
+    return { ...actual, replaceGoogleToken: vi.fn(), signOut: vi.fn() };
+});
 
 beforeEach(() => {
     storage.clear();
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
 });
 
 afterAll(() => vi.unstubAllGlobals());
 
-function createDrive(email = 'test@example.com', token = 'oauth2_4/fake') {
-    const drive = new DriveController();
+function createDrive() {
+    const drive = new DriveController('test@example.com');
     drive.initialize();
     drive.ready = false;
-    drive.newEmail = email;
-    drive.newToken = token;
+    vi.spyOn(drive.library, 'load').mockResolvedValue();
     return drive;
 }
 
-test('whitespace and malformed credentials stop before account validation', async () => {
-    const drive = createDrive('   ', '   ');
+test('signup needs a Google email, a valid password, and a Google token before any request', () => {
+    const valid = { email: 'test@example.com', password: 'long enough', token: 'oauth2_4/fake' };
 
-    await drive.saveAccount();
-
-    expect(validateAccount).not.toHaveBeenCalled();
-    expect(drive.feedbackMessage).toBe(
-        'Enter your Google account email and an OAuth2 or AAS token.'
-    );
-    expect(drive.accounts).toEqual({});
+    expect(SignUpSchema.safeParse(valid).success).toBe(true);
+    expect(SignUpSchema.safeParse({ ...valid, password: 'short' }).success).toBe(false);
+    expect(SignUpSchema.safeParse({ ...valid, password: 'x'.repeat(129) }).success).toBe(false);
+    expect(SignUpSchema.safeParse({ ...valid, token: 'not-a-token' }).success).toBe(false);
+    expect(SignUpSchema.safeParse({ ...valid, email: 'not-an-email' }).success).toBe(false);
+    expect(SignInSchema.safeParse({ email: valid.email, password: '' }).success).toBe(false);
 });
 
-test('rejected or expired token leaves account storage unchanged and shows a safe error', async () => {
-    vi.mocked(validateAccount).mockReturnValue(
+test('signup posts once to the account endpoint and never stores the token in the browser', async () => {
+    const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(Response.json({ signedUp: true }));
+    const input = { email: 'test@example.com', password: 'long enough', token: 'oauth2_4/fake' };
+
+    const signedUp = await signUp(input);
+
+    expect(signedUp.isOk()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/account');
+    expect(storage.length).toBe(0);
+    fetchMock.mockRestore();
+});
+
+test('signup surfaces the server error message', async () => {
+    const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(Response.json({ error: 'Signup is disabled.' }, { status: 403 }));
+
+    const signedUp = await signUp({
+        email: 'test@example.com',
+        password: 'long enough',
+        token: 'aas_et/fake'
+    });
+
+    expect(signedUp.unwrapErr().message).toBe('Signup is disabled.');
+    fetchMock.mockRestore();
+});
+
+test('a rejected replacement token keeps the library and shows a safe error', async () => {
+    vi.mocked(replaceGoogleToken).mockReturnValue(
         Ok(undefined).andThenAsync(async () =>
-            Err({
-                code: 'ACCOUNT_CONNECTION_FAILED',
-                message: 'AAS authentication failed'
-            } as const)
+            Err({ code: 'REQUEST_FAILED', message: 'AAS authentication failed' } as const)
         )
     );
     const drive = createDrive();
 
-    await drive.saveAccount();
+    const replaced = await drive.replaceToken('oauth2_4/fake');
 
-    expect(drive.accounts).toEqual({});
+    expect(replaced).toBe(false);
     expect(drive.feedbackMessage).toBe('AAS authentication failed');
-    expect(drive.connecting).toBe(false);
+    expect(drive.replacingToken).toBe(false);
+    expect(drive.library.load).not.toHaveBeenCalled();
 });
 
-test('a second submit while authentication is pending does not issue another validation', async () => {
-    let resolveValidation:
-        ((value: Awaited<ReturnType<typeof validateAccount>>) => void) | undefined;
-    vi.mocked(validateAccount).mockReturnValue(
+test('a second replacement while one is pending does not issue another request', async () => {
+    let resolveReplacement:
+        ((value: Awaited<ReturnType<typeof replaceGoogleToken>>) => void) | undefined;
+    vi.mocked(replaceGoogleToken).mockReturnValue(
         Ok(undefined).andThenAsync(
             () =>
                 new Promise((resolve) => {
-                    resolveValidation = resolve;
+                    resolveReplacement = resolve;
                 })
         )
     );
     const drive = createDrive();
 
-    const firstSubmit = drive.saveAccount();
-    await drive.saveAccount();
+    const first = drive.replaceToken('oauth2_4/fake');
+    const second = await drive.replaceToken('oauth2_4/other');
 
-    expect(validateAccount).toHaveBeenCalledTimes(1);
-    expect(drive.connecting).toBe(true);
+    expect(second).toBe(false);
+    expect(replaceGoogleToken).toHaveBeenCalledTimes(1);
+    expect(drive.replacingToken).toBe(true);
 
-    resolveValidation?.(Ok('aas_et/fake'));
-    await firstSubmit;
+    resolveReplacement?.(Ok(undefined));
+
+    expect(await first).toBe(true);
+    expect(drive.library.load).toHaveBeenCalledOnce();
 });
 
-test('editing credentials during pending authentication does not associate the token with another email', async () => {
-    let resolveValidation:
-        ((value: Awaited<ReturnType<typeof validateAccount>>) => void) | undefined;
-    vi.mocked(validateAccount).mockReturnValue(
-        Ok(undefined).andThenAsync(
-            () =>
-                new Promise((resolve) => {
-                    resolveValidation = resolve;
-                })
-        )
-    );
+test('signing out reloads the session, and a failed sign out keeps the drive with an error', async () => {
+    vi.mocked(signOut).mockReturnValueOnce(Ok(undefined).andThenAsync(async () => Ok(undefined)));
     const drive = createDrive();
 
-    const pendingSubmit = drive.saveAccount();
-    await Promise.resolve();
-    drive.newEmail = 'changed@example.com';
-    drive.newToken = 'oauth2_4/other-fake';
-    resolveValidation?.(Ok('aas_et/verified-original'));
-    await pendingSubmit;
+    await drive.signOut();
 
-    expect(drive.accounts).toEqual({ 'test@example.com': 'aas_et/verified-original' });
+    expect(invalidateAll).toHaveBeenCalledOnce();
+
+    vi.mocked(signOut).mockReturnValueOnce(
+        Ok(undefined).andThenAsync(async () =>
+            Err({ code: 'REQUEST_FAILED', message: 'Could not sign out. Try again.' } as const)
+        )
+    );
+
+    await drive.signOut();
+
+    expect(invalidateAll).toHaveBeenCalledOnce();
+    expect(drive.feedbackMessage).toBe('Could not sign out. Try again.');
+    expect(drive.signingOut).toBe(false);
+});
+
+test('sign out waits for active transfers', async () => {
+    const drive = createDrive();
+    drive.busy = true;
+
+    await drive.signOut();
+
+    expect(signOut).not.toHaveBeenCalled();
 });

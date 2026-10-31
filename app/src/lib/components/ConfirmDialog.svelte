@@ -1,11 +1,10 @@
 <script lang="ts">
-    import { ConfirmKind } from '@madkarmaa/phodrive-core/models';
+    import type { FileGroup } from '@madkarmaa/phodrive-core/files';
     import { Button, Dialog } from 'noph-ui';
-    import type { ConfirmTarget } from '#browser/drive/index.svelte';
 
     interface Props {
         open?: boolean;
-        target: ConfirmTarget | null;
+        target: FileGroup | null;
         onconfirm: () => void;
     }
 
@@ -16,25 +15,21 @@
 <Dialog
     style="transition-property: opacity"
     bind:open
-    aria-label={target?.kind === ConfirmKind.Account ? 'Sign out?' : 'Move file to trash?'}
-    headline={target?.kind === ConfirmKind.Account ? 'Sign out?' : 'Move file to trash?'}
+    aria-label="Move file to trash?"
+    headline="Move file to trash?"
     ontoggle={(event) => {
         if (event.newState === 'open') cancelButton?.focus();
     }}
 >
-    {#if target?.kind === ConfirmKind.Account}
-        Sign out of {target.email} on this browser? Files in Google Photos will stay online.
-    {:else if target?.kind === ConfirmKind.File}
-        Move {target.item.name} and its {target.item.chunks.length}
-        {target.item.chunks.length === 1 ? 'chunk' : 'chunks'} to Google Photos trash?
+    {#if target}
+        Move {target.name} and its {target.chunks.length}
+        {target.chunks.length === 1 ? 'chunk' : 'chunks'} to Google Photos trash?
     {/if}
 
     {#snippet actions()}
         <Button bind:element={cancelButton} autofocus variant="text" onclick={() => (open = false)}>
             Cancel
         </Button>
-        <Button variant="text" onclick={onconfirm}>
-            {target?.kind === ConfirmKind.Account ? 'Sign out' : 'Move to trash'}
-        </Button>
+        <Button variant="text" onclick={onconfirm}>Move to trash</Button>
     {/snippet}
 </Dialog>

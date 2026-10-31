@@ -45,7 +45,6 @@ test('invalid selected paths and newline names fail while valid empty-file uploa
     const uploaded = await uploadFiles(
         [...invalid, ...valid].map((name) => new File([], name)),
         'test@example.com',
-        'aas_et/test',
         2,
         (job) => jobs.set(job.id, job),
         () => {}

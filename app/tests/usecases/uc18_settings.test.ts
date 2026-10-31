@@ -62,7 +62,7 @@ afterEach(() => vi.restoreAllMocks());
 afterAll(() => vi.unstubAllGlobals());
 
 test('controller saves boundary settings and leaves rejected extremes unchanged', () => {
-    const controller = new DriveController();
+    const controller = new DriveController('test@example.com');
     controller.initialize();
 
     controller.settings.chooseRefreshInterval(0);
@@ -90,7 +90,7 @@ test('controller saves boundary settings and leaves rejected extremes unchanged'
 });
 
 test('controller rejects fractional, NaN, infinite, and blank numeric input without changing saved values', () => {
-    const controller = new DriveController();
+    const controller = new DriveController('test@example.com');
     controller.initialize();
     controller.settings.chooseRefreshInterval(90);
     controller.settings.chooseConcurrentWorkers(4);
@@ -123,7 +123,7 @@ test('reset returns settings to live deployment defaults and preserves other cho
         refreshIntervalSeconds: 300,
         concurrentWorkers: 3
     };
-    const controller = new DriveController(defaults);
+    const controller = new DriveController('test@example.com', defaults);
     controller.initialize();
     controller.settings.chooseRefreshInterval(0);
     controller.settings.chooseConcurrentWorkers(16);
@@ -140,7 +140,7 @@ test('reset returns settings to live deployment defaults and preserves other cho
 });
 
 test('theme selection updates the page and persists the chosen mode', () => {
-    const controller = new DriveController();
+    const controller = new DriveController('test@example.com');
     controller.initialize();
     controller.settings.chooseTheme(ThemeMode.Dark);
 
@@ -151,7 +151,7 @@ test('theme selection updates the page and persists the chosen mode', () => {
 });
 
 test('storage write failures are reported by settings and theme actions', () => {
-    const controller = new DriveController();
+    const controller = new DriveController('test@example.com');
     controller.initialize();
     const setItem = vi.spyOn(storage, 'setItem').mockImplementation(() => {});
 
