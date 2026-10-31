@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { UploadJobStatus } from '@madkarmaa/phodrive-core/models';
+import { UploadJobStatus, ProcessingMode } from '@madkarmaa/phodrive-core/models';
 import { uploadFiles, type UploadJob } from '#browser/files';
 import { decodeSplitBmp, encodeSplitBmp } from '@madkarmaa/phodrive-core/server/bmp';
 import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
@@ -47,7 +47,8 @@ test('invalid selected paths and newline names fail while valid empty-file uploa
         'test@example.com',
         2,
         (job) => jobs.set(job.id, job),
-        () => {}
+        () => {},
+        ProcessingMode.Browser
     );
     expect(uploaded.isOk()).toBe(true);
     expect(fetch).toHaveBeenCalledTimes(valid.length);

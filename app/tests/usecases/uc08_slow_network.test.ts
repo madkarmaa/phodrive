@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { uploadFiles, type UploadJob } from '#browser/files';
-import { UploadJobStatus } from '@madkarmaa/phodrive-core/models';
+import { UploadJobStatus, ProcessingMode } from '@madkarmaa/phodrive-core/models';
 import { browserUploadResponse } from '../../../core/tests/helpers/upload';
 
 afterEach(() => vi.restoreAllMocks());
@@ -36,7 +36,8 @@ test.each([1, 32])(
                 'test@example.com',
                 workers,
                 (job) => jobs.set(job.id, job),
-                () => {}
+                () => {},
+                ProcessingMode.Browser
             )
         );
         void pending.then(() => {

@@ -8,6 +8,10 @@ export const SERVER_ERRORS = {
         message: 'Could not receive the selected file.'
     },
     FILE_TOO_LARGE: { code: 'FILE_TOO_LARGE', message: 'File is too large.' },
+    UPLOAD_SPOOL_FAILED: {
+        code: 'UPLOAD_SPOOL_FAILED',
+        message: 'The server could not store the upload temporarily. Check its free disk space.'
+    },
     UPLOAD_INPUT_REQUIRED: {
         code: 'UPLOAD_INPUT_REQUIRED',
         message: 'Choose files to upload.'

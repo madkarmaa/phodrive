@@ -26,7 +26,7 @@ export function localChunkTransport(
     account: Account,
     { signal, fetcher }: TransferOptions = {}
 ): ChunkTransport {
-    return (metadata, payload, onEvent) =>
+    return ({ metadata, payload }, onEvent) =>
         Ok(undefined).andThenAsync(async () => {
             const abort = new AbortController();
             const onAbort = () => abort.abort();

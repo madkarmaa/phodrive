@@ -1,5 +1,6 @@
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import {
+    ChunkFormat,
     FileNameSchema,
     FileSizeSchema,
     UploadEventType,
@@ -13,7 +14,7 @@ import { planChunks, type UploadPlan } from '../../upload';
 import { chunkFileName, fileIdentity } from '../chunks';
 import { photosFetchWithProgress, type Fetcher } from '../fetcher';
 import { uploadBmpStream } from '../photos/index';
-import { encodeUploadBmp } from './bmp';
+import { encodeUploadBmp, relayUploadBmp } from './bmp';
 import type { ReceivedUpload } from './input';
 
 const PROGRESS_INTERVAL_MS = 100;
@@ -33,7 +34,8 @@ export function uploadFiles(
     fetcher?: Fetcher
 ): AsyncResult<void, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
-        const source = encodeUploadBmp(input);
+        const source =
+            input.format === ChunkFormat.Bmp ? relayUploadBmp(input) : encodeUploadBmp(input);
         let lastProgress = 0;
         const report = (completed: number, reused = 0, force = false) => {
             const now = performance.now();

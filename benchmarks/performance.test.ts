@@ -13,7 +13,13 @@ import {
     MAX_CHUNK_PAYLOAD_BYTES as CHUNK
 } from '@madkarmaa/phodrive-core/bmp/format';
 import { planChunks } from '@madkarmaa/phodrive-core/upload';
-import { FileSort, UploadJobStatus, type SplitHeader } from '@madkarmaa/phodrive-core/models';
+import {
+    ChunkFormat,
+    FileSort,
+    ProcessingMode,
+    UploadJobStatus,
+    type SplitHeader
+} from '@madkarmaa/phodrive-core/models';
 import { groupChunks, sortFiles, type UploadedChunk } from '@madkarmaa/phodrive-core/files';
 import { encodeSplitBmp } from '@madkarmaa/phodrive-core/server/bmp';
 import { SplitBmpReader } from '@madkarmaa/phodrive-core/server/bmp/stream';
@@ -332,7 +338,8 @@ async function workload(): Promise<{ run: () => Promise<void> | void; bytes: num
                 assert.equal(url, '/api/upload');
                 const received = await receiveUpload(
                     new Request('http://localhost/api/upload', init),
-                    TEST_ACCOUNT
+                    TEST_ACCOUNT,
+                    ChunkFormat.Bmp
                 );
                 return received.match({
                     Ok: uploadStream,
@@ -355,7 +362,8 @@ async function workload(): Promise<{ run: () => Promise<void> | void; bytes: num
                     },
                     () => {
                         chunks++;
-                    }
+                    },
+                    ProcessingMode.Browser
                 );
             try {
                 const result = await run();

@@ -41,6 +41,10 @@
             "@madkarmaa/phodrive-core": "./src/browser/api.ts",
             "default": "./dist/browser/api.js"
         },
+        "./browser/download": {
+            "@madkarmaa/phodrive-core": "./src/browser/download.ts",
+            "default": "./dist/browser/download.js"
+        },
         "./browser/files": {
             "@madkarmaa/phodrive-core": "./src/browser/files.ts",
             "default": "./dist/browser/files.js"
@@ -189,9 +193,17 @@
             "@madkarmaa/phodrive-core": "./src/server/upload/bmp.ts",
             "default": "./dist/server/upload/bmp.js"
         },
+        "./server/upload/file": {
+            "@madkarmaa/phodrive-core": "./src/server/upload/file.ts",
+            "default": "./dist/server/upload/file.js"
+        },
         "./server/upload/input": {
             "@madkarmaa/phodrive-core": "./src/server/upload/input.ts",
             "default": "./dist/server/upload/input.js"
+        },
+        "./server/upload/multipart": {
+            "@madkarmaa/phodrive-core": "./src/server/upload/multipart.ts",
+            "default": "./dist/server/upload/multipart.js"
         },
         "./server/upload/stream": {
             "@madkarmaa/phodrive-core": "./src/server/upload/stream.ts",
@@ -244,6 +256,7 @@
             "./bmp/format": "./dist/bmp/format.js",
             "./browser": "./dist/browser/index.js",
             "./browser/api": "./dist/browser/api.js",
+            "./browser/download": "./dist/browser/download.js",
             "./browser/files": "./dist/browser/files.js",
             "./browser/library": "./dist/browser/library.js",
             "./browser/upload": "./dist/browser/upload/index.js",
@@ -281,7 +294,9 @@
             "./server/request": "./dist/server/request.js",
             "./server/upload": "./dist/server/upload/index.js",
             "./server/upload/bmp": "./dist/server/upload/bmp.js",
+            "./server/upload/file": "./dist/server/upload/file.js",
             "./server/upload/input": "./dist/server/upload/input.js",
+            "./server/upload/multipart": "./dist/server/upload/multipart.js",
             "./server/upload/stream": "./dist/server/upload/stream.js",
             "./server/workers": "./dist/server/workers.js",
             "./upload": "./dist/upload.js",

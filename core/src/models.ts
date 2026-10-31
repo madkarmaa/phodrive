@@ -28,6 +28,18 @@ export enum UploadEventType {
     Error = 'error'
 }
 
+/** Where files are hashed, split, and encoded on upload, and verified and decoded on download. */
+export enum ProcessingMode {
+    Browser = 'browser',
+    Server = 'server'
+}
+
+/** What a chunk upload carries: the raw file slice, or the finished BMP from the browser. */
+export enum ChunkFormat {
+    Payload = 'payload',
+    Bmp = 'bmp'
+}
+
 export enum FileActionKind {
     Download = 'download',
     Delete = 'delete'
@@ -64,6 +76,7 @@ export const MAX_REFRESH_INTERVAL_SECONDS = 86_400;
 export const DEFAULT_CONCURRENT_WORKERS = 8;
 export const MAX_CONCURRENT_WORKERS = 32;
 
+export const ProcessingModeSchema = z.enum(ProcessingMode);
 export const ThemeSchema = z.enum(ThemeMode);
 export const FileSortSchema = z.enum(FileSort);
 export const RefreshIntervalSchema = z.int().min(0).max(MAX_REFRESH_INTERVAL_SECONDS);
@@ -211,10 +224,19 @@ export const UploadChunkSchema = z.object({
     sha1: Sha1HexSchema
 });
 export const UploadRequestSchema = AccountSchema.extend(UploadChunkSchema.shape);
+/** A whole file sent for the server to hash, split, and encode. */
+export const FileUploadRequestSchema = z.object({
+    name: FileNameSchema,
+    size: FileSizeSchema,
+    workers: WorkerCountSchema
+});
+/** Identifies one stored chunk for a raw download. */
+export const ChunkReferenceSchema = RemoteBmpSchema.pick({ mediaKey: true, sha1: true });
 export type Account = z.infer<typeof AccountSchema>;
 export type UploadFile = z.infer<typeof UploadFileSchema>;
 export type UploadChunk = z.infer<typeof UploadChunkSchema>;
 export type ChunkUploadRequest = z.infer<typeof UploadRequestSchema>;
+export type FileUploadRequest = z.infer<typeof FileUploadRequestSchema>;
 
 export type RemoteBmp = z.infer<typeof RemoteBmpSchema>;
 export type LibraryResponse = z.infer<typeof LibraryResponseSchema>;

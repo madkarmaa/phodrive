@@ -2,6 +2,7 @@ import pLimit from 'p-limit';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import {
     ConcurrentWorkersSchema,
+    ProcessingMode,
     FileNameSchema,
     FileSizeSchema,
     UploadEventType,
@@ -17,9 +18,19 @@ import type { UploadedChunk } from '../../files';
 import { schemaResult } from '../../validation';
 import { MAX_CHUNK_PAYLOAD_BYTES } from '../../bmp/format';
 import { planChunks, type UploadPlan } from '../../upload';
-import { INVALID_UPLOAD_PROGRESS, httpChunkTransport, type ChunkTransport } from './request';
+import {
+    INVALID_UPLOAD_PROGRESS,
+    httpChunkTransport,
+    uploadFileRequest,
+    type ChunkTransport
+} from './request';
 import { hashFile, hashUploadChunk, uploadIdentity } from './hash';
-import { createUploadJobs, createUploadEventHandler, type UploadJob } from './jobs';
+import {
+    createUploadJobs,
+    createUploadEventHandler,
+    type UploadJob,
+    type UploadSource
+} from './jobs';
 
 const PROGRESS_INTERVAL_MS = 100;
 
@@ -51,7 +62,7 @@ function uploadChunk(
         let reused = 0;
         let saved: UploadedChunk | null = null;
         let result: UploadResponse | null = null;
-        const uploaded = await transport(metadata, payload, (event) => {
+        const uploaded = await transport({ metadata, payload, header }, (event) => {
             if (event.type === UploadEventType.Error)
                 return Err({ code: 'UPLOAD_FAILED', message: event.error } as const);
             if (event.type === UploadEventType.Complete)
@@ -204,21 +215,87 @@ function uploadPlannedFile(
     });
 }
 
-/** Hash locally, then send bounded slices through a single shared transfer pool. */
+/** Reject unusable selections up front; the rest keep their job IDs as upload sources. */
+function uploadSources(
+    files: readonly File[],
+    jobs: UploadJob[],
+    onJob: (job: UploadJob) => void
+): UploadSource[] {
+    const sources: UploadSource[] = [];
+
+    for (const [id, file] of files.entries()) {
+        const valid =
+            FileNameSchema.safeParse(file.name).success &&
+            FileSizeSchema.safeParse(file.size).success;
+        if (!valid) {
+            jobs[id] = {
+                ...jobs[id],
+                status: UploadJobStatus.Error,
+                message: 'Invalid file name or size.'
+            };
+            onJob(jobs[id]);
+            continue;
+        }
+
+        sources.push({ file, jobId: id });
+    }
+
+    return sources;
+}
+
+/**
+ * Upload with the server's processing mode: in the browser, hash and encode locally, then send
+ * finished chunks through one shared pool; on the server, send each whole file.
+ */
 export function uploadFiles(
     files: readonly File[],
     email: string,
     workers: number,
     onJob: (job: UploadJob) => void,
-    onChunk: (chunk: UploadedChunk) => void
+    onChunk: (chunk: UploadedChunk) => void,
+    processing: ProcessingMode
 ): AsyncResult<void, ApplicationError> {
     return schemaResult(
         ConcurrentWorkersSchema,
         workers,
         'Invalid concurrent worker count.'
     ).andThenAsync((concurrency) =>
-        transferFiles(files, email, concurrency, onJob, onChunk, httpChunkTransport)
+        processing === ProcessingMode.Server
+            ? sendFiles(files, email, concurrency, onJob, onChunk)
+            : transferFiles(files, email, concurrency, onJob, onChunk, httpChunkTransport)
     );
+}
+
+/** The server reports each file under ID 0; its events are mapped back to the file's own ID. */
+function sendFiles(
+    files: readonly File[],
+    email: string,
+    concurrency: number,
+    onJob: (job: UploadJob) => void,
+    onChunk: (chunk: UploadedChunk) => void
+): AsyncResult<void, ApplicationError> {
+    return Ok(undefined).andThenAsync(async () => {
+        const jobs = createUploadJobs(files);
+        const sources = uploadSources(files, jobs, onJob);
+        if (!sources.length) return Ok(undefined);
+
+        const handle = createUploadEventHandler(sources, jobs, email, onJob, onChunk);
+        await pLimit(concurrency).map(sources, async ({ file }, id) => {
+            const sent = await uploadFileRequest(file, concurrency, (event) => {
+                if (event.type === UploadEventType.Complete || event.type === UploadEventType.Error)
+                    return Ok(undefined);
+
+                return handle({ ...event, id });
+            });
+
+            // A job already marked complete or failed rejects this report, which is expected.
+            sent.inspectErr((error) =>
+                handle({ type: UploadEventType.FileError, id, error: error.message })
+            );
+        });
+
+        return handle({ type: UploadEventType.Complete });
+    });
 }
 
 /**
@@ -235,23 +312,7 @@ export function transferFiles(
 ): AsyncResult<void, ApplicationError> {
     return Ok(undefined).andThenAsync(async () => {
         const jobs = createUploadJobs(files);
-        const sources: { file: File; jobId: number }[] = [];
-        for (const [id, file] of files.entries()) {
-            const valid =
-                FileNameSchema.safeParse(file.name).success &&
-                FileSizeSchema.safeParse(file.size).success;
-            if (!valid) {
-                jobs[id] = {
-                    ...jobs[id],
-                    status: UploadJobStatus.Error,
-                    message: 'Invalid file name or size.'
-                };
-                onJob(jobs[id]);
-                continue;
-            }
-
-            sources.push({ file, jobId: id });
-        }
+        const sources = uploadSources(files, jobs, onJob);
         if (!sources.length) return Ok(undefined);
 
         const handle = createUploadEventHandler(sources, jobs, email, onJob, onChunk);

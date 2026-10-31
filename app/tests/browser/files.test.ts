@@ -2,7 +2,8 @@ import {
     FileActionRequestSchema,
     UploadJobStatus,
     UploadEventType,
-    type RemoteBmp
+    type RemoteBmp,
+    ProcessingMode
 } from '@madkarmaa/phodrive-core/models';
 import { afterEach, expect, vi, test } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -47,7 +48,8 @@ test('browser hashes incrementally and posts raw slices with stable verified BMP
         'test@example.com',
         2,
         (job) => jobs.set(job.id, job),
-        (chunk) => saved.push(chunk)
+        (chunk) => saved.push(chunk),
+        ProcessingMode.Browser
     );
     expect(uploaded.isOk()).toBe(true);
     expect(fetch).toHaveBeenCalledTimes(2);
@@ -94,7 +96,8 @@ test('global transfer pool respects workers and mixed failures preserve other fi
         'test@example.com',
         2,
         (job) => jobs.set(job.id, job),
-        () => {}
+        () => {},
+        ProcessingMode.Browser
     );
     expect(result.isOk()).toBe(true);
     expect(peak).toBe(2);
@@ -138,7 +141,8 @@ test.each(['sha1', 'index', 'name', 'missing'] as const)(
             'test@example.com',
             1,
             (job) => jobs.push(job),
-            (chunk) => saved.push(chunk)
+            (chunk) => saved.push(chunk),
+            ProcessingMode.Browser
         );
         expect(jobs.at(-1)?.status).toBe(UploadJobStatus.Error);
         expect(saved).toHaveLength(0);
@@ -155,7 +159,8 @@ test('selection validates names and worker count, preserving empty files', async
         'test@example.com',
         1,
         (job) => jobs.set(job.id, job),
-        () => {}
+        () => {},
+        ProcessingMode.Browser
     );
     expect(uploaded.isOk()).toBe(true);
     expect(jobs.get(0)?.status).toBe(UploadJobStatus.Error);
@@ -166,7 +171,8 @@ test('selection validates names and worker count, preserving empty files', async
         'test@example.com',
         0,
         () => {},
-        () => {}
+        () => {},
+        ProcessingMode.Browser
     );
     expect(invalid.isErr()).toBe(true);
     expect(fetch).toHaveBeenCalledOnce();
@@ -184,10 +190,10 @@ test('download asks for one reconstructed file and preserves its original bytes'
         expect(request.chunks).toHaveLength(1);
         return new Response(PAYLOAD);
     });
-    const downloaded = await downloadFile(group);
+    const downloaded = await downloadFile(group, ProcessingMode.Server);
     const recovered = await downloaded.unwrap().arrayBuffer();
     expect(new Uint8Array(recovered)).toEqual(PAYLOAD);
-    const incomplete = await downloadFile({ ...group, complete: false });
+    const incomplete = await downloadFile({ ...group, complete: false }, ProcessingMode.Server);
     expect(incomplete.isErr()).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
 });
@@ -222,7 +228,7 @@ test('an interrupted download body returns a receive error instead of a partial 
             )
     );
 
-    const downloaded = await downloadFile(group);
+    const downloaded = await downloadFile(group, ProcessingMode.Server);
     expect(downloaded.unwrapErr()).toEqual({
         code: 'DOWNLOAD_RECEIVE_FAILED',
         message: 'Could not receive the downloaded file.'

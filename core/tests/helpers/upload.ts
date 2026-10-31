@@ -69,24 +69,27 @@ export async function browserUploadResponse(
 ): Promise<Response> {
     if (!(init?.body instanceof FormData)) throw new Error('Expected chunk form');
     const json = init.body.get('metadata');
-    const payload = init.body.get('chunk');
-    if (typeof json !== 'string' || !(payload instanceof Blob))
-        throw new Error('Missing chunk metadata/payload');
+    const chunk = init.body.get('chunk');
+    if (typeof json !== 'string' || !(chunk instanceof Blob))
+        throw new Error('Missing chunk metadata/BMP');
     const sent: unknown = JSON.parse(json);
     if (typeof sent === 'object' && sent && ('email' in sent || 'token' in sent))
         throw new Error('Browser chunk metadata must not carry account credentials');
     const metadata = UploadChunkSchema.parse(sent);
+    // Browsers send the finished BMP; it must match what the server would have encoded.
+    const bmp = new Uint8Array(await chunk.arrayBuffer());
+    const payload = decodeSplitBmp(bmp).unwrap().payload;
     const count = Math.max(1, Math.ceil(metadata.file.size / MAX_CHUNK_PAYLOAD_BYTES));
     const header = {
         fileHash: metadata.file.fileHash,
         fileId: fileIdentity(metadata.file.name, metadata.file.fileHash),
         chunkIndex: metadata.chunkIndex,
         flags: metadata.chunkIndex === count - 1 ? (1 as const) : (0 as const),
-        payloadSize: payload.size,
+        payloadSize: payload.length,
         fileName: metadata.chunkIndex === 0 ? metadata.file.name : undefined
     };
-    const bytes = await payload.arrayBuffer();
-    const bmp = encodeSplitBmp(new Uint8Array(bytes), header).unwrap();
+    if (!Buffer.from(encodeSplitBmp(payload, header).unwrap()).equals(bmp))
+        throw new Error('Browser BMP does not match the expected encoding');
     if (createHash('sha1').update(bmp).digest('hex') !== metadata.sha1)
         throw new Error('Wrong browser BMP checksum');
     const result = {
@@ -114,7 +117,7 @@ export async function browserUploadResponse(
                 chunkIndex: header.chunkIndex,
                 isLast: Boolean(header.flags),
                 originalName: header.fileName,
-                size: payload.size,
+                size: payload.length,
                 at: 1,
                 mediaKey: result.mediaKey,
                 sha1: result.sha1

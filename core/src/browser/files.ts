@@ -1,9 +1,15 @@
 import type { ApplicationError } from '../errors';
-import { FileActionKind, ConcurrentWorkersSchema, FileDeleteResponseSchema } from '../models';
+import {
+    FileActionKind,
+    ConcurrentWorkersSchema,
+    FileDeleteResponseSchema,
+    ProcessingMode
+} from '../models';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import type { FileGroup, UploadedChunk } from '../files';
 import { schemaResult } from '../validation';
 import { apiJson, request } from './api';
+import { downloadChunks } from './download';
 
 export { createUploadJobs, type UploadJob } from './upload/jobs';
 
@@ -60,7 +66,13 @@ export function deleteFile(
         });
 }
 
-export function downloadFile(item: FileGroup): AsyncResult<Blob, ApplicationError> {
+/** The server's processing mode decides whether chunks are decoded here or on the server. */
+export function downloadFile(
+    item: FileGroup,
+    processing: ProcessingMode
+): AsyncResult<Blob, ApplicationError> {
+    if (processing === ProcessingMode.Browser) return downloadChunks(item);
+
     return Ok(undefined).andThenAsync(async () => {
         if (!item.complete || item.chunkCount === null)
             return Err({

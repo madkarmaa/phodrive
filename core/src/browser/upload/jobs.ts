@@ -46,7 +46,14 @@ function updateProgress(
     progress: UploadProgress
 ): Result<UploadJob, ApplicationError> {
     const previous = job.progress;
-    if (progress.phase === UploadPhase.Receiving) return invalidProgress();
+    // Only a server that splits files itself reports receiving them, before it prepares them.
+    if (
+        progress.phase === UploadPhase.Receiving &&
+        (previous.phase !== UploadPhase.Receiving ||
+            progress.total !== file.size ||
+            progress.completed < previous.completed)
+    )
+        return invalidProgress();
     if (
         progress.phase === UploadPhase.Preparing &&
         (progress.total !== file.size || previous.phase === UploadPhase.Uploading)
