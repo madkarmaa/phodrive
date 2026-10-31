@@ -1,0 +1,35 @@
+services:
+    db:
+        image: postgres:18-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: phodrive
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phodrive}
+            POSTGRES_DB: phodrive
+        volumes:
+            - db:/var/lib/postgresql
+        ports:
+            - 127.0.0.1:5432:5432
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U phodrive -d phodrive']
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    app:
+        image: ghcr.io/madkarmaa/phodrive:latest
+        build: .
+        restart: unless-stopped
+        init: true
+        depends_on:
+            db:
+                condition: service_healthy
+        environment:
+            DATABASE_URL: postgres://phodrive:${POSTGRES_PASSWORD:-phodrive}@db:5432/phodrive
+            BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+            PHODRIVE_DISABLE_SIGNUP: ${PHODRIVE_DISABLE_SIGNUP:-false}
+        ports:
+            - 127.0.0.1:3000:3000
+
+volumes:
+    db:

@@ -19,6 +19,8 @@
 !app/src/**
 !app/static
 !app/static/**
+!app/drizzle
+!app/drizzle/**
 !cli
 !cli/package.json
 !cli/tsconfig.json

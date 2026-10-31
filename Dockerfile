@@ -42,6 +42,7 @@ COPY --from=production-dependencies --chown=node:node /app/app/node_modules ./ap
 COPY --from=build --chown=node:node /app/core/dist ./core/dist
 COPY --from=build --chown=node:node /app/core/package.json ./core/package.json
 COPY --from=build --chown=node:node /app/app/build ./app/build
+COPY --from=build --chown=node:node /app/app/drizzle ./app/drizzle
 COPY --from=build --chown=node:node /app/app/package.json ./app/package.json
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/LICENSE ./
