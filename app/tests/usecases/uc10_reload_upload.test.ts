@@ -4,13 +4,13 @@ import { UploadStatus } from '@madkarmaa/phodrive-core/models';
 import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
 import { uploadStream } from '@madkarmaa/phodrive-core/server/upload/stream';
 import * as photos from '@madkarmaa/phodrive-core/server/photos';
-import { uploadForm } from '../../../core/tests/helpers/upload';
+import { uploadForm, TEST_ACCOUNT } from '../../../core/tests/helpers/upload';
 
 afterEach(() => vi.restoreAllMocks());
 
 test('leaving a stream lets an already started commit settle without retaining input files', async () => {
     const fixture = uploadForm();
-    const received = await receiveUpload(fixture.request());
+    const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
     const input = received.unwrap();
     let started = false;
     let settled = false;

@@ -2,7 +2,13 @@ import { Busboy, type BusboyFileStream } from '@fastify/busboy';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import { UploadRequestSchema, type ChunkUploadRequest, type SplitHeader } from '../../models';
+import {
+    UploadChunkSchema,
+    UploadRequestSchema,
+    type Account,
+    type ChunkUploadRequest,
+    type SplitHeader
+} from '../../models';
 import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '../../bmp/format';
 import { chunkCount, chunkHeader } from '../../upload';
 import { schemaResult } from '../../validation';
@@ -22,7 +28,8 @@ export interface ReceivedUpload extends ChunkUploadRequest {
     signal: AbortSignal;
 }
 
-function parseMetadata(text: string): Result<ChunkUploadRequest, ServerError> {
+/** Browsers send only chunk metadata; the account comes from the server's own session. */
+function parseMetadata(text: string, account: Account): Result<ChunkUploadRequest, ServerError> {
     let value: unknown;
 
     try {
@@ -31,9 +38,9 @@ function parseMetadata(text: string): Result<ChunkUploadRequest, ServerError> {
         return Err(SERVER_ERRORS.INVALID_UPLOAD_REQUEST);
     }
 
-    return schemaResult(UploadRequestSchema, value, 'Invalid upload request.').mapErr(
-        () => SERVER_ERRORS.INVALID_UPLOAD_REQUEST
-    );
+    return schemaResult(UploadChunkSchema, value, 'Invalid upload request.')
+        .map((chunk) => ({ ...account, ...chunk }))
+        .mapErr(() => SERVER_ERRORS.INVALID_UPLOAD_REQUEST);
 }
 
 function chunkMetadata(input: ChunkUploadRequest) {
@@ -127,7 +134,10 @@ export function receiveChunk(
 }
 
 /** Read just the manifest, then expose the live multipart file with backpressure. */
-export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, ServerError> {
+export function receiveUpload(
+    request: Request,
+    account: Account
+): AsyncResult<ReceivedUpload, ServerError> {
     return Ok(undefined).andThenAsync(async () => {
         const contentType = request.headers.get('content-type');
         if (!request.body || !contentType?.startsWith('multipart/form-data'))
@@ -181,7 +191,7 @@ export function receiveUpload(request: Request): AsyncResult<ReceivedUpload, Ser
                 return;
             }
 
-            parseMetadata(value).match({
+            parseMetadata(value, account).match({
                 Ok: (input) => {
                     metadata = input;
                 },

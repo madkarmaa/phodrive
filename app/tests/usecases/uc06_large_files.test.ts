@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
 import { encodeUploadBmp } from '@madkarmaa/phodrive-core/server/upload/bmp';
-import { uploadForm } from '../../../core/tests/helpers/upload';
+import { uploadForm, TEST_ACCOUNT } from '../../../core/tests/helpers/upload';
 import {
     MAX_CHUNK_PAYLOAD_BYTES,
     MAX_PHOTOS_BMP_BYTES,
@@ -71,7 +71,7 @@ test('first chunk BMP size accounts for UTF-8 long-name metadata overhead', () =
 test('zero and one-byte chunks stream with exact hashes and payloads', async () => {
     for (const payload of [new Uint8Array(), Uint8Array.of(0xff)]) {
         const fixture = uploadForm(payload, 'small.bin');
-        const received = await receiveUpload(fixture.request());
+        const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
         const input = received.unwrap();
         const bmp = encodeUploadBmp(input);
         const drained = await bmp.drain();

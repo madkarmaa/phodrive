@@ -5,7 +5,7 @@ import { fdir } from 'fdir';
 import { Err, Ok, type AsyncResult } from 'results-ts';
 import type { ApplicationError } from '../errors';
 import type { UploadedChunk } from '../files';
-import { UploadEventType, type UploadEvent } from '../models';
+import { UploadEventType, type Account, type UploadEvent } from '../models';
 import { transferFiles } from '../browser/upload/index';
 import type { ChunkTransport } from '../browser/upload/request';
 import type { UploadJob } from '../browser/upload/jobs';
@@ -22,7 +22,10 @@ function readFailure(path: string): ApplicationError {
 }
 
 /** Forward chunks to Google Photos in this process, reporting the same events as the HTTP API. */
-export function localChunkTransport({ signal, fetcher }: TransferOptions = {}): ChunkTransport {
+export function localChunkTransport(
+    account: Account,
+    { signal, fetcher }: TransferOptions = {}
+): ChunkTransport {
     return (metadata, payload, onEvent) =>
         Ok(undefined).andThenAsync(async () => {
             const abort = new AbortController();
@@ -43,7 +46,7 @@ export function localChunkTransport({ signal, fetcher }: TransferOptions = {}): 
 
             try {
                 const uploaded = await receiveChunk(
-                    metadata,
+                    { ...account, ...metadata },
                     payload.stream(),
                     abort.signal
                 ).andThenAsync(async (input) => {
@@ -193,11 +196,10 @@ export function uploadFiles(
         transferFiles(
             files,
             email,
-            token,
             concurrency,
             onJob,
             onChunk,
-            localChunkTransport(options)
+            localChunkTransport({ email, token }, options)
         )
     );
 }

@@ -11,7 +11,7 @@ import {
     UploadPhase,
     type UploadEvent
 } from '@madkarmaa/phodrive-core/models';
-import { uploadForm, photosUploadHarness } from '../helpers/upload';
+import { uploadForm, photosUploadHarness, TEST_ACCOUNT } from '../helpers/upload';
 import * as fs from 'node:fs/promises';
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -25,7 +25,7 @@ test('multipart ingestion and BMP transfer stream without allocating files on di
     const fixture = uploadForm();
     const open = vi.spyOn(fs, 'open').mockRejectedValue(new Error('ENOSPC'));
     const mkdtemp = vi.spyOn(fs, 'mkdtemp').mockRejectedValue(new Error('ENOSPC'));
-    const received = await receiveUpload(fixture.request());
+    const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
     const input = received.unwrap();
     const harness = photosUploadHarness();
     const events: UploadEvent[] = [];
@@ -66,7 +66,7 @@ test('encoder has bounded blocks and demand-driven ingress, independent of paylo
     );
     const init = { method: 'POST', headers, body: ingress, duplex: 'half' as const };
     const request = new Request(serialized.url, init);
-    const received = await receiveUpload(request);
+    const received = await receiveUpload(request, TEST_ACCOUNT);
     const input = received.unwrap();
     let blocks = 0;
     let bytes = 0;
@@ -105,7 +105,7 @@ test.each(['hash', 'short', 'long'] as const)(
         if (damage === 'short')
             fixture.form.set('chunk', new Blob([Uint8Array.of(1)]), 'chunk.bin');
         if (damage === 'long') fixture.form.set('chunk', new Blob([Buffer.alloc(6)]), 'chunk.bin');
-        const received = await receiveUpload(fixture.request());
+        const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
         const harness = photosUploadHarness();
         const uploaded = await uploadFiles(received.unwrap(), () => {}, harness.fetcher);
         expect(uploaded.isErr()).toBe(true);
@@ -116,7 +116,7 @@ test.each(['hash', 'short', 'long'] as const)(
 
 test('deduplication still validates the complete incoming split without a Google transfer', async () => {
     const fixture = uploadForm();
-    const received = await receiveUpload(fixture.request());
+    const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
     const harness = photosUploadHarness({ duplicate: true });
     const events: UploadEvent[] = [];
     const uploaded = await uploadFiles(
@@ -135,11 +135,11 @@ test('deduplication still validates the complete incoming split without a Google
 test('uncertain commits can be resolved by a stable SHA-1 lookup on retry', async () => {
     const fixture = uploadForm();
     const harness = photosUploadHarness({ failCommit: true });
-    const first = await receiveUpload(fixture.request());
+    const first = await receiveUpload(fixture.request(), TEST_ACCOUNT);
     const failed = await uploadFiles(first.unwrap(), () => {}, harness.fetcher);
     expect(failed.unwrapErr().code).toBe('COMMIT_OUTCOME_UNCERTAIN');
     await first.unwrap().cancel();
-    const second = await receiveUpload(fixture.request());
+    const second = await receiveUpload(fixture.request(), TEST_ACCOUNT);
     const retried = await uploadFiles(second.unwrap(), () => {}, harness.fetcher);
     expect(retried.isOk()).toBe(true);
     expect(harness.counts).toMatchObject({ transfers: 1, commits: 1 });
@@ -153,7 +153,7 @@ test('metadata-only preparation can describe a 500 GB source without opening or 
     expect(plan.headers.reduce((sum, header) => sum + header.payloadSize, 0)).toBe(size);
     expect(plan.headers.at(-1)?.flags).toBe(1);
     const fixture = uploadForm(new Uint8Array(), '500gb.bin', { fileSize: size });
-    const received = await receiveUpload(fixture.request());
+    const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
     expect(received.unwrap().header.payloadSize).toBe(MAX_CHUNK_PAYLOAD_BYTES);
     expect(received.unwrap().bmp.prefix.length).toBeLessThan(512);
     await received.unwrap().cancel();
@@ -161,7 +161,7 @@ test('metadata-only preparation can describe a 500 GB source without opening or 
 
 test('paused downstream progress is coalesced rather than retaining every event', async () => {
     const fixture = uploadForm();
-    const received = await receiveUpload(fixture.request());
+    const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
     const input = received.unwrap();
     const uploads = await import('@madkarmaa/phodrive-core/server/upload');
     let finished = false;
@@ -202,6 +202,24 @@ test('paused downstream progress is coalesced rather than retaining every event'
     expect(text).toContain('"type":"complete"');
 });
 
+test('the server account replaces credentials sent in chunk metadata', async () => {
+    const fixture = uploadForm();
+    const form = new FormData();
+    form.set(
+        'metadata',
+        JSON.stringify({ ...fixture.metadata, email: 'other@example.com', token: 'aas_et/other' })
+    );
+    form.set('chunk', fixture.form.get('chunk') ?? '');
+    const request = new Request('http://localhost/api/upload', { method: 'POST', body: form });
+
+    const received = await receiveUpload(request, TEST_ACCOUNT);
+    const input = received.unwrap();
+    await input.cancel();
+
+    expect(input.email).toBe(TEST_ACCOUNT.email);
+    expect(input.token).toBe(TEST_ACCOUNT.token);
+});
+
 test('request cancellation closes unfinished multipart ingress and produces no confirmation', async () => {
     const fixture = uploadForm(Buffer.alloc(1_000_000));
     const abort = new AbortController();
@@ -210,7 +228,7 @@ test('request cancellation closes unfinished multipart ingress and produces no c
         body: fixture.form,
         signal: abort.signal
     });
-    const received = await receiveUpload(request);
+    const received = await receiveUpload(request, TEST_ACCOUNT);
     const source = encodeUploadBmp(received.unwrap());
     const reader = source.body.getReader();
     await reader.read();

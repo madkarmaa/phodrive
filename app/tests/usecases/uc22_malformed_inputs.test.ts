@@ -4,12 +4,12 @@ import { parse } from '@madkarmaa/phodrive-core/server/protobuf';
 import { decodeSplitBmp } from '@madkarmaa/phodrive-core/server/bmp';
 import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
 import { encodeUploadBmp } from '@madkarmaa/phodrive-core/server/upload/bmp';
-import { uploadForm } from '../../../core/tests/helpers/upload';
+import { uploadForm, TEST_ACCOUNT } from '../../../core/tests/helpers/upload';
 
 afterEach(() => vi.restoreAllMocks());
 
 async function checked(request: Request) {
-    const received = await receiveUpload(request);
+    const received = await receiveUpload(request, TEST_ACCOUNT);
     if (received.isErr()) return received.map(() => undefined);
     const input = received.unwrap();
     const source = encodeUploadBmp(input);

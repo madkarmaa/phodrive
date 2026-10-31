@@ -4,7 +4,11 @@ import { uploadFiles, type UploadJob } from '#browser/files';
 import { decodeSplitBmp, encodeSplitBmp } from '@madkarmaa/phodrive-core/server/bmp';
 import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
 import { encodeUploadBmp } from '@madkarmaa/phodrive-core/server/upload/bmp';
-import { uploadForm, browserUploadResponse } from '../../../core/tests/helpers/upload';
+import {
+    uploadForm,
+    browserUploadResponse,
+    TEST_ACCOUNT
+} from '../../../core/tests/helpers/upload';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -19,7 +23,7 @@ test('empty files preserve Unicode, emoji, combining marks, dotfiles, extensionl
     ];
     for (const name of names) {
         const fixture = uploadForm(new Uint8Array(), name);
-        const received = await receiveUpload(fixture.request());
+        const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
         const input = received.unwrap();
         const bmp = encodeUploadBmp(input);
         const drained = await bmp.drain();

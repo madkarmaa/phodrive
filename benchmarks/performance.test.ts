@@ -22,7 +22,7 @@ import { encodeUploadBmp } from '@madkarmaa/phodrive-core/server/upload/bmp';
 import { uploadStream } from '@madkarmaa/phodrive-core/server/upload/stream';
 import { parseLibraryPage } from '@madkarmaa/phodrive-core/server/photos/library/metadata';
 import { bytesField, numberField, message } from '@madkarmaa/phodrive-core/server/protobuf';
-import { uploadForm } from '../core/tests/helpers/upload';
+import { uploadForm, TEST_ACCOUNT } from '../core/tests/helpers/upload';
 import { provider } from './transport';
 
 const transport = vi.hoisted(() => ({
@@ -170,7 +170,7 @@ async function workload(): Promise<{ run: () => Promise<void> | void; bytes: num
         return {
             bytes: CHUNK,
             run: async () => {
-                const received = await receiveUpload(fixture.request());
+                const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
                 const input = received.unwrap();
                 const source = encodeUploadBmp(input);
                 const result = await source.drain();
@@ -271,11 +271,12 @@ async function workload(): Promise<{ run: () => Promise<void> | void; bytes: num
             bytes: 0,
             run: async () => {
                 const invalid = await receiveUpload(
-                    new Request('http://localhost/api/upload', { method: 'POST', body: 'bad' })
+                    new Request('http://localhost/api/upload', { method: 'POST', body: 'bad' }),
+                    TEST_ACCOUNT
                 );
                 assert.ok(invalid.isErr());
                 for (const mode of ['hash', 'short', 'cancel', 'stream']) {
-                    const received = await receiveUpload(fixture.request());
+                    const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
                     const input = received.unwrap();
                     if (mode === 'hash') input.sha1 = '0'.repeat(40);
                     if (mode === 'short') input.header.payloadSize++;
@@ -330,7 +331,8 @@ async function workload(): Promise<{ run: () => Promise<void> | void; bytes: num
             vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
                 assert.equal(url, '/api/upload');
                 const received = await receiveUpload(
-                    new Request('http://localhost/api/upload', init)
+                    new Request('http://localhost/api/upload', init),
+                    TEST_ACCOUNT
                 );
                 return received.match({
                     Ok: uploadStream,
@@ -346,7 +348,6 @@ async function workload(): Promise<{ run: () => Promise<void> | void; bytes: num
                 uploadFiles(
                     fresh,
                     'bench@example.com',
-                    'aas_et/fixture',
                     workers,
                     (job) => {
                         if (job.status === UploadJobStatus.Complete) completed++;

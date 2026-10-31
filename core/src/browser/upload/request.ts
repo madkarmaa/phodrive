@@ -2,7 +2,7 @@ import type { ApplicationError } from '../../errors';
 import {
     UploadEventType,
     UploadEventSchema,
-    type ChunkUploadRequest,
+    type UploadChunk,
     type UploadEvent
 } from '../../models';
 import { EventSourceParserStream } from 'eventsource-parser/stream';
@@ -22,9 +22,12 @@ const UPLOAD_STREAM_INTERRUPTED = {
 } as const satisfies ApplicationError;
 const MAX_EVENT_CHARACTERS = 16 * 1024;
 
-/** Delivers one chunk and reports the server's upload events until completion or failure. */
+/**
+ * Delivers one chunk and reports the server's upload events until completion or failure.
+ * Transports supply the Google account themselves, so chunk metadata never carries credentials.
+ */
 export type ChunkTransport = (
-    metadata: ChunkUploadRequest,
+    metadata: UploadChunk,
     payload: Blob,
     onEvent: (event: UploadEvent) => Result<void, ApplicationError>
 ) => AsyncResult<void, ApplicationError>;
@@ -113,7 +116,7 @@ export function uploadRequest(
     );
 }
 
-/** Send a chunk to the same-origin Phodrive API. */
+/** Send a chunk to the same-origin Phodrive API, which uploads with the signed-in account. */
 export const httpChunkTransport: ChunkTransport = (metadata, payload, onEvent) => {
     const form = new FormData();
     form.set('metadata', JSON.stringify(metadata));

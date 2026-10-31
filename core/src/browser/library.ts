@@ -6,17 +6,14 @@ import { apiJson } from './api';
 
 export type LibrarySnapshot = LibraryResponse & { pages: number };
 
-export function readLibraryPage(
-    email: string,
-    token: string,
-    pageToken = ''
-): AsyncResult<LibraryResponse, ApplicationError> {
+/** The server reads the signed-in user's Google account, so requests carry no credentials. */
+export function readLibraryPage(pageToken = ''): AsyncResult<LibraryResponse, ApplicationError> {
     return apiJson(
         '/api/library',
         {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ email, token, pageToken })
+            body: JSON.stringify({ pageToken })
         },
         'Could not load files.'
     ).andThen((value) => schemaResult(LibraryResponseSchema, value, 'Could not load files.'));
@@ -24,8 +21,6 @@ export function readLibraryPage(
 
 /** Build a fresh snapshot to the loaded depth without changing the visible library mid-request. */
 export function readLibrarySnapshot(
-    email: string,
-    token: string,
     pageCount: number
 ): AsyncResult<LibrarySnapshot, ApplicationError> {
     return Ok(undefined).andThenAsync(async () => {
@@ -37,7 +32,7 @@ export function readLibrarySnapshot(
         for (let index = 0; index < Math.max(1, pageCount); index++) {
             pageTokens.add(nextPageToken);
 
-            const received = await readLibraryPage(email, token, nextPageToken);
+            const received = await readLibraryPage(nextPageToken);
 
             const merged = received.andThen((page): Result<void, ApplicationError> => {
                 if (page.nextPageToken && pageTokens.has(page.nextPageToken)) {

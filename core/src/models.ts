@@ -38,11 +38,6 @@ export enum AppView {
     Settings = 'settings'
 }
 
-export enum ConfirmKind {
-    Account = 'account',
-    File = 'file'
-}
-
 export enum ThemeMode {
     Light = 'light',
     Dark = 'dark',
@@ -189,15 +184,10 @@ export const UploadEventSchema = z.discriminatedUnion('type', [
     z.object({ type: z.literal(UploadEventType.Complete) }),
     z.object({ type: z.literal(UploadEventType.Error), error: z.string() })
 ]);
-export const AccountConnectionSchema = z.union([
-    z.object({ token: AasTokenSchema }),
-    ErrorResponseSchema
-]);
 export const AccountRequestSchema = z.object({ email: EmailSchema, token: z.string() });
-export const LibraryRequestSchema = AccountRequestSchema.extend({
-    pageToken: z.string().optional()
-});
-export const FileRequestSchema = AccountRequestSchema.extend({
+/** HTTP clients send no credentials; the server adds the signed-in user's account. */
+export const LibraryPageRequestSchema = z.object({ pageToken: z.string().optional() });
+export const FileActionRequestSchema = z.object({
     action: z.enum(FileActionKind),
     name: z.string().min(1),
     fileHash: Sha256HexSchema,
@@ -205,6 +195,7 @@ export const FileRequestSchema = AccountRequestSchema.extend({
     chunks: z.array(RemoteBmpSchema).nonempty(),
     workers: WorkerCountSchema
 });
+export const FileRequestSchema = AccountRequestSchema.extend(FileActionRequestSchema.shape);
 export const FileDeleteResponseSchema = z.object({
     deleted: z.array(RemoteBmpSchema),
     error: z.string().optional()
@@ -214,12 +205,15 @@ export const UploadFileSchema = z.object({
     size: FileSizeSchema,
     fileHash: Sha256HexSchema
 });
-export const UploadRequestSchema = AccountSchema.extend({
+export const UploadChunkSchema = z.object({
     file: UploadFileSchema,
     chunkIndex: z.int().nonnegative(),
     sha1: Sha1HexSchema
 });
+export const UploadRequestSchema = AccountSchema.extend(UploadChunkSchema.shape);
+export type Account = z.infer<typeof AccountSchema>;
 export type UploadFile = z.infer<typeof UploadFileSchema>;
+export type UploadChunk = z.infer<typeof UploadChunkSchema>;
 export type ChunkUploadRequest = z.infer<typeof UploadRequestSchema>;
 
 export type RemoteBmp = z.infer<typeof RemoteBmpSchema>;
@@ -228,11 +222,11 @@ export type SplitHeader = z.infer<typeof SplitHeaderSchema>;
 export type UploadResponse = z.infer<typeof UploadResponseSchema>;
 export type UploadEvent = z.infer<typeof UploadEventSchema>;
 export type UploadProgress = z.infer<typeof UploadProgressSchema>;
+export type FileActionRequest = z.infer<typeof FileActionRequestSchema>;
 export type FileRequest = z.infer<typeof FileRequestSchema>;
 export type RefreshInterval = z.infer<typeof RefreshIntervalSchema>;
 export type ConcurrentWorkers = z.infer<typeof ConcurrentWorkersSchema>;
 export type PreferencesDefaults = z.infer<typeof PreferencesDefaultsSchema>;
-export type AccountConnection = z.infer<typeof AccountConnectionSchema>;
 
 export const DEFAULT_FILE_SORT = FileSort.ModifiedDescending;
 export const DEFAULT_PREFERENCES_DEFAULTS: PreferencesDefaults = {

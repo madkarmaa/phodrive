@@ -12,19 +12,12 @@ export { uploadFiles } from './upload/index';
 
 const FILES_API_URL = '/api/files';
 
-function fileRequest(
-    item: FileGroup,
-    action: FileActionKind,
-    token: string,
-    workers: number
-): RequestInit {
+function fileRequest(item: FileGroup, action: FileActionKind, workers: number): RequestInit {
     return {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
             action,
-            email: item.email,
-            token,
             name: item.name,
             fileHash: item.fileHash,
             fileId: item.fileId,
@@ -36,7 +29,6 @@ function fileRequest(
 
 export function deleteFile(
     item: FileGroup,
-    token: string,
     onDeleted: (chunk: UploadedChunk) => void,
     workers: number
 ): AsyncResult<void, ApplicationError> {
@@ -44,7 +36,7 @@ export function deleteFile(
         .andThenAsync((concurrency) =>
             apiJson(
                 FILES_API_URL,
-                fileRequest(item, FileActionKind.Delete, token, concurrency),
+                fileRequest(item, FileActionKind.Delete, concurrency),
                 'Delete failed'
             )
         )
@@ -67,7 +59,7 @@ export function deleteFile(
         });
 }
 
-export function downloadFile(item: FileGroup, token: string): AsyncResult<Blob, ApplicationError> {
+export function downloadFile(item: FileGroup): AsyncResult<Blob, ApplicationError> {
     return Ok(undefined).andThenAsync(async () => {
         if (!item.complete || item.chunkCount === null)
             return Err({
@@ -77,7 +69,7 @@ export function downloadFile(item: FileGroup, token: string): AsyncResult<Blob, 
 
         return request(
             FILES_API_URL,
-            fileRequest(item, FileActionKind.Download, token, 1),
+            fileRequest(item, FileActionKind.Download, 1),
             'Download failed'
         ).andThenAsync(async (response) => {
             try {

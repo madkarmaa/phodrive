@@ -37,10 +37,6 @@
             "@madkarmaa/phodrive-core": "./src/browser/index.ts",
             "default": "./dist/browser/index.js"
         },
-        "./browser/accounts": {
-            "@madkarmaa/phodrive-core": "./src/browser/accounts.ts",
-            "default": "./dist/browser/accounts.js"
-        },
         "./browser/api": {
             "@madkarmaa/phodrive-core": "./src/browser/api.ts",
             "default": "./dist/browser/api.js"
@@ -247,7 +243,6 @@
             "./bmp/errors": "./dist/bmp/errors.js",
             "./bmp/format": "./dist/bmp/format.js",
             "./browser": "./dist/browser/index.js",
-            "./browser/accounts": "./dist/browser/accounts.js",
             "./browser/api": "./dist/browser/api.js",
             "./browser/files": "./dist/browser/files.js",
             "./browser/library": "./dist/browser/library.js",

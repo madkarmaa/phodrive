@@ -30,7 +30,7 @@ function invalidResponse(): Result<never, ApplicationError> {
 function uploadChunk(
     file: File,
     header: SplitHeader,
-    { email, token }: { email: string; token: string },
+    email: string,
     transport: ChunkTransport,
     onProgress: (sent: number, reused: number) => void,
     onChunk: (
@@ -42,8 +42,6 @@ function uploadChunk(
 
     return hashUploadChunk(payload, header).andThenAsync(async ({ sha1, size }) => {
         const metadata = {
-            email,
-            token,
             file: { name: file.name, size: file.size, fileHash: header.fileHash },
             chunkIndex: header.chunkIndex,
             sha1
@@ -117,7 +115,7 @@ function uploadChunk(
 function uploadPlannedFile(
     { file, id }: { file: File; id: number },
     { headers, sizes }: UploadPlan,
-    account: { email: string; token: string },
+    email: string,
     transport: ChunkTransport,
     chunkLimit: ReturnType<typeof pLimit>,
     handle: (event: UploadEvent) => Result<void, ApplicationError>
@@ -140,7 +138,7 @@ function uploadPlannedFile(
             const result = await uploadChunk(
                 file,
                 header,
-                account,
+                email,
                 transport,
                 (completed, existing) => {
                     sent[header.chunkIndex] = completed;
@@ -210,7 +208,6 @@ function uploadPlannedFile(
 export function uploadFiles(
     files: readonly File[],
     email: string,
-    token: string,
     workers: number,
     onJob: (job: UploadJob) => void,
     onChunk: (chunk: UploadedChunk) => void
@@ -220,15 +217,17 @@ export function uploadFiles(
         workers,
         'Invalid concurrent worker count.'
     ).andThenAsync((concurrency) =>
-        transferFiles(files, email, token, concurrency, onJob, onChunk, httpChunkTransport)
+        transferFiles(files, email, concurrency, onJob, onChunk, httpChunkTransport)
     );
 }
 
-/** The shared pool behind every uploader; callers validate the worker count for their runtime. */
+/**
+ * The shared pool behind every uploader; callers validate the worker count for their runtime.
+ * The email labels uploaded chunks, while the transport supplies the account credentials.
+ */
 export function transferFiles(
     files: readonly File[],
     email: string,
-    token: string,
     concurrency: number,
     onJob: (job: UploadJob) => void,
     onChunk: (chunk: UploadedChunk) => void,
@@ -296,14 +295,7 @@ export function transferFiles(
             }
 
             await planned.andThenAsync((plan) =>
-                uploadPlannedFile(
-                    { file, id },
-                    plan,
-                    { email, token },
-                    transport,
-                    chunkLimit,
-                    handle
-                )
+                uploadPlannedFile({ file, id }, plan, email, transport, chunkLimit, handle)
             );
         });
 

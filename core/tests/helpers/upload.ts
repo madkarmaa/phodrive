@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
 import {
-    UploadRequestSchema,
+    UploadChunkSchema,
     UploadEventType,
     UploadPhase,
     UploadStatus,
+    type Account,
     type UploadEvent
 } from '@madkarmaa/phodrive-core/models';
 import { encodeSplitBmp, decodeSplitBmp } from '@madkarmaa/phodrive-core/server/bmp';
@@ -11,6 +12,9 @@ import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '@madkarmaa/phodrive-
 import { fileIdentity } from '@madkarmaa/phodrive-core/server/chunks';
 import { bytesField, message, nested, numberField } from '@madkarmaa/phodrive-core/server/protobuf';
 import type { Fetcher } from '@madkarmaa/phodrive-core/server/fetcher';
+
+/** The signed-in account the server adds to browser chunk metadata. */
+export const TEST_ACCOUNT: Account = { email: 'test@example.com', token: 'aas_et/test' };
 
 export function uploadForm(
     payload: Uint8Array = Buffer.from([0, 255, 13, 10, 42]),
@@ -42,8 +46,6 @@ export function uploadForm(
     for (let offset = 0; offset < prefix.paddingSize; offset += zero.length)
         hash.update(zero.subarray(0, prefix.paddingSize - offset));
     const metadata = {
-        email: 'test@example.com',
-        token: 'aas_et/test',
         file,
         chunkIndex,
         sha1: hash.digest('hex')
@@ -70,7 +72,10 @@ export async function browserUploadResponse(
     const payload = init.body.get('chunk');
     if (typeof json !== 'string' || !(payload instanceof Blob))
         throw new Error('Missing chunk metadata/payload');
-    const metadata = UploadRequestSchema.parse(JSON.parse(json));
+    const sent: unknown = JSON.parse(json);
+    if (typeof sent === 'object' && sent && ('email' in sent || 'token' in sent))
+        throw new Error('Browser chunk metadata must not carry account credentials');
+    const metadata = UploadChunkSchema.parse(sent);
     const count = Math.max(1, Math.ceil(metadata.file.size / MAX_CHUNK_PAYLOAD_BYTES));
     const header = {
         fileHash: metadata.file.fileHash,

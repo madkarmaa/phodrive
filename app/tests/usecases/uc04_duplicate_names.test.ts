@@ -17,7 +17,7 @@ import {
 } from '@madkarmaa/phodrive-core/server/bmp';
 import { fileIdentity } from '@madkarmaa/phodrive-core/server/chunks';
 import { downloadFile } from '@madkarmaa/phodrive-core/server/files';
-import { uploadForm, photosUploadHarness } from '../../../core/tests/helpers/upload';
+import { uploadForm, photosUploadHarness, TEST_ACCOUNT } from '../../../core/tests/helpers/upload';
 
 const PAYLOAD = Buffer.from([1, 2, 3, 4]);
 const EMPTY_HASH = createHash('sha256').digest('hex');
@@ -28,7 +28,7 @@ test('identical original bytes under different names remain separate complete gr
     const events: UploadEvent[] = [];
     for (const name of ['first.bin', 'second.bin', 'empty-first.bin', 'empty-second.bin']) {
         const fixture = uploadForm(name.startsWith('empty') ? new Uint8Array() : PAYLOAD, name);
-        const received = await receiveUpload(fixture.request());
+        const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
         const input = received.unwrap();
         const uploaded = await uploadFiles(input, (event) => events.push(event), harness.fetcher);
         expect(uploaded.isOk()).toBe(true);

@@ -4,7 +4,7 @@ import { Ok } from 'results-ts';
 import { downloadFile } from '@madkarmaa/phodrive-core/server/files';
 import { downloadBmp } from '@madkarmaa/phodrive-core/server/photos';
 import { bmpResponse, downloadFixture } from '../../../core/tests/helpers/download';
-import { uploadForm } from '../../../core/tests/helpers/upload';
+import { uploadForm, TEST_ACCOUNT } from '../../../core/tests/helpers/upload';
 import { encodeUploadBmp } from '@madkarmaa/phodrive-core/server/upload/bmp';
 import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
 
@@ -25,7 +25,7 @@ afterEach(() => vi.clearAllMocks());
 
 test('uploads need no temporary storage even when all disk allocations would fail', async () => {
     const fixture = uploadForm();
-    const received = await receiveUpload(fixture.request());
+    const received = await receiveUpload(fixture.request(), TEST_ACCOUNT);
     const input = received.unwrap();
     const source = encodeUploadBmp(input);
     const drained = await source.drain();
