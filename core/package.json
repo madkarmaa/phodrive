@@ -25,6 +25,10 @@
             "@madkarmaa/phodrive-core": "./src/index.ts",
             "default": "./dist/index.js"
         },
+        "./auth": {
+            "@madkarmaa/phodrive-core": "./src/auth.ts",
+            "default": "./dist/auth.js"
+        },
         "./bmp/errors": {
             "@madkarmaa/phodrive-core": "./src/bmp/errors.ts",
             "default": "./dist/bmp/errors.js"
@@ -252,6 +256,7 @@
         "registry": "https://npm.pkg.github.com",
         "exports": {
             ".": "./dist/index.js",
+            "./auth": "./dist/auth.js",
             "./bmp/errors": "./dist/bmp/errors.js",
             "./bmp/format": "./dist/bmp/format.js",
             "./browser": "./dist/browser/index.js",
