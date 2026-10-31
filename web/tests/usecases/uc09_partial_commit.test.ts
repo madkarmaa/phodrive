@@ -77,6 +77,49 @@ function confirmedChunk(name: string, index: number): UploadedChunk {
     };
 }
 
+test('a file appears only once its upload ends, even when a later chunk finishes first', async () => {
+    let finishFirstChunk = () => {};
+    const firstChunk = new Promise<void>((resolve) => {
+        finishFirstChunk = resolve;
+    });
+    vi.spyOn(filesApi, 'uploadFiles').mockImplementation(
+        (files, _email, _workers, onJob, onChunk) => {
+            const [job] = filesApi.createUploadJobs(files);
+
+            return Ok(undefined).andThenAsync(async () => {
+                onChunk({ ...confirmedChunk('large.bin', 1), originalName: undefined }, job.id);
+                await firstChunk;
+                onChunk({ ...confirmedChunk('large.bin', 0), isLast: false }, job.id);
+                onJob({
+                    ...job,
+                    status: UploadJobStatus.Complete,
+                    result: {
+                        status: UploadStatus.Uploaded,
+                        mediaKey: 'key-large.bin-0',
+                        sha1: '0'.repeat(40)
+                    }
+                });
+
+                return Ok(undefined);
+            });
+        }
+    );
+    const drive = new DriveController('test@example.com');
+    drive.initialize();
+
+    const uploading = drive.upload([new File(['large'], 'large.bin')]);
+    await vi.waitFor(() => expect(drive.busy).toBe(true));
+
+    expect(drive.library.files).toEqual([]);
+
+    finishFirstChunk();
+    await uploading;
+
+    expect(drive.library.files.map((file) => [file.name, file.chunks.length])).toEqual([
+        ['large.bin', 2]
+    ]);
+});
+
 test('partial confirmations survive one failed file while others finish; retry is explicit and scoped', async () => {
     const sources = [
         new File(['partial'], 'partial.bin'),
@@ -96,7 +139,7 @@ test('partial confirmations survive one failed file while others finish; retry i
 
             return Ok(undefined).andThenAsync(async () => {
                 if (attempt === 1) {
-                    onChunk(confirmedChunk('partial.bin', 0));
+                    onChunk(confirmedChunk('partial.bin', 0), submitted[0].id);
                     onJob({
                         ...submitted[0],
                         status: UploadJobStatus.Error,
@@ -106,7 +149,7 @@ test('partial confirmations survive one failed file while others finish; retry i
                     await activeCommits;
 
                     for (const job of submitted.slice(1)) {
-                        onChunk(confirmedChunk(job.name, 0));
+                        onChunk(confirmedChunk(job.name, 0), job.id);
                         onJob({
                             ...job,
                             status: UploadJobStatus.Complete,
@@ -119,8 +162,11 @@ test('partial confirmations survive one failed file while others finish; retry i
                     }
                 } else {
                     expect(files.map((file) => file.name)).toEqual(['partial.bin']);
-                    onChunk(confirmedChunk('partial.bin', 0));
-                    onChunk({ ...confirmedChunk('partial.bin', 0), chunkIndex: 1, isLast: true });
+                    onChunk(confirmedChunk('partial.bin', 0), submitted[0].id);
+                    onChunk(
+                        { ...confirmedChunk('partial.bin', 0), chunkIndex: 1, isLast: true },
+                        submitted[0].id
+                    );
                     onJob({
                         ...submitted[0],
                         status: UploadJobStatus.Complete,

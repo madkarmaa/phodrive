@@ -6,7 +6,12 @@ import {
     ThemeSchema,
     type PreferencesDefaults
 } from '@madkarmaa/phodrive-core/models';
-import { fileKey, type FileGroup, type FileAction } from '@madkarmaa/phodrive-core/files';
+import {
+    fileKey,
+    type FileAction,
+    type FileGroup,
+    type UploadedChunk
+} from '@madkarmaa/phodrive-core/files';
 import { invalidateAll } from '$app/navigation';
 import { useAutomaticRefresh } from '#browser/drive/refresh.svelte';
 import { replaceGoogleToken, signOut } from '#browser/auth';
@@ -227,10 +232,31 @@ export class DriveController {
         await this.runUploads([file], id);
     }
 
+    /** Add confirmed chunks, replacing any earlier copy of the same chunk. */
+    private addChunks(saved: readonly UploadedChunk[]) {
+        if (!saved.length) return;
+
+        const added = new Set(saved.map((chunk) => `${fileKey(chunk)}:${chunk.chunkIndex}`));
+        this.library.chunks = [
+            ...saved,
+            ...this.library.chunks.filter(
+                (item) => !added.has(`${fileKey(item)}:${item.chunkIndex}`)
+            )
+        ];
+    }
+
     private async runUploads(files: readonly File[], retryId?: number) {
         this.uploadPanelOpen = true;
         this.feedbackMessage = '';
         this.busy = true;
+
+        // A file appears once its upload ends, so an unfinished file is never offered for download.
+        // A failed upload still shows its confirmed chunks, so they can be found and deleted.
+        const pending = new Map<number, UploadedChunk[]>();
+        const release = (jobId: number) => {
+            this.addChunks(pending.get(jobId) ?? []);
+            pending.delete(jobId);
+        };
 
         const uploaded = await uploadFiles(
             files,
@@ -242,21 +268,20 @@ export class DriveController {
                     current.id === id ? { ...job, id } : current
                 );
 
+                if (job.status === UploadJobStatus.Complete || job.status === UploadJobStatus.Error)
+                    release(job.id);
+
                 if (job.status === UploadJobStatus.Error) {
                     this.feedbackMessage = job.message;
                 }
             },
-            (saved) => {
-                this.library.chunks = [
-                    saved,
-                    ...this.library.chunks.filter(
-                        (item) =>
-                            fileKey(item) !== fileKey(saved) || item.chunkIndex !== saved.chunkIndex
-                    )
-                ];
+            (saved, jobId) => {
+                pending.set(jobId, [...(pending.get(jobId) ?? []), saved]);
             },
             this.processing
         );
+
+        for (const jobId of [...pending.keys()]) release(jobId);
 
         uploaded.inspectErr((error) => {
             this.feedbackMessage = error.message;
