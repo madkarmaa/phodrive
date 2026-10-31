@@ -4,6 +4,10 @@ import { z } from 'zod';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 3000;
 const MAX_PORT = 65_535;
+const MIN_AUTH_SECRET_LENGTH = 32;
+
+export const DatabaseUrlSchema = z.url({ protocol: /^postgres(ql)?$/ });
+export const AuthSecretSchema = z.string().min(MIN_AUTH_SECRET_LENGTH);
 
 export const ServerEnvironmentSchema = z.object({
     HOST: z
@@ -32,6 +36,16 @@ export function parseServerEnvironment(
 
         return Err(`Invalid server environment: ${invalidVariables.join(', ')}.`);
     }
+
+    return Ok(parsed.data);
+}
+
+/** Startup migrations read the database URL before the app's own environment is loaded. */
+export function parseDatabaseUrl(
+    environment: Record<string, string | undefined>
+): Result<string, string> {
+    const parsed = DatabaseUrlSchema.safeParse(environment.DATABASE_URL);
+    if (!parsed.success) return Err('Invalid server environment: DATABASE_URL.');
 
     return Ok(parsed.data);
 }

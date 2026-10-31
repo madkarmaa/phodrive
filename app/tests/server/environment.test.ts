@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { parseServerEnvironment } from '#server/environment';
+import { parseDatabaseUrl, parseServerEnvironment } from '#server/environment';
 
 test('unset server environment uses the local defaults', () => {
     const parsed = parseServerEnvironment({});
@@ -42,4 +42,16 @@ test('invalid host values fail and diagnostics never include environment values'
     });
 
     expect(parsed.unwrap()).toEqual({ HOST: 'localhost', PORT: 3000 });
+});
+
+test('the database URL must be a PostgreSQL URL and diagnostics never include it', () => {
+    const url = 'postgres://phodrive:secret@127.0.0.1:5432/phodrive';
+
+    expect(parseDatabaseUrl({ DATABASE_URL: url }).unwrap()).toBe(url);
+
+    for (const DATABASE_URL of [undefined, '', 'mysql://user:secret@host/db', 'not a url']) {
+        const parsed = parseDatabaseUrl({ DATABASE_URL });
+
+        expect(parsed.unwrapErr()).toBe('Invalid server environment: DATABASE_URL.');
+    }
 });
