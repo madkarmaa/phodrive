@@ -12,7 +12,11 @@
 
 {#if data.user}
     {#key data.user.email}
-        <Drive email={data.user.email} preferencesDefaults={data.preferencesDefaults} />
+        <Drive
+            email={data.user.email}
+            preferencesDefaults={data.preferencesDefaults}
+            processing={data.processing}
+        />
     {/key}
 {:else}
     <AuthPanel signupEnabled={data.signupEnabled} />

@@ -1,13 +1,16 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { Err, Ok } from 'results-ts';
 import { connectGoogleAccount } from '@madkarmaa/phodrive-core/server/accounts';
-import { listBmps } from '@madkarmaa/phodrive-core/server/photos';
+import { ChunkFormat, ProcessingMode } from '@madkarmaa/phodrive-core/models';
+import { downloadBmp, listBmps } from '@madkarmaa/phodrive-core/server/photos';
 import { SERVER_ERRORS } from '@madkarmaa/phodrive-core/server/errors';
+import { receiveFileUpload } from '@madkarmaa/phodrive-core/server/upload/file';
 import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
 import { api } from '#server/app';
 import { handleAuthRequest, requireSessionUser } from '#server/auth';
 import { AUTH_ERRORS } from '#server/errors';
 import { readGoogleAccount, readGoogleEmail, saveGoogleAccount } from '#server/google';
+import { processingMode } from '#server/processing';
 import { signUp } from '#server/signup';
 
 const USER = { id: 'user-id', email: 'test@example.com' };
@@ -25,8 +28,16 @@ vi.mock('#server/google', () => ({
 }));
 vi.mock('#server/signup', () => ({ signUp: vi.fn() }));
 vi.mock('@madkarmaa/phodrive-core/server/accounts', () => ({ connectGoogleAccount: vi.fn() }));
-vi.mock('@madkarmaa/phodrive-core/server/photos', () => ({ listBmps: vi.fn() }));
+vi.mock('@madkarmaa/phodrive-core/server/photos', () => ({
+    downloadBmp: vi.fn(),
+    listBmps: vi.fn()
+}));
 vi.mock('@madkarmaa/phodrive-core/server/upload/input', () => ({ receiveUpload: vi.fn() }));
+vi.mock('@madkarmaa/phodrive-core/server/upload/file', () => ({
+    fileUploadStream: vi.fn(),
+    receiveFileUpload: vi.fn()
+}));
+vi.mock('#server/processing', () => ({ processingMode: vi.fn() }));
 
 function resolved<T>(value: T) {
     return Ok(value).andThenAsync(async (current) => Ok(current));
@@ -54,6 +65,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireSessionUser).mockReturnValue(resolved(USER));
     vi.mocked(readGoogleAccount).mockReturnValue(resolved(ACCOUNT));
+    vi.mocked(processingMode).mockReturnValue(ProcessingMode.Browser);
 });
 
 test('drive routes refuse signed-out requests before contacting Google', async () => {
@@ -86,12 +98,42 @@ test('the library uses the stored account and ignores credentials sent by the cl
     expect(listBmps).toHaveBeenCalledWith(ACCOUNT.email, ACCOUNT.token, 'next');
 });
 
-test('uploads receive the stored account, not one from the request', async () => {
+test('in browser mode, uploads relay finished BMPs with the stored account', async () => {
     vi.mocked(receiveUpload).mockReturnValue(rejected(SERVER_ERRORS.INVALID_UPLOAD_REQUEST));
 
     await call('/api/upload', { method: 'POST', body: new FormData() });
 
-    expect(vi.mocked(receiveUpload).mock.calls[0][1]).toEqual(ACCOUNT);
+    expect(vi.mocked(receiveUpload).mock.calls[0].slice(1)).toEqual([ACCOUNT, ChunkFormat.Bmp]);
+    expect(receiveFileUpload).not.toHaveBeenCalled();
+});
+
+test('in server mode, uploads receive whole files for the server to process', async () => {
+    vi.mocked(processingMode).mockReturnValue(ProcessingMode.Server);
+    vi.mocked(receiveFileUpload).mockReturnValue(rejected(SERVER_ERRORS.INVALID_UPLOAD_REQUEST));
+
+    const response = await call('/api/upload', { method: 'POST', body: new FormData() });
+
+    expect(response.status).toBe(400);
+    expect(receiveFileUpload).toHaveBeenCalledOnce();
+    expect(receiveUpload).not.toHaveBeenCalled();
+});
+
+test('raw chunks are relayed unchanged with the stored account', async () => {
+    const bytes = Uint8Array.of(66, 77, 1, 2, 3);
+    vi.mocked(downloadBmp).mockReturnValue(
+        resolved(new Response(bytes, { headers: { 'content-type': 'image/bmp' } }))
+    );
+
+    const response = await postJson('/api/chunk', { mediaKey: 'key', sha1: '0'.repeat(40) });
+
+    expect(response.headers.get('content-type')).toBe('application/octet-stream');
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
+    expect(vi.mocked(downloadBmp).mock.calls[0].slice(0, 4)).toEqual([
+        ACCOUNT.email,
+        ACCOUNT.token,
+        'key',
+        '0'.repeat(40)
+    ]);
 });
 
 test('an unreadable or missing Google account is reported without a token', async () => {

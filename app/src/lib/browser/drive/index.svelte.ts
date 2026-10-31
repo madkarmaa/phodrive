@@ -2,6 +2,7 @@ import {
     FileActionKind,
     UploadJobStatus,
     DEFAULT_PREFERENCES_DEFAULTS,
+    ProcessingMode,
     ThemeSchema,
     type PreferencesDefaults
 } from '@madkarmaa/phodrive-core/models';
@@ -45,7 +46,8 @@ export class DriveController {
 
     constructor(
         readonly email: string,
-        private readonly defaults: PreferencesDefaults = DEFAULT_PREFERENCES_DEFAULTS
+        private readonly defaults: PreferencesDefaults = DEFAULT_PREFERENCES_DEFAULTS,
+        readonly processing: ProcessingMode = ProcessingMode.Browser
     ) {
         const feedback = (message: string) => {
             this.feedbackMessage = message;
@@ -184,7 +186,7 @@ export class DriveController {
             return;
         }
 
-        const downloaded = await downloadFile(item);
+        const downloaded = await downloadFile(item, this.processing);
 
         downloaded
             .andThen((file) => saveDownloadedFile(file, item.name))
@@ -252,7 +254,8 @@ export class DriveController {
                             fileKey(item) !== fileKey(saved) || item.chunkIndex !== saved.chunkIndex
                     )
                 ];
-            }
+            },
+            this.processing
         );
 
         uploaded.inspectErr((error) => {

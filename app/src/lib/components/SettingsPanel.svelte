@@ -11,12 +11,14 @@
         MAX_CONCURRENT_WORKERS,
         RefreshIntervalSchema,
         ConcurrentWorkersSchema,
+        ProcessingMode,
         type PreferencesDefaults,
         type ThemeMode
     } from '@madkarmaa/phodrive-core/models';
 
     interface Props {
         email: string;
+        processing: ProcessingMode;
         replacingToken: boolean;
         onreplacetoken: (token: string) => Promise<boolean>;
         refreshIntervalSeconds: number;
@@ -31,6 +33,7 @@
 
     let {
         email,
+        processing,
         replacingToken,
         onreplacetoken,
         refreshIntervalSeconds,
@@ -232,6 +235,20 @@
                 </Button>
             </div>
         </form>
+
+        <div class="grid gap-1">
+            <h2 class="text-base font-medium">File processing</h2>
+            <p class="text-sm leading-relaxed text-muted">
+                {#if processing === ProcessingMode.Browser}
+                    This browser hashes, splits, and encodes files before uploading them, and
+                    verifies and rebuilds them when downloading.
+                {:else}
+                    The server hashes, splits, and encodes uploaded files, and verifies and rebuilds
+                    them for downloads.
+                {/if}
+                The server's administrator chooses this with <code>PHODRIVE_PROCESSING</code>.
+            </p>
+        </div>
     </div>
 
     <AppFooter {theme} />

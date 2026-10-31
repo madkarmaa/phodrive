@@ -27,6 +27,7 @@ services:
         environment:
             DATABASE_URL: postgres://phodrive:${POSTGRES_PASSWORD:-phodrive}@db:5432/phodrive
             BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+            PHODRIVE_PROCESSING: ${PHODRIVE_PROCESSING}
             PHODRIVE_DISABLE_SIGNUP: ${PHODRIVE_DISABLE_SIGNUP:-false}
         ports:
             - 127.0.0.1:3000:3000

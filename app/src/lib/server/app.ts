@@ -1,11 +1,15 @@
 import {
+    ChunkFormat,
+    ChunkReferenceSchema,
     FileActionKind,
     FileActionRequestSchema,
-    LibraryPageRequestSchema
+    LibraryPageRequestSchema,
+    ProcessingMode
 } from '@madkarmaa/phodrive-core/models';
 import { connectGoogleAccount } from '@madkarmaa/phodrive-core/server/accounts';
 import { deleteFile, downloadFile } from '@madkarmaa/phodrive-core/server/files';
-import { listBmps } from '@madkarmaa/phodrive-core/server/photos';
+import { downloadBmp, listBmps } from '@madkarmaa/phodrive-core/server/photos';
+import { fileUploadStream, receiveFileUpload } from '@madkarmaa/phodrive-core/server/upload/file';
 import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
 import { uploadStream } from '@madkarmaa/phodrive-core/server/upload/stream';
 import { Hono } from 'hono';
@@ -15,6 +19,7 @@ import { handleAuthRequest } from '#server/auth';
 import { AUTH_ERRORS } from '#server/errors';
 import { readGoogleEmail, saveGoogleAccount } from '#server/google';
 import { requireGoogleAccount, requireUser, type ApiBindings } from '#server/middleware';
+import { processingMode } from '#server/processing';
 import { signUp } from '#server/signup';
 
 /** Better Auth endpoints the web app uses; signup goes through the Google-linking route instead. */
@@ -57,6 +62,17 @@ const accountRoutes = new Hono<{ Bindings: ApiBindings }>()
             .match({ Ok: () => jsonResponse({ connected: true }), Err: errorResponse });
     });
 
+function relayedChunk(response: Response): Response {
+    const headers = new Headers({
+        'content-type': 'application/octet-stream',
+        'cache-control': 'no-store'
+    });
+    const length = response.headers.get('content-length');
+    if (length) headers.set('content-length', length);
+
+    return new Response(response.body, { headers });
+}
+
 /** Google Photos routes act for the signed-in user with the token stored on the server. */
 const driveRoutes = new Hono<{ Bindings: ApiBindings }>()
     .post('/library', requireUser, requireGoogleAccount, (c) => {
@@ -77,9 +93,31 @@ const driveRoutes = new Hono<{ Bindings: ApiBindings }>()
             )
             .match({ Ok: (response) => response, Err: errorResponse });
     })
-    .post('/upload', requireUser, requireGoogleAccount, (c) =>
-        receiveUpload(c.req.raw, c.get('account')).match({ Ok: uploadStream, Err: errorResponse })
-    );
+    .post('/upload', requireUser, requireGoogleAccount, (c) => {
+        const account = c.get('account');
+
+        // Browsers send finished chunks to relay, or whole files for the server to process.
+        if (processingMode() === ProcessingMode.Browser)
+            return receiveUpload(c.req.raw, account, ChunkFormat.Bmp).match({
+                Ok: uploadStream,
+                Err: errorResponse
+            });
+
+        return receiveFileUpload(c.req.raw).match({
+            Ok: (received) => fileUploadStream(received, account),
+            Err: errorResponse
+        });
+    })
+    .post('/chunk', requireUser, requireGoogleAccount, (c) => {
+        const { email, token } = c.get('account');
+
+        // Relays one stored BMP unchanged for the browser to verify and decode.
+        return readJsonRequest(c.req.raw, ChunkReferenceSchema, 'Invalid request')
+            .andThenAsync(({ mediaKey, sha1 }) =>
+                downloadBmp(email, token, mediaKey, sha1, undefined, c.req.raw.signal)
+            )
+            .match({ Ok: relayedChunk, Err: errorResponse });
+    });
 
 export const api = new Hono<{ Bindings: ApiBindings }>()
     .basePath('/api')

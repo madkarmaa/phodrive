@@ -2,7 +2,8 @@
     import {
         AppView,
         FileActionKind,
-        type PreferencesDefaults
+        type PreferencesDefaults,
+        type ProcessingMode
     } from '@madkarmaa/phodrive-core/models';
     import { onMount, untrack } from 'svelte';
     import { fade } from 'svelte/transition';
@@ -23,13 +24,15 @@
     interface Props {
         email: string;
         preferencesDefaults: PreferencesDefaults;
+        processing: ProcessingMode;
     }
 
-    let { email, preferencesDefaults }: Props = $props();
+    let { email, preferencesDefaults, processing }: Props = $props();
 
     const drive = new DriveController(
         untrack(() => email),
-        untrack(() => preferencesDefaults)
+        untrack(() => preferencesDefaults),
+        untrack(() => processing)
     );
     const actionsDisabled = $derived(drive.busy || !!drive.fileAction);
     let view = $state<AppView>(AppView.Files);
@@ -102,6 +105,7 @@
         {#if drive.ready && view === AppView.Settings}
             <SettingsPanel
                 email={drive.email}
+                processing={drive.processing}
                 replacingToken={drive.replacingToken}
                 onreplacetoken={(token) => drive.replaceToken(token)}
                 defaults={preferencesDefaults}
