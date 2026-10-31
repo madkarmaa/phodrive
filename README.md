@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="./app/src/lib/assets/favicon.svg" alt="Phodrive logo" width="100" height="auto" />
+    <img src="./web/src/lib/assets/favicon.svg" alt="Phodrive logo" width="100" height="auto" />
     <h1 align="center">Phodrive</h1>
     <p align="center"><i>Files worth a thousand pixels.</i></p>
 </p>
@@ -31,9 +31,16 @@ docker compose up -d db
 bun --bun run dev
 ```
 
-Open `http://127.0.0.1:5173`. With Node.js, use `npm install` and `npm run dev` instead. The app applies database migrations when it starts. After changing `app/src/lib/server/db/schema.ts`, run `bun run --cwd app db:generate` to add a migration.
+Open `http://127.0.0.1:5173`. With Node.js, use `npm install` and `npm run dev` instead. `dev` runs the API server on port 3000 and the web app on 5173, which forwards `/api` to it. The server applies database migrations when it starts. After changing `server/src/db/schema.ts`, run `bun run --cwd server db:generate` to add a migration.
 
-The repository uses [Bun workspaces](https://bun.sh/docs/pm/workspaces), also supported by npm. `app/` contains the SvelteKit web app and its Hono API. `core/` is the standalone `@madkarmaa/phodrive-core` library for the file format, Google Photos protocol, and transfers. `cli/` is the `phodrive` command line. Root commands build core before running the app. Run the command line from source with `bun run cli <command>`, for example `bun run cli file list`. See [core usage](./core/README.md) for using the library elsewhere.
+The repository uses [Bun workspaces](https://bun.sh/docs/pm/workspaces), also supported by npm:
+
+- `core/` is the standalone `@madkarmaa/phodrive-core` library for the file format, Google Photos protocol, and transfers. See [core usage](./core/README.md) for using it elsewhere.
+- `server/` is `@madkarmaa/phodrive-api`, the Hono server for accounts and Google Photos requests. It also serves the built web app.
+- `web/` is the SvelteKit web app, built as static files.
+- `cli/` is the `phodrive` command line. Run it from source with `bun run cli <command>`, for example `bun run cli file list`.
+
+Root commands build core before running the others.
 
 Keep environment files at the repository root, for example `.env`.
 
@@ -70,7 +77,9 @@ bun --bun run build
 bun run start:bun
 ```
 
-Open `http://127.0.0.1:3000` for the production build.
+Open `http://127.0.0.1:3000` for the production build. Set `HOST` and `PORT` to listen elsewhere.
+
+The server is also published as `@madkarmaa/phodrive-api`, with the web app included. With the registry set up as in [Command line](#command-line) and the settings below in the environment, run it with `npx @madkarmaa/phodrive-api`.
 
 ### Docker
 
@@ -81,12 +90,13 @@ docker compose pull
 docker compose up -d
 ```
 
-Open `http://localhost:3000` or `http://127.0.0.1:3000`. The server derives its origin from the request host and port, including a different published port. To override it, set `ORIGIN` and `BETTER_AUTH_URL` to the exact origin used in your browser, for example `http://localhost:3000`.
+Open `http://localhost:3000` or `http://127.0.0.1:3000`. The server derives its origin from the request host and port, including a different published port. Behind a reverse proxy, set `BETTER_AUTH_URL` to the exact origin used in your browser, for example `https://photos.example.com`.
 
 ### Server settings
 
 | Environment variable      | Required | Description                                                                                                                                 |
 | ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HOST`, `PORT`            | No       | Address to listen on; defaults to `127.0.0.1` and `3000` (`0.0.0.0` in Docker)                                                              |
 | `DATABASE_URL`            | Yes      | PostgreSQL connection URL                                                                                                                   |
 | `BETTER_AUTH_SECRET`      | Yes      | At least 32 characters. Signs sessions and encrypts stored Google tokens; changing it signs everyone out and makes them replace their token |
 | `BETTER_AUTH_URL`         | No       | Public origin of the app; derived from each request when unset                                                                              |
