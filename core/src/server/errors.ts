@@ -10,7 +10,7 @@ export const SERVER_ERRORS = {
     FILE_TOO_LARGE: { code: 'FILE_TOO_LARGE', message: 'File is too large.' },
     UPLOAD_INPUT_REQUIRED: {
         code: 'UPLOAD_INPUT_REQUIRED',
-        message: 'Choose files and enter your account credentials.'
+        message: 'Choose files to upload.'
     },
     UPLOAD_INTEGRITY_FAILED: {
         code: 'UPLOAD_INTEGRITY_FAILED',
