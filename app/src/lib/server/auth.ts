@@ -1,12 +1,15 @@
 import * as env from '$app/env/private';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { z } from 'zod';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import { APP_NAME } from '#lib/app';
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '#lib/auth';
 import { db } from '#server/db/client';
 import * as schema from '#server/db/schema';
 import { AUTH_ERRORS, type AuthError } from '#server/errors';
+
+const JsonObjectSchema = z.record(z.string(), z.unknown());
 
 /** Set by the API from the socket address on every request, so clients cannot spoof it. */
 export const CLIENT_ADDRESS_HEADER = 'x-phodrive-client-address';
@@ -96,12 +99,58 @@ export function handleAuthRequest(
             body
         });
 
-        try {
-            const response = await getAuth().handler(forwarded);
+        let response: Response;
 
-            return Ok(response);
+        try {
+            response = await getAuth().handler(forwarded);
         } catch {
             return Err(AUTH_ERRORS.DATABASE_UNAVAILABLE);
         }
+
+        return await withoutSessionToken(response);
+    });
+}
+
+/** Remove the token from a Better Auth JSON body or its `session` object. */
+function omitSessionToken(body: unknown): unknown {
+    const parsed = JsonObjectSchema.safeParse(body);
+    if (!parsed.success) return body;
+
+    const { token: _token, ...rest } = parsed.data;
+    const session = JsonObjectSchema.safeParse(rest.session);
+    if (!session.success) return rest;
+
+    const { token: _sessionToken, ...sessionRest } = session.data;
+
+    return { ...rest, session: sessionRest };
+}
+
+/**
+ * The HttpOnly cookie already carries the session, so JSON bodies never return its token
+ * to page scripts.
+ */
+function withoutSessionToken(response: Response): AsyncResult<Response, AuthError> {
+    return Ok(undefined).andThenAsync(async (): Promise<Result<Response, AuthError>> => {
+        if (!response.headers.get('content-type')?.includes('application/json'))
+            return Ok(response);
+
+        let body: unknown;
+
+        try {
+            body = await response.json();
+        } catch {
+            return Err(AUTH_ERRORS.AUTH_REQUEST_FAILED);
+        }
+
+        const headers = new Headers(response.headers);
+        headers.delete('content-length');
+
+        return Ok(
+            new Response(JSON.stringify(omitSessionToken(body)), {
+                status: response.status,
+                statusText: response.statusText,
+                headers
+            })
+        );
     });
 }
