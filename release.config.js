@@ -39,7 +39,7 @@ export default {
                 prepareCmd: [
                     'npm pkg set version=${nextRelease.version} --workspaces',
                     'npm pkg set "devDependencies[@madkarmaa/phodrive-core]=^${nextRelease.version}"',
-                    'npm pkg set "dependencies[@madkarmaa/phodrive-core]=^${nextRelease.version}" --workspace app --workspace cli',
+                    'npm pkg set "dependencies[@madkarmaa/phodrive-core]=^${nextRelease.version}" --workspace web --workspace server --workspace cli',
                     'bun install --lockfile-only'
                 ].join(' && ')
             }
@@ -52,9 +52,10 @@ export default {
                     'package-lock.json',
                     'npm-shrinkwrap.json',
                     'bun.lock',
-                    'app/package.json',
                     'cli/package.json',
-                    'core/package.json'
+                    'core/package.json',
+                    'server/package.json',
+                    'web/package.json'
                 ],
                 message: 'chore(release): ${nextRelease.version} [skip ci]'
             }

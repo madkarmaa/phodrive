@@ -104,8 +104,12 @@ jobs:
             - name: Install dependencies
               run: bun install --frozen-lockfile
 
-            - name: Publish core and cli
-              run: npm publish --workspace core --workspace cli
+            # The server package includes the built web app.
+            - name: Build workspaces
+              run: bun run build
+
+            - name: Publish core, server, and cli
+              run: npm publish --workspace core --workspace server --workspace cli
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

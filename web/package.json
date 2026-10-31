@@ -1,0 +1,58 @@
+{
+    "version": "1.4.1",
+    "description": "Files worth a thousand pixels.",
+    "author": "madkarmaa",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/madkarmaa/phodrive"
+    },
+    "license": "MIT",
+    "type": "module",
+    "engines": {
+        "node": ">=24.21.0"
+    },
+    "name": "@madkarmaa/phodrive-web",
+    "private": true,
+    "imports": {
+        "#lib/*": "./src/lib/*.ts",
+        "#components/*": "./src/lib/components/*",
+        "#browser/*": "./src/lib/browser/*.ts",
+        "#assets/*": "./src/lib/assets/*",
+        "#browser/files": "./src/lib/browser/files/index.ts"
+    },
+    "scripts": {
+        "dev": "vite dev --host 127.0.0.1",
+        "build": "vite build",
+        "test": "vitest run",
+        "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+        "prepare": "svelte-kit sync"
+    },
+    "dependencies": {
+        "@fontsource-variable/google-sans-flex": "^5.3.1",
+        "@madkarmaa/phodrive-core": "^1.4.1",
+        "better-auth": "^1.7.14",
+        "noph-ui": "^0.51.2",
+        "pretty-bytes": "^7.2.0",
+        "results-ts": "^4.4.0",
+        "runed": "^0.37.1",
+        "zod": "^4.6.5"
+    },
+    "devDependencies": {
+        "@iconify-json/material-symbols": "^1.2.95",
+        "@sveltejs/kit": "^3.0.1",
+        "@sveltejs/vite-plugin-svelte": "^7.3.1",
+        "@tailwindcss/vite": "^4.3.3",
+        "@types/node": "^24.19.2",
+        "esm-env": "^1.2.2",
+        "svelte": "^5.57.2",
+        "svelte-check": "^4.7.6",
+        "tailwindcss": "^4.3.3",
+        "tsdown": "^0.23.2",
+        "typescript": "^6.0.3",
+        "unplugin-icons": "^24.0.0",
+        "vite": "^8.3.4",
+        "vitest": "^5.0.3",
+        "@sveltejs/adapter-static": "^4.0.1"
+    }
+}

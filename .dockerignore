@@ -10,17 +10,22 @@
 !core/tsdown.config.ts
 !core/src
 !core/src/**
-!app
-!app/package.json
-!app/vite.config.ts
-!app/tsconfig.json
-!app/tsdown.config.ts
-!app/src
-!app/src/**
-!app/static
-!app/static/**
-!app/drizzle
-!app/drizzle/**
+!web
+!web/package.json
+!web/vite.config.ts
+!web/tsconfig.json
+!web/src
+!web/src/**
+!web/static
+!web/static/**
+!server
+!server/package.json
+!server/tsconfig.json
+!server/tsdown.config.ts
+!server/src
+!server/src/**
+!server/drizzle
+!server/drizzle/**
 !cli
 !cli/package.json
 !cli/tsconfig.json
@@ -28,6 +33,12 @@
 !cli/src
 !cli/src/**
 !LICENSE*
+
+# Local installs and outputs are rebuilt inside the image.
+**/node_modules
+**/dist
+**/build
+**/.svelte-kit
 
 # Keep credentials excluded even inside an allowed source directory.
 **/.env

@@ -28,42 +28,6 @@
         "vitest": "^5.0.3",
       },
     },
-    "app": {
-      "name": "@madkarmaa/phodrive-app",
-      "version": "1.4.1",
-      "dependencies": {
-        "@fontsource-variable/google-sans-flex": "^5.3.1",
-        "@madkarmaa/phodrive-core": "^1.4.1",
-        "better-auth": "^1.7.14",
-        "cross-env": "^10.1.0",
-        "drizzle-orm": "^0.45.4",
-        "hono": "^4.13.14",
-        "noph-ui": "^0.51.2",
-        "postgres": "^3.4.9",
-        "pretty-bytes": "^7.2.0",
-        "results-ts": "^4.4.0",
-        "runed": "^0.37.1",
-        "zod": "^4.6.5",
-      },
-      "devDependencies": {
-        "@iconify-json/material-symbols": "^1.2.95",
-        "@sveltejs/adapter-node": "^6.0.0",
-        "@sveltejs/kit": "^3.0.1",
-        "@sveltejs/vite-plugin-svelte": "^7.3.1",
-        "@tailwindcss/vite": "^4.3.3",
-        "@types/node": "^24.19.2",
-        "drizzle-kit": "^0.31.11",
-        "esm-env": "^1.2.2",
-        "svelte": "^5.57.2",
-        "svelte-check": "^4.7.6",
-        "tailwindcss": "^4.3.3",
-        "tsdown": "^0.23.2",
-        "typescript": "^6.0.3",
-        "unplugin-icons": "^24.0.0",
-        "vite": "^8.3.4",
-        "vitest": "^5.0.3",
-      },
-    },
     "cli": {
       "name": "@madkarmaa/phodrive-cli",
       "version": "1.4.1",
@@ -111,6 +75,63 @@
         "@types/varint": "^6.0.3",
         "tsdown": "^0.23.2",
         "typescript": "^6.0.3",
+        "vite": "^8.3.4",
+        "vitest": "^5.0.3",
+      },
+    },
+    "server": {
+      "name": "@madkarmaa/phodrive-api",
+      "version": "1.4.1",
+      "bin": {
+        "phodrive-api": "dist/main.js",
+      },
+      "dependencies": {
+        "@hono/node-server": "^2.1.5",
+        "@madkarmaa/phodrive-core": "^1.4.1",
+        "better-auth": "^1.7.14",
+        "drizzle-orm": "^0.45.4",
+        "hono": "^4.13.14",
+        "postgres": "^3.4.9",
+        "results-ts": "^4.4.0",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@types/node": "^24.19.2",
+        "drizzle-kit": "^0.31.11",
+        "tsdown": "^0.23.2",
+        "tsx": "^4.23.15",
+        "typescript": "^6.0.3",
+        "vite": "^8.3.4",
+        "vitest": "^5.0.3",
+      },
+    },
+    "web": {
+      "name": "@madkarmaa/phodrive-web",
+      "version": "1.4.1",
+      "dependencies": {
+        "@fontsource-variable/google-sans-flex": "^5.3.1",
+        "@madkarmaa/phodrive-core": "^1.4.1",
+        "better-auth": "^1.7.14",
+        "noph-ui": "^0.51.2",
+        "pretty-bytes": "^7.2.0",
+        "results-ts": "^4.4.0",
+        "runed": "^0.37.1",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@iconify-json/material-symbols": "^1.2.95",
+        "@sveltejs/adapter-static": "^4.0.1",
+        "@sveltejs/kit": "^3.0.1",
+        "@sveltejs/vite-plugin-svelte": "^7.3.1",
+        "@tailwindcss/vite": "^4.3.3",
+        "@types/node": "^24.19.2",
+        "esm-env": "^1.2.2",
+        "svelte": "^5.57.2",
+        "svelte-check": "^4.7.6",
+        "tailwindcss": "^4.3.3",
+        "tsdown": "^0.23.2",
+        "typescript": "^6.0.3",
+        "unplugin-icons": "^24.0.0",
         "vite": "^8.3.4",
         "vitest": "^5.0.3",
       },
@@ -201,8 +222,6 @@
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
 
-    "@epic-web/invariant": ["@epic-web/invariant@1.0.0", "", {}, "sha512-lrTPqgvfFQtR/eY/qkIzp98OGdNJu0m5ji3q/nJI8v3SXkRKEnWiOxMmbvcSoAIzv/cGiuvRy57k4suKQSAdwA=="],
-
     "@esbuild-kit/core-utils": ["@esbuild-kit/core-utils@3.3.2", "", { "dependencies": { "esbuild": "~0.18.20", "source-map-support": "^0.5.21" } }, "sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ=="],
 
     "@esbuild-kit/esm-loader": ["@esbuild-kit/esm-loader@2.6.5", "", { "dependencies": { "@esbuild-kit/core-utils": "^3.3.2", "get-tsconfig": "^4.7.0" } }, "sha512-FxEMIkJKnodyA1OaCUoEvbYRkoZlLZ4d/eXFu9Fh8CbBBgP5EmZxrfTRyN0qpXZ4vOvqnE5YdRdcrmUUXuU+dA=="],
@@ -263,6 +282,8 @@
 
     "@fontsource-variable/google-sans-flex": ["@fontsource-variable/google-sans-flex@5.3.1", "", {}, "sha512-ItkWlFvW61+BmwOMJQfPY81KpvvslqbiTyfYKceOx+0kEFBzTcPbbMVcL9BKrmqhhqnq36kNs7YRbxonovOmNg=="],
 
+    "@hono/node-server": ["@hono/node-server@2.1.5", "", { "peerDependencies": { "hono": "^4 || ^5.0.0-0" } }, "sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q=="],
+
     "@iconify-json/material-symbols": ["@iconify-json/material-symbols@1.2.95", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-n34GNbwe8We3LPXK2N8JuQewEQkITJiRsmX/0UYJsOyKzviVl22mNfLUiGGtXLKDPqxZa17q1Hg57zdA3BYa0w=="],
 
     "@iconify/types": ["@iconify/types@2.0.0", "", {}, "sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg=="],
@@ -279,11 +300,13 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@madkarmaa/phodrive-app": ["@madkarmaa/phodrive-app@workspace:app"],
+    "@madkarmaa/phodrive-api": ["@madkarmaa/phodrive-api@workspace:server"],
 
     "@madkarmaa/phodrive-cli": ["@madkarmaa/phodrive-cli@workspace:cli"],
 
     "@madkarmaa/phodrive-core": ["@madkarmaa/phodrive-core@workspace:core"],
+
+    "@madkarmaa/phodrive-web": ["@madkarmaa/phodrive-web@workspace:web"],
 
     "@noble/ciphers": ["@noble/ciphers@2.4.0", "", {}, "sha512-AnjFn0Jv92laAkvMrghlFZq4qQCIN/4DxFV/eooqtC2YTjB7kBeLMS2T9KJX4Dn+ZVXLOwK0lSgqDtx9gvxtiw=="],
 
@@ -383,7 +406,7 @@
 
     "@sveltejs/acorn-typescript": ["@sveltejs/acorn-typescript@1.0.13", "", { "peerDependencies": { "acorn": "^8.9.0" } }, "sha512-wgKggnhZVL9Bfx1OaKKTrYY9BFRk6C8UAkQNUcIv1+llzYrIqy+RZm5HPKzn0NpEBvTVhTqB4kQyllZywsRBRQ=="],
 
-    "@sveltejs/adapter-node": ["@sveltejs/adapter-node@6.0.0", "", { "peerDependencies": { "@sveltejs/kit": "^3.0.0-next.0" } }, "sha512-s7muM4JmJ75OZ8o0G4VRhrEKdi8twuEm3t2o/qQsdlm12hKaX7S/CuUBuw3n983wB/IFBSpzG2ugX0xdGzbKwg=="],
+    "@sveltejs/adapter-static": ["@sveltejs/adapter-static@4.0.1", "", { "peerDependencies": { "@sveltejs/kit": "^3.0.0-next.0" } }, "sha512-svOU1OcBiJ9Kn1cdxHDmJIsBy1/iQe9STPvUFkO2/iinxPFS7r8fc9TiCaWWUgbrE+7ox6Bt4MURv3RPi7sunQ=="],
 
     "@sveltejs/kit": ["@sveltejs/kit@3.0.1", "", { "dependencies": { "@rolldown/pluginutils": "^1.0.1", "@standard-schema/spec": "^1.1.0", "cookie": "^2.0.1", "devalue": "^5.9.4", "esm-env": "^1.2.2", "magic-string": "^1.2.3", "mrmime": "^2.0.1", "sirv": "^3.0.2" }, "peerDependencies": { "@opentelemetry/api": "^1.0.0", "@sveltejs/vite-plugin-svelte": "^7.0.0", "svelte": "^5.57.1", "typescript": "^6.0.0", "vite": "^8.0.12" }, "optionalPeers": ["@opentelemetry/api", "typescript"], "bin": { "svelte-kit": "svelte-kit.js" } }, "sha512-8JMCCq7ZUJELi3hbhb0+c9Rs8qnbHW90vhOfM+t1FSF4fhIpG9/FOsH4IYgcITMhbdkSrrn+Kvd9G+q8A+UO6Q=="],
 
@@ -562,8 +585,6 @@
     "cosmiconfig": ["cosmiconfig@9.0.2", "", { "dependencies": { "env-paths": "^2.2.1", "import-fresh": "^3.3.0", "js-yaml": "^4.1.0", "parse-json": "^5.2.0" }, "peerDependencies": { "typescript": ">=4.9.5" }, "optionalPeers": ["typescript"] }, "sha512-gtTZxTDau1wL7Y7zifc2dd8jHSK/k6BTx/2Xp/BpdlAdnlYWFVt7qhJqgwi7637yRwRQ3qL4ZidbB4I8tA5VOg=="],
 
     "cosmiconfig-typescript-loader": ["cosmiconfig-typescript-loader@6.3.0", "", { "dependencies": { "jiti": "2.6.1" }, "peerDependencies": { "@types/node": "*", "cosmiconfig": ">=9", "typescript": ">=5" } }, "sha512-Akr82WH1Wfqatyiqpj8HDkO2o2KmJRu1FhKfSNJP3K4IdXwHfEyL7MOb62i1AGQVLtIQM+iCE9CGOtrfhR+mmA=="],
-
-    "cross-env": ["cross-env@10.1.0", "", { "dependencies": { "@epic-web/invariant": "^1.0.0", "cross-spawn": "^7.0.6" }, "bin": { "cross-env": "dist/bin/cross-env.js", "cross-env-shell": "dist/bin/cross-env-shell.js" } }, "sha512-GsYosgnACZTADcmEyJctkJIoqAhHjttw7RsFrVoJNXbsWWqaq6Ym+7kZjq6mS45O0jij6vtiReppKQEtqWy6Dw=="],
 
     "cross-spawn": ["cross-spawn@7.0.6", "", { "dependencies": { "path-key": "^3.1.0", "shebang-command": "^2.0.0", "which": "^2.0.1" } }, "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA=="],
 

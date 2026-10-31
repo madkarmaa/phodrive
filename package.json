@@ -22,13 +22,13 @@
     },
     "workspaces": [
         "core",
-        "app",
+        "web",
+        "server",
         "cli"
     ],
     "scripts": {
         "dev": "node scripts/workspaces.mjs dev",
         "build": "node scripts/workspaces.mjs build",
-        "preview": "node scripts/workspaces.mjs preview",
         "start": "node scripts/workspaces.mjs start",
         "start:bun": "node scripts/workspaces.mjs start:bun",
         "cli": "node scripts/workspaces.mjs cli",

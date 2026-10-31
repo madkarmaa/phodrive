@@ -1,0 +1,64 @@
+{
+    "name": "@madkarmaa/phodrive-api",
+    "version": "1.4.1",
+    "description": "Phodrive server: accounts, Google Photos transfers, and the web app.",
+    "type": "module",
+    "license": "MIT",
+    "author": "madkarmaa",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/madkarmaa/phodrive.git",
+        "directory": "server"
+    },
+    "engines": {
+        "node": ">=24.21.0"
+    },
+    "bin": {
+        "phodrive-api": "dist/main.js"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "dist",
+        "drizzle",
+        "LICENSE",
+        "LICENSES"
+    ],
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
+    "scripts": {
+        "dev": "tsx watch --conditions=@madkarmaa/phodrive-core src/dev.ts",
+        "build": "tsdown",
+        "start": "node --env-file-if-exists=../.env dist/main.js",
+        "start:bun": "bun --env-file=../.env dist/main.js",
+        "db:generate": "drizzle-kit generate",
+        "test": "vitest run",
+        "check": "tsc --project tsconfig.json",
+        "prepack": "node ../scripts/licenses.mjs && tsdown"
+    },
+    "dependencies": {
+        "@hono/node-server": "^2.1.5",
+        "@madkarmaa/phodrive-core": "^1.4.1",
+        "better-auth": "^1.7.14",
+        "drizzle-orm": "^0.45.4",
+        "hono": "^4.13.14",
+        "postgres": "^3.4.9",
+        "results-ts": "^4.4.0",
+        "zod": "^4.6.5"
+    },
+    "devDependencies": {
+        "@types/node": "^24.19.2",
+        "drizzle-kit": "^0.31.11",
+        "tsdown": "^0.23.2",
+        "tsx": "^4.23.15",
+        "typescript": "^6.0.3",
+        "vite": "^8.3.4",
+        "vitest": "^5.0.3"
+    }
+}
