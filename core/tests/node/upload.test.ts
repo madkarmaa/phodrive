@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 import { UploadJobStatus, UploadStatus } from '@madkarmaa/phodrive-core/models';
 import type { UploadedChunk } from '@madkarmaa/phodrive-core/files';
 import { openLocalFiles, uploadFiles, type UploadJob } from '@madkarmaa/phodrive-core/node';
-import { photosUploadHarness } from '../helpers/upload';
+import { photosUploadHarness } from '../helpers/photos-harness';
 
 let folder = '';
 

@@ -16,7 +16,8 @@ import { decodeSplitBmp, encodeSplitBmp } from '@madkarmaa/phodrive-core/server/
 import { uploadFiles } from '@madkarmaa/phodrive-core/server/upload';
 import { fileUploadStream, receiveFileUpload } from '@madkarmaa/phodrive-core/server/upload/file';
 import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
-import { photosUploadHarness, TEST_ACCOUNT, uploadForm } from '../helpers/upload';
+import { TEST_ACCOUNT, uploadForm } from '../helpers/upload';
+import { photosUploadHarness } from '../helpers/photos-harness';
 
 afterEach(() => vi.restoreAllMocks());
 

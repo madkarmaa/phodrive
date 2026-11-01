@@ -17,7 +17,8 @@ import {
 } from '@madkarmaa/phodrive-core/server/bmp';
 import { fileIdentity } from '@madkarmaa/phodrive-core/server/chunks';
 import { downloadFile } from '@madkarmaa/phodrive-core/server/files';
-import { uploadForm, photosUploadHarness, TEST_ACCOUNT } from '../../../core/tests/helpers/upload';
+import { uploadForm, TEST_ACCOUNT } from '../../../core/tests/helpers/upload';
+import { photosUploadHarness } from '../../../core/tests/helpers/photos-harness';
 
 const PAYLOAD = Buffer.from([1, 2, 3, 4]);
 const EMPTY_HASH = createHash('sha256').digest('hex');

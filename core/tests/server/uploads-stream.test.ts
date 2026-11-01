@@ -4,7 +4,8 @@ import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
 import { encodeUploadBmp } from '@madkarmaa/phodrive-core/server/upload/bmp';
 import { uploadFiles } from '@madkarmaa/phodrive-core/server/upload';
 import { decodeSplitBmp } from '@madkarmaa/phodrive-core/server/bmp';
-import { uploadForm, photosUploadHarness, TEST_ACCOUNT } from '../helpers/upload';
+import { uploadForm, TEST_ACCOUNT } from '../helpers/upload';
+import { photosUploadHarness } from '../helpers/photos-harness';
 import * as fs from 'node:fs/promises';
 
 vi.mock('node:fs/promises', async (importOriginal) => {

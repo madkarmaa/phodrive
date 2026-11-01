@@ -3,7 +3,8 @@ import { receiveUpload } from '@madkarmaa/phodrive-core/server/upload/input';
 import { uploadFiles, planUpload } from '@madkarmaa/phodrive-core/server/upload';
 import { MAX_CHUNK_PAYLOAD_BYTES } from '@madkarmaa/phodrive-core/server/bmp';
 import { UploadEventType, type UploadEvent } from '@madkarmaa/phodrive-core/models';
-import { uploadForm, photosUploadHarness, TEST_ACCOUNT } from '../helpers/upload';
+import { uploadForm, TEST_ACCOUNT } from '../helpers/upload';
+import { photosUploadHarness } from '../helpers/photos-harness';
 
 afterEach(() => vi.restoreAllMocks());
 
