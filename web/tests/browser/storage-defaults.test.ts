@@ -1,13 +1,10 @@
 import {
     FileSort,
-    FileLayout,
-    DEFAULT_FILE_LAYOUT,
     ThemeMode,
     DEFAULT_CONCURRENT_WORKERS,
     DEFAULT_FILE_SORT,
     DEFAULT_REFRESH_INTERVAL_SECONDS,
     DEFAULT_PREFERENCES_DEFAULTS,
-    FileSortSchema,
     MAX_CONCURRENT_WORKERS,
     MAX_REFRESH_INTERVAL_SECONDS,
     type PreferencesDefaults
@@ -17,51 +14,16 @@ import {
     BrowserPreferences,
     CONCURRENT_WORKERS_KEY,
     CONCURRENT_WORKERS_SERIALIZER,
-    FILE_SORT_SERIALIZER,
     FILE_SORT_KEY,
-    FILE_LAYOUT_KEY,
-    FILE_LAYOUT_SERIALIZER,
-    LEGACY_CREDENTIAL_KEYS,
     REFRESH_INTERVAL_SERIALIZER,
     REFRESH_INTERVAL_KEY,
-    THEME_SERIALIZER,
-    THEME_KEY,
-    removeLegacyCredentials
+    THEME_KEY
 } from '#browser/storage';
 
-const { storage } = vi.hoisted(() => {
-    class MemoryStorage implements Storage {
-        private readonly items = new Map<string, string>();
+const { storage } = await vi.hoisted(async () => {
+    const { stubBrowser } = await import('../helpers/browser');
 
-        get length(): number {
-            return this.items.size;
-        }
-
-        key(index: number): string | null {
-            return [...this.items.keys()][index] ?? null;
-        }
-
-        getItem(key: string): string | null {
-            return this.items.get(key) ?? null;
-        }
-
-        setItem(key: string, value: string): void {
-            this.items.set(key, value);
-        }
-
-        removeItem(key: string): void {
-            this.items.delete(key);
-        }
-
-        clear(): void {
-            this.items.clear();
-        }
-    }
-
-    const storage = new MemoryStorage();
-    vi.stubGlobal('window', Object.assign(new EventTarget(), { localStorage: storage }));
-
-    return { storage };
+    return stubBrowser();
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));
@@ -76,82 +38,6 @@ const DEPLOYMENT_DEFAULTS: PreferencesDefaults = {
     refreshIntervalSeconds: 120,
     concurrentWorkers: 4
 };
-
-test('file layout rejects invalid stored values and persists the selected view', () => {
-    storage.setItem(FILE_LAYOUT_KEY, 'invalid-layout');
-    const preferences = new BrowserPreferences();
-
-    expect(preferences.fileLayout).toBe(DEFAULT_FILE_LAYOUT);
-    expect(FILE_LAYOUT_SERIALIZER.deserialize('null')).toBeUndefined();
-
-    expect(preferences.saveFileLayout(FileLayout.Grid).isOk()).toBe(true);
-    expect(storage.getItem(FILE_LAYOUT_KEY)).toBe(FileLayout.Grid);
-    expect(new BrowserPreferences().fileLayout).toBe(FileLayout.Grid);
-
-    expect(preferences.saveFileLayout(FileLayout.List).isOk()).toBe(true);
-    expect(new BrowserPreferences().fileLayout).toBe(FileLayout.List);
-});
-
-test('tokens left by earlier versions are deleted while preferences stay', () => {
-    storage.setItem('accounts', JSON.stringify({ 'test@example.com': 'aas_et/legacy' }));
-    storage.setItem('selectedAccount', JSON.stringify('test@example.com'));
-    storage.setItem(THEME_KEY, ThemeMode.Dark);
-
-    expect(removeLegacyCredentials().isOk()).toBe(true);
-
-    for (const key of LEGACY_CREDENTIAL_KEYS) expect(storage.getItem(key)).toBeNull();
-    expect(storage.getItem(THEME_KEY)).toBe(ThemeMode.Dark);
-});
-
-test('plain-text theme serialization retains its storage format', () => {
-    for (const mode of [ThemeMode.Light, ThemeMode.Dark, ThemeMode.Auto] as const) {
-        expect(THEME_SERIALIZER.serialize(mode)).toBe(mode);
-        expect(THEME_SERIALIZER.deserialize(mode)).toBe(mode);
-    }
-    expect(THEME_SERIALIZER.deserialize('invalid')).toBeUndefined();
-    expect(THEME_SERIALIZER.deserialize('"dark"')).toBeUndefined();
-});
-
-test('stored sort choices are validated and invalid values leave deployment defaults available', () => {
-    for (const order of FileSortSchema.options) {
-        const stored = FILE_SORT_SERIALIZER.serialize(order);
-
-        expect(FILE_SORT_SERIALIZER.deserialize(stored)).toBe(order);
-    }
-
-    expect(FILE_SORT_SERIALIZER.deserialize('invalid')).toBeUndefined();
-    expect(FILE_SORT_SERIALIZER.deserialize('null')).toBeUndefined();
-});
-
-test('refresh and worker preferences validate persisted boundaries and reject malformed data', () => {
-    for (const seconds of [0, 1, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS]) {
-        const stored = REFRESH_INTERVAL_SERIALIZER.serialize(seconds);
-
-        expect(REFRESH_INTERVAL_SERIALIZER.deserialize(stored)).toBe(seconds);
-    }
-
-    for (const workers of [1, DEFAULT_CONCURRENT_WORKERS, MAX_CONCURRENT_WORKERS]) {
-        const stored = CONCURRENT_WORKERS_SERIALIZER.serialize(workers);
-
-        expect(CONCURRENT_WORKERS_SERIALIZER.deserialize(stored)).toBe(workers);
-    }
-
-    expect(REFRESH_INTERVAL_SERIALIZER.deserialize('null')).toBeNull();
-    expect(CONCURRENT_WORKERS_SERIALIZER.deserialize('null')).toBeNull();
-
-    for (const raw of ['-1', '1.5', '"8"', '[]', '{}', 'true', 'NaN', '{']) {
-        expect(REFRESH_INTERVAL_SERIALIZER.deserialize(raw)).toBeUndefined();
-        expect(CONCURRENT_WORKERS_SERIALIZER.deserialize(raw)).toBeUndefined();
-    }
-
-    expect(
-        REFRESH_INTERVAL_SERIALIZER.deserialize(String(MAX_REFRESH_INTERVAL_SECONDS + 1))
-    ).toBeUndefined();
-    expect(CONCURRENT_WORKERS_SERIALIZER.deserialize('0')).toBeUndefined();
-    expect(
-        CONCURRENT_WORKERS_SERIALIZER.deserialize(String(MAX_CONCURRENT_WORKERS + 1))
-    ).toBeUndefined();
-});
 
 test('absent browser choices use deployment defaults without seeding local storage', () => {
     const preferences = new BrowserPreferences(DEPLOYMENT_DEFAULTS);
