@@ -1,14 +1,11 @@
 <script lang="ts">
-    import { Button, Card, Tab, Tabs, TextField } from 'noph-ui';
+    import { Button, Card, Tab, Tabs } from 'noph-ui';
     import { invalidateAll } from '$app/navigation';
-    import {
-        SignInSchema,
-        type SignInInput,
-        type SignUpInput
-    } from '@madkarmaa/phodrive-core/auth';
-    import { SignUpFormSchema } from '#lib/auth';
+    import type { SignInInput, SignUpInput } from '@madkarmaa/phodrive-core/auth';
+    import { AuthForm, type AuthField } from '#lib/auth-form.svelte';
     import { APP_MOTTO, APP_NAME } from '#lib/app';
     import { signIn, signUp } from '#browser/auth';
+    import AuthTextField from '#components/AuthTextField.svelte';
     import TokenHelp from '#components/TokenHelp.svelte';
     import ErrorFeedback from '#components/ErrorFeedback.svelte';
     import logo from '#assets/favicon.svg';
@@ -19,51 +16,17 @@
 
     let { signupEnabled }: Props = $props();
 
-    type Mode = 'sign-in' | 'sign-up';
-    type Field = 'email' | 'password' | 'confirmPassword' | 'token';
-    const FIELDS: readonly Field[] = ['email', 'password', 'confirmPassword', 'token'];
-    const UNTOUCHED: Record<Field, boolean> = {
-        email: false,
-        password: false,
-        confirmPassword: false,
-        token: false
-    };
-
-    let mode = $state<Mode>('sign-in');
-    let email = $state('');
-    let password = $state('');
-    let confirmPassword = $state('');
-    let token = $state('');
+    const form = new AuthForm(() => signupEnabled);
     let submitting = $state(false);
     let feedback = $state('');
-    let touched = $state<Record<Field, boolean>>({ ...UNTOUCHED });
-    let inputs = $state<Partial<Record<Field, HTMLInputElement | HTMLTextAreaElement>>>({});
+    let inputs = $state<Partial<Record<AuthField, HTMLInputElement | HTMLTextAreaElement>>>({});
 
-    const signingUp = $derived(mode === 'sign-up' && signupEnabled);
-    const validation = $derived(
-        signingUp
-            ? SignUpFormSchema.safeParse({
-                  email: email.trim(),
-                  password,
-                  confirmPassword,
-                  token: token.trim()
-              })
-            : SignInSchema.safeParse({ email: email.trim(), password })
-    );
-
-    function issues(field: Field) {
-        if (!touched[field] || validation.success) return undefined;
-
-        return validation.error.issues.filter((issue) => issue.path[0] === field);
-    }
-
-    function chooseMode(next: Mode) {
-        mode = next;
+    function chooseMode(next: string) {
+        form.choose(next === 'sign-up' ? 'sign-up' : 'sign-in');
         feedback = '';
-        touched = { ...UNTOUCHED };
     }
 
-    async function submit(input: SignInInput | SignUpInput) {
+    async function send(input: SignInInput | SignUpInput) {
         submitting = true;
         feedback = '';
 
@@ -81,6 +44,18 @@
             }
         });
     }
+
+    function submit(event: SubmitEvent) {
+        event.preventDefault();
+
+        const submitted = form.submit();
+        if ('invalid' in submitted) {
+            if (submitted.invalid) inputs[submitted.invalid]?.focus();
+            return;
+        }
+
+        void send(submitted.input);
+    }
 </script>
 
 <main class="mx-auto grid min-h-screen w-full max-w-162.5 content-center px-4 py-10">
@@ -95,11 +70,7 @@
     <Card type="text" variant="outlined" class="auth-card">
         <div class="p-7 max-[520px]:p-4">
             {#if signupEnabled}
-                <Tabs
-                    bind:value={
-                        () => mode, (next) => chooseMode(next === 'sign-up' ? 'sign-up' : 'sign-in')
-                    }
-                >
+                <Tabs bind:value={() => form.mode, chooseMode}>
                     <Tab value="sign-in" controls="auth-panel">Sign in</Tab>
                     <Tab value="sign-up" controls="auth-panel">Create account</Tab>
                 </Tabs>
@@ -110,10 +81,10 @@
             <div
                 id="auth-panel"
                 role={signupEnabled ? 'tabpanel' : undefined}
-                aria-label={signingUp ? 'Create account' : 'Sign in'}
+                aria-label={form.signingUp ? 'Create account' : 'Sign in'}
             >
                 <p class="mt-5 text-sm leading-normal text-muted">
-                    {#if signingUp}
+                    {#if form.signingUp}
                         Use your Google account email. This page encrypts the token for the server,
                         which exchanges it and stores it encrypted. No request carries the token.
                     {:else}
@@ -121,81 +92,48 @@
                     {/if}
                 </p>
 
-                <form
-                    class="mt-7 grid gap-4.5"
-                    novalidate
-                    onsubmit={(event) => {
-                        event.preventDefault();
-                        touched = {
-                            email: true,
-                            password: true,
-                            confirmPassword: signingUp,
-                            token: signingUp
-                        };
-                        if (!validation.success) {
-                            const path = validation.error.issues[0]?.path[0];
-                            const field = FIELDS.find((name) => name === path);
-                            if (field) inputs[field]?.focus();
-
-                            return;
-                        }
-
-                        void submit(validation.data);
-                    }}
-                >
-                    <div class="field min-w-0">
-                        <TextField
-                            label={signingUp ? 'Google account email' : 'Email'}
-                            type="email"
-                            bind:value={email}
-                            bind:inputElement={inputs.email}
-                            issues={issues('email')}
-                            onblur={() => (touched.email = true)}
-                            disabled={submitting}
-                            autocomplete={signingUp ? 'email' : 'username'}
-                            required
-                        />
-                    </div>
-                    <div class="field min-w-0">
-                        <TextField
-                            label="Password"
+                <form class="mt-7 grid gap-4.5" novalidate onsubmit={submit}>
+                    <AuthTextField
+                        label={form.signingUp ? 'Google account email' : 'Email'}
+                        type="email"
+                        bind:value={form.values.email}
+                        bind:input={inputs.email}
+                        issues={form.issues('email')}
+                        onblur={() => (form.touched.email = true)}
+                        disabled={submitting}
+                        autocomplete={form.signingUp ? 'email' : 'username'}
+                    />
+                    <AuthTextField
+                        label="Password"
+                        type="password"
+                        bind:value={form.values.password}
+                        bind:input={inputs.password}
+                        issues={form.issues('password')}
+                        onblur={() => (form.touched.password = true)}
+                        disabled={submitting}
+                        autocomplete={form.signingUp ? 'new-password' : 'current-password'}
+                    />
+                    {#if form.signingUp}
+                        <AuthTextField
+                            label="Repeat password"
                             type="password"
-                            bind:value={password}
-                            bind:inputElement={inputs.password}
-                            issues={issues('password')}
-                            onblur={() => (touched.password = true)}
+                            bind:value={form.values.confirmPassword}
+                            bind:input={inputs.confirmPassword}
+                            issues={form.issues('confirmPassword')}
+                            onblur={() => (form.touched.confirmPassword = true)}
                             disabled={submitting}
-                            autocomplete={signingUp ? 'new-password' : 'current-password'}
-                            required
+                            autocomplete="new-password"
                         />
-                    </div>
-                    {#if signingUp}
-                        <div class="field min-w-0">
-                            <TextField
-                                label="Repeat password"
-                                type="password"
-                                bind:value={confirmPassword}
-                                bind:inputElement={inputs.confirmPassword}
-                                issues={issues('confirmPassword')}
-                                onblur={() => (touched.confirmPassword = true)}
-                                disabled={submitting}
-                                autocomplete="new-password"
-                                required
-                            />
-                        </div>
-                        <div class="field min-w-0">
-                            <TextField
-                                label="OAuth2 or AAS token"
-                                type="password"
-                                bind:value={token}
-                                bind:inputElement={inputs.token}
-                                issues={issues('token')}
-                                onblur={() => (touched.token = true)}
-                                disabled={submitting}
-                                autocomplete="off"
-                                required
-                            />
-                        </div>
+                        <AuthTextField
+                            label="OAuth2 or AAS token"
+                            type="password"
+                            bind:value={form.values.token}
+                            bind:input={inputs.token}
+                            issues={form.issues('token')}
+                            onblur={() => (form.touched.token = true)}
+                            disabled={submitting}
+                            autocomplete="off"
+                        />
                     {/if}
                     <div>
                         <Button
@@ -203,9 +141,9 @@
                             variant="filled"
                             size="s"
                             loading={submitting}
-                            loadingAriaLabel={signingUp ? 'Creating account' : 'Signing in'}
+                            loadingAriaLabel={form.signingUp ? 'Creating account' : 'Signing in'}
                         >
-                            {signingUp ? 'Create account' : 'Sign in'}
+                            {form.signingUp ? 'Create account' : 'Sign in'}
                         </Button>
                     </div>
                 </form>
@@ -213,7 +151,7 @@
         </div>
     </Card>
 
-    {#if signingUp}
+    {#if form.signingUp}
         <TokenHelp />
     {/if}
 </main>
@@ -229,15 +167,5 @@
         gap: 0;
         width: 100%;
         min-width: 0;
-    }
-
-    .field :global(.np-text-field) {
-        box-sizing: border-box;
-        min-width: 0;
-        width: 100%;
-    }
-
-    .field :global(input) {
-        box-sizing: border-box;
     }
 </style>
