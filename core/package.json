@@ -61,6 +61,10 @@
             "@madkarmaa/phodrive-core": "./src/browser/upload/index.ts",
             "default": "./dist/browser/upload/index.js"
         },
+        "./browser/upload/chunk": {
+            "@madkarmaa/phodrive-core": "./src/browser/upload/chunk.ts",
+            "default": "./dist/browser/upload/chunk.js"
+        },
         "./browser/upload/hash": {
             "@madkarmaa/phodrive-core": "./src/browser/upload/hash.ts",
             "default": "./dist/browser/upload/hash.js"
@@ -68,6 +72,10 @@
         "./browser/upload/jobs": {
             "@madkarmaa/phodrive-core": "./src/browser/upload/jobs.ts",
             "default": "./dist/browser/upload/jobs.js"
+        },
+        "./browser/upload/planned": {
+            "@madkarmaa/phodrive-core": "./src/browser/upload/planned.ts",
+            "default": "./dist/browser/upload/planned.js"
         },
         "./browser/upload/request": {
             "@madkarmaa/phodrive-core": "./src/browser/upload/request.ts",
@@ -273,8 +281,10 @@
             "./models": "./dist/models.js",
             "./node": "./dist/node/index.js",
             "./node/files": "./dist/node/files.js",
+            "./browser/upload/chunk": "./dist/browser/upload/chunk.js",
             "./node/library": "./dist/node/library.js",
             "./node/upload": "./dist/node/upload.js",
+            "./browser/upload/planned": "./dist/browser/upload/planned.js",
             "./preferences": "./dist/preferences.js",
             "./server": "./dist/server/index.js",
             "./server/aas": "./dist/server/aas.js",
