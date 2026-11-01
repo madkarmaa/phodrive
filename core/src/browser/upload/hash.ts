@@ -1,58 +1,25 @@
 import { createSHA1, createSHA256, sha256, type IHasher } from 'hash-wasm';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import type { ApplicationError } from '../../errors';
-import { MAX_CONCURRENT_WORKERS, type SplitHeader } from '../../models';
+import type { SplitHeader } from '../../models';
 import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '../../bmp/format';
+import {
+    acquireHasher,
+    digestHasher,
+    FILE_READ_ERROR,
+    HASH_ERROR,
+    releaseHasher,
+    updateHasher
+} from '../hashers';
 
 export const HASH_BLOCK_BYTES = 1024 * 1024;
 // Avoid native digest call overhead for tiny files.
 const NATIVE_HASH_MIN_BYTES = 32 * 1024;
 const ZERO_BLOCK = new Uint8Array(64 * 1024);
 const FILE_HASHES = new WeakMap<File, string>();
-const HASH_ERROR: ApplicationError = {
-    code: 'HASH_INITIALIZATION_FAILED',
-    message: 'Could not prepare file hashing.'
-};
-const FILE_READ_ERROR: ApplicationError = {
-    code: 'FILE_READ_FAILED',
-    message: 'Could not read the selected file.'
-};
-
 // Only idle states are pooled; an operation owns its hasher through reads and digesting.
 const AVAILABLE_SHA256_HASHERS: IHasher[] = [];
 const AVAILABLE_SHA1_HASHERS: IHasher[] = [];
-
-function acquireHasher(
-    factory: () => Promise<IHasher>,
-    available: IHasher[]
-): AsyncResult<IHasher, ApplicationError> {
-    return Ok(undefined).andThenAsync(async () => {
-        try {
-            const reusable = available.pop();
-            if (reusable) return Ok(reusable.init());
-
-            const hasher = await factory();
-
-            return Ok(hasher);
-        } catch {
-            return Err(HASH_ERROR);
-        }
-    });
-}
-
-/** A failed WASM operation may leave its state unusable; a failed file read does not. */
-function releaseHasher(
-    hasher: IHasher,
-    available: IHasher[],
-    result: Result<unknown, ApplicationError>
-): void {
-    const reusable = result.match({
-        Ok: () => true,
-        Err: (error) => error.code === FILE_READ_ERROR.code
-    });
-
-    if (reusable && available.length < MAX_CONCURRENT_WORKERS) available.push(hasher);
-}
 
 function hashBlob(
     blob: Blob,
@@ -77,24 +44,6 @@ function hashBlob(
 
         return Ok(undefined);
     });
-}
-
-function updateHasher(hasher: IHasher, bytes: Uint8Array): Result<void, ApplicationError> {
-    try {
-        hasher.update(bytes);
-
-        return Ok(undefined);
-    } catch {
-        return Err(HASH_ERROR);
-    }
-}
-
-function digestHasher(hasher: IHasher): Result<string, ApplicationError> {
-    try {
-        return Ok(hasher.digest('hex'));
-    } catch {
-        return Err(HASH_ERROR);
-    }
 }
 
 /** The caller limits native hashing to one read block to bound memory and preserve progress. */

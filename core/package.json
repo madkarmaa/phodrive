@@ -45,6 +45,10 @@
             "@madkarmaa/phodrive-core": "./src/browser/api.ts",
             "default": "./dist/browser/api.js"
         },
+        "./browser/chunk-verifier": {
+            "@madkarmaa/phodrive-core": "./src/browser/chunk-verifier.ts",
+            "default": "./dist/browser/chunk-verifier.js"
+        },
         "./browser/download": {
             "@madkarmaa/phodrive-core": "./src/browser/download.ts",
             "default": "./dist/browser/download.js"
@@ -52,6 +56,10 @@
         "./browser/files": {
             "@madkarmaa/phodrive-core": "./src/browser/files.ts",
             "default": "./dist/browser/files.js"
+        },
+        "./browser/hashers": {
+            "@madkarmaa/phodrive-core": "./src/browser/hashers.ts",
+            "default": "./dist/browser/hashers.js"
         },
         "./browser/library": {
             "@madkarmaa/phodrive-core": "./src/browser/library.ts",
@@ -289,8 +297,10 @@
             "./bmp/format": "./dist/bmp/format.js",
             "./browser": "./dist/browser/index.js",
             "./browser/api": "./dist/browser/api.js",
+            "./browser/chunk-verifier": "./dist/browser/chunk-verifier.js",
             "./browser/download": "./dist/browser/download.js",
             "./browser/files": "./dist/browser/files.js",
+            "./browser/hashers": "./dist/browser/hashers.js",
             "./browser/library": "./dist/browser/library.js",
             "./browser/upload": "./dist/browser/upload/index.js",
             "./browser/upload/chunk": "./dist/browser/upload/chunk.js",
