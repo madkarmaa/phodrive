@@ -36,7 +36,7 @@ See [baseline.md](./baseline.md) for the original measurements, [iterations.md](
 
 ## Supplemental browser hashing
 
-Copy `src/lib/browser/upload/hash.ts` from production commit `86cba81` into `app/.svelte-kit/performance/browser-original-hash.ts`. Create that ignored directory after project setup, and keep the copied source unmodified.
+Copy `src/lib/browser/upload/hash.ts` from production commit `86cba81` into `web/.svelte-kit/performance/browser-original-hash.ts`. Create that ignored directory after project setup, and keep the copied source unmodified.
 
 Start `bun run dev`, open its URL in an existing Chrome window, and evaluate [browser-hashing.js](./browser-hashing.js) in the browser console or Chrome MCP. The script imports the original and current hashing modules through the dev server. It runs two warmups and five samples for 200 files of 64 KiB and 500 files of 1 KiB. Each operation uses a fresh File. Results contain every sample and validation flag.
 
