@@ -1,12 +1,8 @@
 import { createHash } from 'node:crypto';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import type { SplitHeader } from '../../models';
-import {
-    decodeSplitHeader,
-    MAX_PHOTOS_BMP_BYTES,
-    MAX_SPLIT_HEADER_BYTES,
-    splitHeaderByteLength
-} from './index';
+import { MAX_SPLIT_HEADER_BYTES, splitHeaderByteLength } from './index';
+import { checkDownloadedPrefix } from './prefix';
 import { SERVER_ERRORS, type ServerError } from '../errors';
 
 /** Retain only the split header and the current network block, never a whole BMP. */
@@ -71,42 +67,14 @@ export class SplitBmpReader {
                 const next = await this.readBlock();
                 if (next.isErr()) return next;
 
-                const copied = next.andThen((block) => {
-                    if (block === null) return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
-
-                    const remaining = length - this.offset;
-                    const part = block.subarray(0, remaining);
-                    prefix.set(part, this.offset);
-                    this.offset += part.length;
-                    this.pending = block.subarray(part.length);
-
-                    return Ok(undefined);
-                });
+                const copied = next.andThen((block) => this.copyPrefix(block, prefix));
                 if (copied.isErr()) return copied;
             }
 
-            this.totalSize = new DataView(prefix.buffer).getUint32(2, true);
-            if (this.totalSize > MAX_PHOTOS_BMP_BYTES || this.received > this.totalSize)
-                return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
-
-            return decodeSplitHeader(prefix, this.totalSize).andThen(
-                ({ header, payloadOffset }): Result<void, ServerError> => {
-                    if (
-                        header.fileHash !== expected.fileHash ||
-                        header.fileId !== expected.fileId ||
-                        header.chunkIndex !== expected.chunkIndex ||
-                        header.flags !== expected.flags ||
-                        header.payloadSize !== expected.payloadSize ||
-                        header.fileName !== expected.fileName ||
-                        payloadOffset !== length
-                    )
-                        return Err(SERVER_ERRORS.DOWNLOAD_CHUNK_MISMATCH);
-
-                    this.payloadEnd = payloadOffset + header.payloadSize;
-
-                    return Ok(undefined);
-                }
-            );
+            return checkDownloadedPrefix(prefix, expected, this.received).map((layout) => {
+                this.totalSize = layout.totalSize;
+                this.payloadEnd = layout.payloadEnd;
+            });
         });
     }
 
@@ -119,39 +87,53 @@ export class SplitBmpReader {
                 if (this.closed) return Ok(null);
                 if (next.isErr()) return next;
 
-                const processed = next.andThen((block): Result<Uint8Array | null, ServerError> => {
-                    if (block === null) {
-                        if (this.received !== this.totalSize)
-                            return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
-                        if (this.hash.digest('hex') !== this.sha1)
-                            return Err(SERVER_ERRORS.DOWNLOAD_INTEGRITY_FAILED);
-
-                        this.closed = true;
-                        this.reader.releaseLock();
-
-                        return Ok(null);
-                    }
-                    if (this.received > this.totalSize)
-                        return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
-
-                    const payloadBytes = Math.max(0, this.payloadEnd - this.offset);
-                    const payload = block.subarray(0, payloadBytes);
-                    if (block.subarray(payload.length).some(Boolean))
-                        return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
-
-                    this.offset += block.length;
-
-                    return Ok(payload);
-                });
-                const ready = processed.match({
-                    Ok: (payload) => payload === null || payload.length > 0,
-                    Err: () => true
-                });
-                if (ready) return processed;
+                const processed = next.andThen((block) =>
+                    block === null ? this.finish() : this.takePayload(block)
+                );
+                // A block holding only padding yields no payload, so keep reading.
+                const paddingOnly = processed.isOkAnd((payload) => payload?.length === 0);
+                if (!paddingOnly) return processed;
             }
 
             return Ok(null);
         });
+    }
+
+    private copyPrefix(block: Uint8Array | null, prefix: Uint8Array): Result<void, ServerError> {
+        if (block === null) return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
+
+        const part = block.subarray(0, prefix.length - this.offset);
+        prefix.set(part, this.offset);
+        this.offset += part.length;
+        this.pending = block.subarray(part.length);
+
+        return Ok(undefined);
+    }
+
+    /** The payload part of a block; anything after the payload must be zero padding. */
+    private takePayload(block: Uint8Array): Result<Uint8Array, ServerError> {
+        if (this.received > this.totalSize) return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
+
+        const payloadBytes = Math.max(0, this.payloadEnd - this.offset);
+        const payload = block.subarray(0, payloadBytes);
+        if (block.subarray(payload.length).some(Boolean))
+            return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
+
+        this.offset += block.length;
+
+        return Ok(payload);
+    }
+
+    /** At the end of the body, the BMP must be complete and match its SHA-1. */
+    private finish(): Result<null, ServerError> {
+        if (this.received !== this.totalSize) return Err(SERVER_ERRORS.INVALID_DOWNLOADED_BMP);
+        if (this.hash.digest('hex') !== this.sha1)
+            return Err(SERVER_ERRORS.DOWNLOAD_INTEGRITY_FAILED);
+
+        this.closed = true;
+        this.reader.releaseLock();
+
+        return Ok(null);
     }
 
     close(): AsyncResult<void, ServerError> {
