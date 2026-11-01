@@ -1,7 +1,7 @@
 <script lang="ts" generics="Value extends string">
-    import { Button, Menu, MenuItem } from 'noph-ui';
+    import { Button } from 'noph-ui';
+    import FilterMenu from '#components/FilterMenu.svelte';
     import IconArrow from '~icons/material-symbols/arrow-drop-down';
-    import IconCheck from '~icons/material-symbols/check';
     import IconClose from '~icons/material-symbols/close';
 
     interface Props {
@@ -28,8 +28,7 @@
     );
     let open = $state(false);
     let anchor = $state<HTMLElement>();
-    let menuElement = $state<HTMLDivElement>();
-    let menu = $state<ReturnType<typeof Menu>>();
+    let menu = $state<FilterMenu<Value>>();
 
     function selectValue(selected: Value) {
         value = selected;
@@ -37,10 +36,18 @@
         anchor?.focus();
     }
 
-    function focusSelection() {
-        const selected = menuElement?.querySelector<HTMLElement>('[aria-current="true"]');
-        const first = menuElement?.querySelector<HTMLElement>('[role="menuitem"]');
-        (selected ?? first)?.focus();
+    /** Choosing the current value again clears the filter, unless it must stay selected. */
+    function choose(option: Value) {
+        selectValue(resetOnReselect && option === value ? defaultValue : option);
+    }
+
+    /** Arrow keys open the menu, or move focus into it when it is already open. */
+    function openWithArrows(event: KeyboardEvent) {
+        if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+        event.preventDefault();
+        if (open) menu?.focusSelection();
+        else menu?.show();
     }
 </script>
 
@@ -58,16 +65,7 @@
         aria-controls={id}
         command="toggle-popover"
         commandfor={id}
-        onkeydown={(event) => {
-            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-
-            event.preventDefault();
-            if (open) {
-                focusSelection();
-                return;
-            }
-            menu?.show();
-        }}
+        onkeydown={openWithArrows}
     >
         {active ? selectedLabel : label}
         {#snippet end()}<IconArrow aria-hidden="true" />{/snippet}
@@ -87,36 +85,16 @@
         </Button>
     {/if}
 
-    <Menu
+    <FilterMenu
+        bind:this={menu}
+        bind:open
         {id}
         {anchor}
-        bind:this={menu}
-        bind:element={menuElement}
-        bind:open
-        coverAnchor={false}
-        class="filter-menu"
-        aria-label={ariaLabel}
-        ontoggle={(event) => {
-            if (event.newState === 'open') focusSelection();
-        }}
-    >
-        {#each options as option (option.value)}
-            <MenuItem
-                aria-current={option.value === value ? 'true' : undefined}
-                onclick={() =>
-                    selectValue(
-                        resetOnReselect && option.value === value ? defaultValue : option.value
-                    )}
-            >
-                {#snippet start()}
-                    <span class="option-check" aria-hidden="true">
-                        {#if option.value === value}<IconCheck />{/if}
-                    </span>
-                {/snippet}
-                {option.label}
-            </MenuItem>
-        {/each}
-    </Menu>
+        {ariaLabel}
+        {value}
+        {options}
+        onchoose={choose}
+    />
 </div>
 
 <style>
@@ -162,37 +140,5 @@
         border-start-end-radius: 8px;
         border-end-end-radius: 8px;
         box-shadow: none;
-    }
-
-    .filter-chip :global(.filter-menu) {
-        position-anchor: --filter-chip;
-        min-width: 210px;
-        max-width: min(320px, calc(100vw - 24px));
-        --np-menu-container-color: var(--app-panel);
-        --np-menu-container-shape: 8px;
-        --np-menu-position-area: bottom span-right;
-        --np-menu-justify-self: start;
-    }
-
-    .filter-chip :global(.filter-menu .np-item) {
-        --np-item-container-height: 40px;
-        padding-block: 8px;
-    }
-
-    .filter-chip :global(.filter-menu .np-item-headline) {
-        font-size: 14px;
-        line-height: 24px;
-    }
-
-    .option-check {
-        display: grid;
-        place-items: center;
-        width: 20px;
-        height: 20px;
-    }
-
-    .option-check :global(svg) {
-        width: 20px;
-        height: 20px;
     }
 </style>
