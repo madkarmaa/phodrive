@@ -69,6 +69,10 @@
             "@madkarmaa/phodrive-core": "./src/browser/upload/hash.ts",
             "default": "./dist/browser/upload/hash.js"
         },
+        "./browser/upload/job-state": {
+            "@madkarmaa/phodrive-core": "./src/browser/upload/job-state.ts",
+            "default": "./dist/browser/upload/job-state.js"
+        },
         "./browser/upload/jobs": {
             "@madkarmaa/phodrive-core": "./src/browser/upload/jobs.ts",
             "default": "./dist/browser/upload/jobs.js"
@@ -287,6 +291,7 @@
             "./browser/upload": "./dist/browser/upload/index.js",
             "./browser/upload/chunk": "./dist/browser/upload/chunk.js",
             "./browser/upload/hash": "./dist/browser/upload/hash.js",
+            "./browser/upload/job-state": "./dist/browser/upload/job-state.js",
             "./browser/upload/jobs": "./dist/browser/upload/jobs.js",
             "./browser/upload/planned": "./dist/browser/upload/planned.js",
             "./browser/upload/request": "./dist/browser/upload/request.js",
