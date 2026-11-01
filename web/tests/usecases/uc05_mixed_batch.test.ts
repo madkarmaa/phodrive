@@ -4,27 +4,10 @@ import { DriveController } from '#browser/drive/index.svelte';
 import { createUploadJobs } from '#browser/files';
 import { browserUploadResponse } from '../../../core/tests/helpers/upload';
 
-const { storage } = vi.hoisted(() => {
-    const values = new Map<string, string>();
-    const storage: Storage = {
-        get length() {
-            return values.size;
-        },
-        clear: () => values.clear(),
-        getItem: (key) => values.get(key) ?? null,
-        key: (index) => [...values.keys()][index] ?? null,
-        removeItem: (key) => {
-            values.delete(key);
-        },
-        setItem: (key, value) => {
-            values.set(key, value);
-        }
-    };
-    vi.stubGlobal('window', Object.assign(new EventTarget(), { localStorage: storage }));
-    vi.stubGlobal('document', {
-        documentElement: { getAttribute: () => 'auto', setAttribute: vi.fn() }
-    });
-    return { storage };
+const { storage } = await vi.hoisted(async () => {
+    const { stubBrowser } = await import('../helpers/browser');
+
+    return stubBrowser();
 });
 
 vi.mock('esm-env', () => ({ BROWSER: true, DEV: true }));

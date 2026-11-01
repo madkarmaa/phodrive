@@ -3,35 +3,14 @@ import { Ok } from 'results-ts';
 import { DriveController } from '#browser/drive/index.svelte';
 import * as filesApi from '#browser/files';
 import * as libraryApi from '@madkarmaa/phodrive-core/browser/library';
-import {
-    FileActionKind,
-    ThemeMode,
-    UploadJobStatus,
-    UploadStatus
-} from '@madkarmaa/phodrive-core/models';
+import { FileActionKind, UploadJobStatus, UploadStatus } from '@madkarmaa/phodrive-core/models';
 import type { UploadedChunk } from '@madkarmaa/phodrive-core/files';
 import { CONCURRENT_WORKERS_KEY } from '#browser/storage';
 
-const { storage, tab } = vi.hoisted(() => {
-    const values = new Map<string, string>();
-    const storage: Storage = {
-        get length() {
-            return values.size;
-        },
-        clear: () => values.clear(),
-        getItem: (key) => values.get(key) ?? null,
-        key: (index) => [...values.keys()][index] ?? null,
-        removeItem: (key) => values.delete(key),
-        setItem: (key, value) => values.set(key, value)
-    };
-    const tab = Object.assign(new EventTarget(), { localStorage: storage });
-    vi.stubGlobal('window', tab);
-    vi.stubGlobal('document', {
-        hidden: false,
-        documentElement: { getAttribute: () => ThemeMode.Auto, setAttribute: vi.fn() }
-    });
+const { storage, tab } = await vi.hoisted(async () => {
+    const { stubBrowser } = await import('../helpers/browser');
 
-    return { storage, tab };
+    return stubBrowser();
 });
 
 const OWNER = 'owner@example.com';
