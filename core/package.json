@@ -186,8 +186,16 @@
             "default": "./dist/server/photos/trash.js"
         },
         "./server/photos/upload": {
-            "@madkarmaa/phodrive-core": "./src/server/photos/upload.ts",
-            "default": "./dist/server/photos/upload.js"
+            "@madkarmaa/phodrive-core": "./src/server/photos/upload/index.ts",
+            "default": "./dist/server/photos/upload/index.js"
+        },
+        "./server/photos/upload/requests": {
+            "@madkarmaa/phodrive-core": "./src/server/photos/upload/requests.ts",
+            "default": "./dist/server/photos/upload/requests.js"
+        },
+        "./server/photos/upload/responses": {
+            "@madkarmaa/phodrive-core": "./src/server/photos/upload/responses.ts",
+            "default": "./dist/server/photos/upload/responses.js"
         },
         "./server/protobuf": {
             "@madkarmaa/phodrive-core": "./src/server/protobuf.ts",
@@ -273,18 +281,18 @@
             "./browser/files": "./dist/browser/files.js",
             "./browser/library": "./dist/browser/library.js",
             "./browser/upload": "./dist/browser/upload/index.js",
+            "./browser/upload/chunk": "./dist/browser/upload/chunk.js",
             "./browser/upload/hash": "./dist/browser/upload/hash.js",
             "./browser/upload/jobs": "./dist/browser/upload/jobs.js",
+            "./browser/upload/planned": "./dist/browser/upload/planned.js",
             "./browser/upload/request": "./dist/browser/upload/request.js",
             "./errors": "./dist/errors.js",
             "./files": "./dist/files.js",
             "./models": "./dist/models.js",
             "./node": "./dist/node/index.js",
             "./node/files": "./dist/node/files.js",
-            "./browser/upload/chunk": "./dist/browser/upload/chunk.js",
             "./node/library": "./dist/node/library.js",
             "./node/upload": "./dist/node/upload.js",
-            "./browser/upload/planned": "./dist/browser/upload/planned.js",
             "./preferences": "./dist/preferences.js",
             "./server": "./dist/server/index.js",
             "./server/aas": "./dist/server/aas.js",
@@ -304,7 +312,9 @@
             "./server/photos/library/requests": "./dist/server/photos/library/requests.js",
             "./server/photos/transport": "./dist/server/photos/transport.js",
             "./server/photos/trash": "./dist/server/photos/trash.js",
-            "./server/photos/upload": "./dist/server/photos/upload.js",
+            "./server/photos/upload": "./dist/server/photos/upload/index.js",
+            "./server/photos/upload/requests": "./dist/server/photos/upload/requests.js",
+            "./server/photos/upload/responses": "./dist/server/photos/upload/responses.js",
             "./server/protobuf": "./dist/server/protobuf.js",
             "./server/request": "./dist/server/request.js",
             "./server/upload": "./dist/server/upload/index.js",
