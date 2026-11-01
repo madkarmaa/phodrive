@@ -133,6 +133,10 @@
             "@madkarmaa/phodrive-core": "./src/server/bmp/stream.ts",
             "default": "./dist/server/bmp/stream.js"
         },
+        "./server/chunk-cursor": {
+            "@madkarmaa/phodrive-core": "./src/server/chunk-cursor.ts",
+            "default": "./dist/server/chunk-cursor.js"
+        },
         "./server/chunks": {
             "@madkarmaa/phodrive-core": "./src/server/chunks.ts",
             "default": "./dist/server/chunks.js"
@@ -299,6 +303,7 @@
             "./server/accounts": "./dist/server/accounts.js",
             "./server/bmp": "./dist/server/bmp/index.js",
             "./server/bmp/stream": "./dist/server/bmp/stream.js",
+            "./server/chunk-cursor": "./dist/server/chunk-cursor.js",
             "./server/chunks": "./dist/server/chunks.js",
             "./server/download": "./dist/server/download.js",
             "./server/errors": "./dist/server/errors.js",
