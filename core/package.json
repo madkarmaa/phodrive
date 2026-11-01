@@ -165,6 +165,10 @@
             "@madkarmaa/phodrive-core": "./src/server/bmp/index.ts",
             "default": "./dist/server/bmp/index.js"
         },
+        "./server/bmp/fields": {
+            "@madkarmaa/phodrive-core": "./src/server/bmp/fields.ts",
+            "default": "./dist/server/bmp/fields.js"
+        },
         "./server/bmp/prefix": {
             "@madkarmaa/phodrive-core": "./src/server/bmp/prefix.ts",
             "default": "./dist/server/bmp/prefix.js"
@@ -367,6 +371,7 @@
             "./server/aas": "./dist/server/aas.js",
             "./server/accounts": "./dist/server/accounts.js",
             "./server/bmp": "./dist/server/bmp/index.js",
+            "./server/bmp/fields": "./dist/server/bmp/fields.js",
             "./server/bmp/prefix": "./dist/server/bmp/prefix.js",
             "./server/bmp/stream": "./dist/server/bmp/stream.js",
             "./server/chunk-cursor": "./dist/server/chunk-cursor.js",
