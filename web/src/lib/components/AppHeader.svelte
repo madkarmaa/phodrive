@@ -1,12 +1,9 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
     import { AppBar, IconButton, Search } from 'noph-ui';
-    import { MediaQuery } from 'svelte/reactivity';
-    import { ThemeMode } from '@madkarmaa/phodrive-core/models';
+    import type { ThemeMode } from '@madkarmaa/phodrive-core/models';
+    import AppLogo from '#components/AppLogo.svelte';
+    import RefreshButton from '#components/RefreshButton.svelte';
     import ThemeButton from '#components/ThemeButton.svelte';
-    import darkLogo from '#assets/favicon.svg';
-    import lightLogo from '#assets/favicon-light.svg';
-    import IconRefresh from '~icons/material-symbols/refresh';
     import IconMenu from '~icons/material-symbols/menu';
     import IconPerson from '~icons/material-symbols/person';
 
@@ -37,22 +34,7 @@
         ontheme,
         accountButton = $bindable()
     }: Props = $props();
-
-    let mounted = $state(false);
-
-    const systemDark = new MediaQuery('(prefers-color-scheme: dark)');
-    const useDarkIcon = $derived(
-        theme === ThemeMode.Dark || (theme === ThemeMode.Auto && systemDark.current)
-    );
-    const logo = $derived(mounted && useDarkIcon ? darkLogo : lightLogo);
-    const favicon = $derived(mounted && systemDark.current ? darkLogo : lightLogo);
-
-    onMount(() => {
-        mounted = true;
-    });
 </script>
-
-<svelte:head><link rel="icon" type="image/svg+xml" href={favicon} /></svelte:head>
 
 <AppBar variant="search" class="shell-header col-span-full">
     {#snippet leading()}
@@ -67,13 +49,7 @@
                 <IconMenu aria-hidden="true" />
             </IconButton>
         </div>
-        <div
-            class="flex items-center gap-3 text-[22px] whitespace-nowrap text-subtle max-[800px]:hidden"
-            aria-label="Phodrive"
-        >
-            <img src={logo} alt="" class="size-10 max-[520px]:size-8" />
-            <span class="max-[800px]:hidden">Phodrive</span>
-        </div>
+        <AppLogo {theme} />
     {/snippet}
 
     {#snippet search()}
@@ -87,23 +63,7 @@
     {/snippet}
 
     {#snippet trailing()}
-        <span
-            class="refresh-control"
-            role="group"
-            aria-label="Refresh files"
-            aria-busy={refreshing}
-        >
-            <IconButton
-                size="s"
-                title={refreshing ? 'Refreshing files' : 'Refresh files'}
-                disabled={refreshDisabled || refreshing}
-                onclick={onrefresh}
-            >
-                <span class="refresh-icon" class:refreshing aria-hidden="true">
-                    <IconRefresh />
-                </span>
-            </IconButton>
-        </span>
+        <RefreshButton {refreshing} disabled={refreshDisabled} {onrefresh} />
         <ThemeButton mode={theme} onchange={ontheme} />
         <IconButton
             id="account-button"
@@ -129,23 +89,6 @@
 </AppBar>
 
 <style>
-    .refresh-control,
-    .refresh-icon {
-        display: inline-flex;
-    }
-
-    @media (prefers-reduced-motion: no-preference) {
-        .refresh-icon.refreshing {
-            animation: refresh-spin 1s linear infinite;
-        }
-    }
-
-    @keyframes refresh-spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
     :global(:root .shell-header.np-app-bar) {
         position: static;
         height: 64px;
