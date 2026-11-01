@@ -5,7 +5,8 @@ import { Err, Ok, type AsyncResult } from 'results-ts';
 import { version } from '../package.json';
 import type { CliContext, CliError } from './context';
 import { status } from './output';
-import { downloadAsset, fetchLatestRelease, findAsset, updateFailure, type Asset } from './release';
+import { downloadAsset } from './asset-download';
+import { fetchLatestRelease, findAsset, updateFailure, type Asset } from './release';
 
 // Release builds define this as their GitHub release asset name; npm builds leave it undefined.
 declare const PHODRIVE_RELEASE_ASSET: string | undefined;
