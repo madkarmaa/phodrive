@@ -1,13 +1,11 @@
 <script lang="ts">
-    import { Button } from 'noph-ui';
     import prettyBytes from 'pretty-bytes';
     import { FileSort } from '@madkarmaa/phodrive-core/models';
     import { fileKey, type FileGroup, type FileAction } from '@madkarmaa/phodrive-core/files';
     import LocalizedDate from '#components/LocalizedDate.svelte';
     import FileActions from '#components/FileActions.svelte';
     import IconDescription from '~icons/material-symbols/description';
-    import IconArrowUp from '~icons/material-symbols/arrow-upward';
-    import IconArrowDown from '~icons/material-symbols/arrow-downward';
+    import SortButton from '#components/SortButton.svelte';
 
     interface Props {
         files: FileGroup[];
@@ -23,59 +21,41 @@
     const ascending = $derived(
         sort === FileSort.NameAscending || sort === FileSort.ModifiedAscending
     );
+
+    function ariaSort(active: boolean) {
+        if (!active) return 'none';
+
+        return ascending ? 'ascending' : 'descending';
+    }
+
+    /** Sort by a column in its first order, or flip it when it is already sorted that way. */
+    function sortBy(first: FileSort, flipped: FileSort) {
+        sort = sort === first ? flipped : first;
+    }
+
+    function totalSize(item: FileGroup) {
+        return prettyBytes(item.chunks.reduce((sum, chunk) => sum + chunk.size, 0));
+    }
 </script>
 
 <table class="file-list" aria-labelledby="files-heading">
     <thead>
         <tr>
-            <th
-                scope="col"
-                aria-sort={nameSort ? (ascending ? 'ascending' : 'descending') : 'none'}
-            >
-                <Button
-                    class="column-sort"
-                    size="xs"
-                    variant="text"
-                    onclick={() =>
-                        (sort =
-                            sort === FileSort.NameAscending
-                                ? FileSort.NameDescending
-                                : FileSort.NameAscending)}
-                >
-                    Name
-                    {#snippet end()}
-                        {#if nameSort}
-                            {#if ascending}<IconArrowUp aria-hidden="true" />{:else}<IconArrowDown
-                                    aria-hidden="true"
-                                />{/if}
-                        {/if}
-                    {/snippet}
-                </Button>
+            <th scope="col" aria-sort={ariaSort(nameSort)}>
+                <SortButton
+                    label="Name"
+                    active={nameSort}
+                    {ascending}
+                    onclick={() => sortBy(FileSort.NameAscending, FileSort.NameDescending)}
+                />
             </th>
-            <th
-                scope="col"
-                class="date-column"
-                aria-sort={!nameSort ? (ascending ? 'ascending' : 'descending') : 'none'}
-            >
-                <Button
-                    class="column-sort"
-                    size="xs"
-                    variant="text"
-                    onclick={() =>
-                        (sort =
-                            sort === FileSort.ModifiedDescending
-                                ? FileSort.ModifiedAscending
-                                : FileSort.ModifiedDescending)}
-                >
-                    Date modified
-                    {#snippet end()}
-                        {#if !nameSort}
-                            {#if ascending}<IconArrowUp aria-hidden="true" />{:else}<IconArrowDown
-                                    aria-hidden="true"
-                                />{/if}
-                        {/if}
-                    {/snippet}
-                </Button>
+            <th scope="col" class="date-column" aria-sort={ariaSort(!nameSort)}>
+                <SortButton
+                    label="Date modified"
+                    active={!nameSort}
+                    {ascending}
+                    onclick={() => sortBy(FileSort.ModifiedDescending, FileSort.ModifiedAscending)}
+                />
             </th>
             <th scope="col" class="size-column">File size</th>
             <th scope="col" class="actions-column"><span class="sr-only">Actions</span></th>
@@ -106,7 +86,7 @@
                 <td class="date-column"><LocalizedDate timestamp={item.at} /></td>
                 <td class="size-column">
                     {#if item.complete}
-                        {prettyBytes(item.chunks.reduce((sum, chunk) => sum + chunk.size, 0))}
+                        {totalSize(item)}
                     {:else}<span aria-label="File size unavailable until all chunks are loaded"
                             >—</span
                         >{/if}
