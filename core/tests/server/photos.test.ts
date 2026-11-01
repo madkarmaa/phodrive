@@ -1,29 +1,9 @@
-import { UploadStatus } from '@madkarmaa/phodrive-core/models';
-import { expect, test, vi } from 'vitest';
-import { bmpResponse, downloadFixture } from '../helpers/download';
 import { createHash } from 'node:crypto';
-import Varint from 'varint';
-import { encodeSplitBmp } from '@madkarmaa/phodrive-core/server/bmp';
-import {
-    downloadBmp,
-    listBmps,
-    moveToTrash,
-    uploadBmp,
-    validateAasAccount
-} from '@madkarmaa/phodrive-core/server/photos';
+import { UploadStatus } from '@madkarmaa/phodrive-core/models';
 import type { Fetcher } from '@madkarmaa/phodrive-core/server/fetcher';
-import { nested } from '@madkarmaa/phodrive-core/server/protobuf';
-
-function varint(value: number): Buffer {
-    return Buffer.from(Varint.encode(value));
-}
-function num(field: number, value: number): Buffer {
-    return Buffer.concat([varint(field * 8), varint(value)]);
-}
-function bytes(field: number, data: Uint8Array | string): Buffer {
-    const body = Buffer.from(data);
-    return Buffer.concat([varint(field * 8 + 2), varint(body.length), body]);
-}
+import { uploadBmp, validateAasAccount } from '@madkarmaa/phodrive-core/server/photos';
+import { expect, test } from 'vitest';
+import { authResponse, bytes, num } from '../helpers/protobuf';
 
 test('account validation checks the email and AAS token with Google', async () => {
     const accepted: Fetcher = async (input, init) => {
@@ -31,7 +11,7 @@ test('account validation checks the email and AAS token with Google', async () =
         const form = new URLSearchParams(String(init?.body));
         expect(form.get('Email')).toBe('test@example.com');
         expect(form.get('Token')).toBe('aas_et/test');
-        return new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`);
+        return authResponse();
     };
     const valid = await validateAasAccount('test@example.com', 'aas_et/test', accepted);
     expect(valid.isOk()).toBe(true);
@@ -40,19 +20,6 @@ test('account validation checks the email and AAS token with Google', async () =
     const invalid = await validateAasAccount('test@example.com', 'aas_et/test', rejected);
     expect(invalid.match({ Ok: () => '', Err: (error) => error.message })).toBe(
         'AAS authentication failed'
-    );
-});
-
-test('malformed library protobuf returns Err without throwing', async () => {
-    let call = 0;
-    const fakeFetch: Fetcher = async () =>
-        ++call === 1
-            ? new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`)
-            : new Response(Uint8Array.from([10, 5, 1]));
-    const result = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
-    expect(result.isErr()).toBe(true);
-    expect(result.match({ Ok: () => '', Err: (error) => error.message })).toContain(
-        'Truncated protobuf'
     );
 });
 
@@ -74,7 +41,7 @@ test('Pixel XL flow hashes, transfers, and commits one BMP', async () => {
             expect(url).toBe('https://android.googleapis.com/auth');
             expect(headers.get('user-agent')).toContain('Pixel XL');
             expect(String(init?.body)).toContain('Token=aas_et%2Ftest');
-            return new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`);
+            return authResponse();
         }
         if (step === 2) {
             expect(url).toContain('photosdata-pa.googleapis.com');
@@ -117,7 +84,7 @@ test('a connection timeout during commit remains uncertain and is never retried 
     const missing = bytes(1, bytes(2, bytes(1, bytes(1, sha1))));
     const scotty = Buffer.from([8, 2, 18, 1, 7]);
     const responses = [
-        new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`),
+        authResponse(),
         new Response(Uint8Array.from(missing)),
         new Response(null, { headers: { 'X-GUploader-UploadID': 'upload-id' } }),
         new Response(scotty)
@@ -148,308 +115,3 @@ test('a connection timeout during commit remains uncertain and is never retried 
     });
     expect(requests).toBe(5);
 });
-
-test('download opens the original response stream and trash targets its dedup key', async () => {
-    const bmp = Buffer.from('BM test pixels');
-    const sha1 = createHash('sha1').update(bmp).digest();
-    const signed = 'https://lh3.googleusercontent.com/p/test=d';
-    const metadata = bytes(
-        1,
-        Buffer.concat([
-            bytes(1, 'media-key'),
-            bytes(2, bytes(13, bytes(1, sha1))),
-            bytes(5, bytes(2, bytes(5, signed)))
-        ])
-    );
-    let step = 0;
-    const fakeFetch: Fetcher = async (input, init) => {
-        const url = String(input);
-        expect(init?.signal).toBeUndefined();
-        step++;
-        if (step === 1 || step === 4)
-            return new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`);
-        if (step === 2) {
-            expect(url).toContain('PhotosPrepareDownload');
-            return new Response(Uint8Array.from(metadata));
-        }
-        if (step === 3) {
-            expect(url).toBe(signed);
-            return new Response(Uint8Array.from(bmp), { headers: { 'content-type': 'image/bmp' } });
-        }
-        expect(url).toContain('17490284929287180316');
-        const requestBody = await new Response(init?.body).arrayBuffer();
-        const body = Buffer.from(requestBody);
-        expect(body.subarray(0, 2)).toEqual(Buffer.from([16, 1]));
-        expect(body.includes(Buffer.from(sha1.toString('base64url')))).toBe(true);
-        return new Response(Uint8Array.from([]));
-    };
-    const downloaded = await downloadBmp(
-        'test@example.com',
-        'aas_et/test',
-        'media-key',
-        sha1.toString('hex'),
-        fakeFetch
-    );
-    const response = downloaded.unwrap();
-    const downloadedBytes = await response.arrayBuffer();
-    expect(Buffer.from(downloadedBytes)).toEqual(bmp);
-    const deleted = await moveToTrash(
-        'test@example.com',
-        'aas_et/test',
-        sha1.toString('hex'),
-        fakeFetch
-    );
-    expect(deleted.isOk()).toBe(true);
-    expect(step).toBe(5);
-});
-
-test.each([false, true])(
-    'library discovers file pages and hides empty continuations (empty final page: %s)',
-    async (emptyFinalPage) => {
-        const fileHash = 'a'.repeat(64);
-        const first = Buffer.from(
-            encodeSplitBmp(Uint8Array.of(1, 2), {
-                fileHash,
-                fileId: fileHash,
-                chunkIndex: 0,
-                flags: 0,
-                payloadSize: 2,
-                fileName: 'original.bin'
-            }).unwrap()
-        );
-        const last = Buffer.from(
-            encodeSplitBmp(Uint8Array.of(3), {
-                fileHash,
-                fileId: fileHash,
-                chunkIndex: 1,
-                flags: 1,
-                payloadSize: 1
-            }).unwrap()
-        );
-        const ordinary = Buffer.alloc(first.length);
-        const originals = new Map([
-            ['renamed-first', first],
-            ['renamed-last', last],
-            ['ordinary-video', ordinary],
-            ['ordinary-photo', ordinary]
-        ]);
-        const fingerprint = (data: Buffer) => createHash('sha1').update(data).digest();
-        const item = (key: string, remoteName: string, trashed = false) => {
-            const data = originals.get(key) ?? first;
-            const details = Buffer.concat([
-                bytes(4, remoteName),
-                num(9, 42),
-                num(10, data.length),
-                bytes(13, bytes(1, fingerprint(data))),
-                ...(trashed ? [bytes(16, num(3, 1))] : [])
-            ]);
-
-            return bytes(2, Buffer.concat([bytes(1, key), bytes(2, details)]));
-        };
-        const firstPage = bytes(
-            1,
-            Buffer.concat([
-                bytes(1, 'empty-page'),
-                item('renamed-first', 'vacation.jpg'),
-                item('ordinary-video', 'clip.mp4'),
-                item('ordinary-photo', 'family.jpg')
-            ])
-        );
-        const secondPage = emptyFinalPage
-            ? bytes(1, bytes(6, 'next-sync'))
-            : bytes(
-                  1,
-                  Buffer.concat([
-                      item('renamed-first', 'deleted-copy.bmp', true),
-                      item('renamed-last', 'untitled')
-                  ])
-              );
-        let libraryCalls = 0;
-        let prefixCalls = 0;
-        let failPrefix = false;
-
-        const fakeFetch: Fetcher = async (input, init) => {
-            const url = String(input);
-            if (url.includes('android.googleapis.com/auth'))
-                return new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`);
-
-            if (url.includes('18047484249733410717')) {
-                const requestBytes = await new Response(init?.body).arrayBuffer();
-                const body = Buffer.from(requestBytes);
-                libraryCalls++;
-                const requestToken = nested(body, 1, 4).match({
-                    Ok: (value) => value.toString(),
-                    Err: () => ''
-                });
-                expect(['', 'empty-page', 'next-page']).toContain(requestToken);
-                const response =
-                    requestToken === ''
-                        ? firstPage
-                        : requestToken === 'empty-page'
-                          ? bytes(1, bytes(1, 'next-page'))
-                          : secondPage;
-                return new Response(Uint8Array.from(response));
-            }
-
-            if (url.includes('PhotosPrepareDownload')) {
-                const requestBytes = await new Response(init?.body).arrayBuffer();
-                const request = Buffer.from(requestBytes);
-                const entry = [...originals].find(([key]) => request.includes(Buffer.from(key)));
-                if (!entry) throw new Error('Missing test item');
-
-                const [key, data] = entry;
-                const metadata = bytes(
-                    1,
-                    Buffer.concat([
-                        bytes(1, key),
-                        bytes(2, bytes(13, bytes(1, fingerprint(data)))),
-                        bytes(
-                            5,
-                            key === 'ordinary-video'
-                                ? Buffer.concat([num(1, 2), bytes(3, bytes(5, 'video-download'))])
-                                : bytes(2, bytes(5, `https://lh3.googleusercontent.com/p/${key}=d`))
-                        )
-                    ])
-                );
-                return new Response(Uint8Array.from(metadata));
-            }
-
-            const key = url.split('/').pop()?.replace('=d', '') ?? '';
-            expect(key).not.toBe('ordinary-video');
-            const data = originals.get(key);
-            if (!data) throw new Error('Missing test photo');
-            expect(new Headers(init?.headers).get('range')).toBe('bytes=0-65535');
-            prefixCalls++;
-            if (failPrefix && key === 'renamed-first') return new Response(null, { status: 503 });
-
-            return new Response(Uint8Array.from(data), { status: 206 });
-        };
-
-        const firstResult = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
-        const firstItems = firstResult.unwrap();
-        expect(firstItems.items).toEqual([
-            {
-                originalName: 'original.bin',
-                fileHash,
-                fileId: fileHash,
-                chunkIndex: 0,
-                isLast: false,
-                size: 2,
-                at: 42,
-                mediaKey: 'renamed-first',
-                sha1: fingerprint(first).toString('hex')
-            }
-        ]);
-
-        expect(firstItems.nextPageToken).toBe(
-            emptyFinalPage ? '' : Buffer.from('next-page').toString('base64url')
-        );
-        expect(libraryCalls).toBe(3);
-
-        if (!emptyFinalPage) {
-            const secondResult = await listBmps(
-                'test@example.com',
-                'aas_et/test',
-                firstItems.nextPageToken,
-                fakeFetch
-            );
-            expect(secondResult.unwrap().items).toEqual([
-                {
-                    originalName: undefined,
-                    fileHash,
-                    fileId: fileHash,
-                    chunkIndex: 1,
-                    isLast: true,
-                    size: 1,
-                    at: 42,
-                    mediaKey: 'renamed-last',
-                    sha1: fingerprint(last).toString('hex')
-                }
-            ]);
-            expect(libraryCalls).toBe(4);
-            expect(prefixCalls).toBe(4);
-        }
-
-        failPrefix = true;
-        libraryCalls = 0;
-
-        const failedRefresh = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
-        expect(failedRefresh.unwrapErr().message).toBe('Could not inspect photo header');
-    }
-);
-
-test('library lookahead propagates failures and rejects repeated continuation tokens', async () => {
-    let failContinuation = false;
-    let libraryCalls = 0;
-    const fakeFetch: Fetcher = async (input) => {
-        if (String(input).includes('android.googleapis.com/auth'))
-            return new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`);
-
-        libraryCalls++;
-        if (failContinuation && libraryCalls > 1) return new Response(null, { status: 503 });
-
-        return new Response(Uint8Array.from(bytes(1, bytes(1, 'repeat-page'))));
-    };
-
-    const repeated = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
-
-    expect(repeated.unwrapErr().code).toBe('REPEATED_LIBRARY_PAGE');
-    expect(libraryCalls).toBe(2);
-
-    libraryCalls = 0;
-    failContinuation = true;
-    const failed = await listBmps('test@example.com', 'aas_et/test', '', fakeFetch);
-
-    expect(failed.unwrapErr().message).toBe('Library list failed (HTTP 503)');
-    expect(libraryCalls).toBe(2);
-});
-
-test.each(['stream', 'content-type', 'http'] as const)(
-    'photo download %s preserves cancellation and does not buffer the image body',
-    async (mode) => {
-        const { input, bmps } = downloadFixture();
-        const chunk = input.chunks[0];
-        const metadata = bytes(
-            1,
-            Buffer.concat([
-                bytes(1, chunk.mediaKey),
-                bytes(2, bytes(13, bytes(1, Buffer.from(chunk.sha1, 'hex')))),
-                bytes(5, bytes(2, bytes(5, 'https://lh3.googleusercontent.com/stream=d')))
-            ])
-        );
-        const cancelled = vi.fn();
-        const read = vi.fn();
-        const raw = bmpResponse(bmps[0], 256, { onRead: read, onCancel: cancelled });
-        const response = new Response(raw.body, {
-            status: mode === 'http' ? 503 : 200,
-            headers: { 'content-type': mode === 'content-type' ? 'text/plain' : 'image/bmp' }
-        });
-        const responses = [
-            new Response(`Auth=bearer\nExpiry=${Math.floor(Date.now() / 1000) + 3600}`),
-            new Response(Uint8Array.from(metadata)),
-            response
-        ];
-        const abort = new AbortController();
-        const fetcher: Fetcher = async (_url, init) => {
-            expect(init?.signal).toBe(abort.signal);
-            return responses.shift()!;
-        };
-
-        const downloaded = await downloadBmp(
-            input.email,
-            input.token,
-            chunk.mediaKey,
-            chunk.sha1,
-            fetcher,
-            abort.signal
-        );
-        expect(read).not.toHaveBeenCalled();
-        if (mode === 'stream') {
-            expect(downloaded.unwrap()).toBe(response);
-            await downloaded.unwrap().body!.cancel();
-        } else {
-            expect(downloaded.isErr()).toBe(true);
-        }
-        expect(cancelled).toHaveBeenCalledOnce();
-    }
-);
