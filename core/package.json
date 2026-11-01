@@ -105,6 +105,22 @@
             "@madkarmaa/phodrive-core": "./src/models.ts",
             "default": "./dist/models.js"
         },
+        "./models/accounts": {
+            "@madkarmaa/phodrive-core": "./src/models/accounts.ts",
+            "default": "./dist/models/accounts.js"
+        },
+        "./models/files": {
+            "@madkarmaa/phodrive-core": "./src/models/files.ts",
+            "default": "./dist/models/files.js"
+        },
+        "./models/settings": {
+            "@madkarmaa/phodrive-core": "./src/models/settings.ts",
+            "default": "./dist/models/settings.js"
+        },
+        "./models/upload": {
+            "@madkarmaa/phodrive-core": "./src/models/upload.ts",
+            "default": "./dist/models/upload.js"
+        },
         "./node": {
             "@madkarmaa/phodrive-core": "./src/node/index.ts",
             "default": "./dist/node/index.js"
@@ -336,6 +352,10 @@
             "./errors": "./dist/errors.js",
             "./files": "./dist/files.js",
             "./models": "./dist/models.js",
+            "./models/accounts": "./dist/models/accounts.js",
+            "./models/files": "./dist/models/files.js",
+            "./models/settings": "./dist/models/settings.js",
+            "./models/upload": "./dist/models/upload.js",
             "./node": "./dist/node/index.js",
             "./node/files": "./dist/node/files.js",
             "./node/library": "./dist/node/library.js",
