@@ -1,22 +1,17 @@
 <script lang="ts">
     import {
         AppView,
-        FileActionKind,
         type PreferencesDefaults,
         type ProcessingMode
     } from '@madkarmaa/phodrive-core/models';
     import { onMount, untrack } from 'svelte';
-    import { fade } from 'svelte/transition';
-    import { prefersReducedMotion } from 'svelte/motion';
     import { DriveController } from '#browser/drive/index.svelte';
     import AppHeader from '#components/AppHeader.svelte';
     import AccountMenu from '#components/AccountMenu.svelte';
     import ConfirmDialog from '#components/ConfirmDialog.svelte';
     import UploadSidebar from '#components/UploadSidebar.svelte';
     import UploadPanel from '#components/UploadPanel.svelte';
-    import FileFilters from '#components/FileFilters.svelte';
-    import FileGrid from '#components/FileGrid.svelte';
-    import LayoutToggle from '#components/LayoutToggle.svelte';
+    import FilesView from '#components/FilesView.svelte';
     import SettingsPanel from '#components/SettingsPanel.svelte';
     import ErrorFeedback from '#components/ErrorFeedback.svelte';
     import FileDrop from '#components/FileDrop.svelte';
@@ -118,60 +113,7 @@
                 onresetworkers={() => drive.settings.resetConcurrentWorkers()}
             />
         {:else if drive.ready}
-            <div
-                class="flex flex-1 flex-col"
-                in:fade={{ duration: prefersReducedMotion.current ? 0 : 160 }}
-            >
-                <div class="workspace-heading">
-                    <h1 id="files-heading">
-                        My files <span class="text-subtle"
-                            >({drive.library.visibleFiles.length})</span
-                        >
-                    </h1>
-                    <LayoutToggle bind:layout={drive.settings.fileLayout} />
-                </div>
-
-                <FileFilters
-                    types={drive.library.availableTypes}
-                    bind:type={drive.library.typeFilter}
-                    bind:days={drive.library.modifiedDays}
-                    bind:sort={drive.settings.fileSort}
-                />
-                <FileDrop
-                    disabled={actionsDisabled ||
-                        drive.library.loading ||
-                        drive.confirmOpen ||
-                        drive.accountMenuOpen}
-                    onupload={upload}
-                >
-                    <FileGrid
-                        files={drive.library.visibleFiles}
-                        layout={drive.settings.fileLayout}
-                        bind:sort={drive.settings.fileSort}
-                        loading={drive.library.loading}
-                        loadFailed={drive.library.loadFailed}
-                        filtered={!!(
-                            drive.library.searchTerm ||
-                            drive.library.typeFilter ||
-                            drive.library.modifiedDays
-                        )}
-                        hasFiles={!!drive.library.files.length}
-                        hasMore={!!drive.library.nextPageToken}
-                        disabled={actionsDisabled || drive.library.loading}
-                        action={drive.fileAction}
-                        ondownload={(item) => {
-                            void drive.actOnFile(item, FileActionKind.Download);
-                        }}
-                        ondelete={(item) => {
-                            drive.confirmTarget = item;
-                            drive.confirmOpen = true;
-                        }}
-                        onmore={() => {
-                            void drive.library.load(false);
-                        }}
-                    />
-                </FileDrop>
-            </div>
+            <FilesView {drive} working={actionsDisabled} onupload={upload} />
         {/if}
     </main>
 </div>
