@@ -193,6 +193,10 @@
             "@madkarmaa/phodrive-core": "./src/server/photos/library/metadata.ts",
             "default": "./dist/server/photos/library/metadata.js"
         },
+        "./server/photos/library/probe": {
+            "@madkarmaa/phodrive-core": "./src/server/photos/library/probe.ts",
+            "default": "./dist/server/photos/library/probe.js"
+        },
         "./server/photos/library/requests": {
             "@madkarmaa/phodrive-core": "./src/server/photos/library/requests.ts",
             "default": "./dist/server/photos/library/requests.js"
@@ -338,6 +342,7 @@
             "./server/photos/download": "./dist/server/photos/download.js",
             "./server/photos/library": "./dist/server/photos/library/index.js",
             "./server/photos/library/metadata": "./dist/server/photos/library/metadata.js",
+            "./server/photos/library/probe": "./dist/server/photos/library/probe.js",
             "./server/photos/library/requests": "./dist/server/photos/library/requests.js",
             "./server/photos/transport": "./dist/server/photos/transport.js",
             "./server/photos/trash": "./dist/server/photos/trash.js",
