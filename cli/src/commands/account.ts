@@ -5,10 +5,9 @@ import { EmailSchema, NewAccountSchema } from '@madkarmaa/phodrive-core/models';
 import { connectGoogleAccount } from '@madkarmaa/phodrive-core/server/accounts';
 import { requireAccount, selectedEmail, withAccount, withoutAccount } from '../accounts';
 import { readConfig, updateConfig } from '../config';
-import type { CliContext, CliError } from '../context';
+import type { CliContext, CliError, Runner } from '../context';
 import { activity, printJson, printTable, status } from '../output';
 import { askConfirmation, askSecret, askText } from '../prompts';
-import type { Runner } from '../program';
 
 const TOKEN_HELP =
     'an OAuth2 token starting with oauth2_ from Google Embedded Setup, or an AAS token starting with aas_et/';

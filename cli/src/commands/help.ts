@@ -1,7 +1,6 @@
 import type { Command, CommandUnknownOpts } from '@commander-js/extra-typings';
 import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import type { CliError } from '../context';
-import type { Runner } from '../program';
+import type { CliError, Runner } from '../context';
 
 /** Follow a command path such as `file upload` from the root command. */
 function findCommand(

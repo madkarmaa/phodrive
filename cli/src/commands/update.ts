@@ -1,6 +1,5 @@
 import type { Command } from '@commander-js/extra-typings';
-import type { CliContext } from '../context';
-import type { Runner } from '../program';
+import type { CliContext, Runner } from '../context';
 import { updateExecutable } from '../update';
 
 export function registerUpdateCommand(program: Command, context: CliContext, run: Runner) {

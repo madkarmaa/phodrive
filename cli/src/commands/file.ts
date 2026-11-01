@@ -3,7 +3,7 @@ import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
 import { filterFiles, sortFiles, type FileGroup } from '@madkarmaa/phodrive-core/files';
 import type { FileSort } from '@madkarmaa/phodrive-core/models';
 import { openSession, type Session } from '../accounts';
-import type { CliContext, CliError } from '../context';
+import type { CliContext, CliError, Runner } from '../context';
 import { planDownloads, saveFiles } from '../downloads';
 import { deleteFiles, findFiles, loadFiles } from '../library';
 import {
@@ -16,7 +16,6 @@ import {
     status
 } from '../output';
 import { askConfirmation, canConfirm } from '../prompts';
-import type { Runner } from '../program';
 import { chooseSort, chooseWorkers } from '../settings';
 import { openUploads, sendFiles } from '../uploads';
 

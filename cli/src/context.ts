@@ -1,4 +1,5 @@
 import type { Readable, Writable } from 'node:stream';
+import type { AsyncResult } from 'results-ts';
 import type { ApplicationError } from '@madkarmaa/phodrive-core/errors';
 import type { ServerError } from '@madkarmaa/phodrive-core/server/errors';
 
@@ -41,3 +42,6 @@ export interface CliContext {
     /** The running executable and its release asset name, set only in GitHub release builds. */
     release: { executable: string; asset: string } | null;
 }
+
+/** Runs a command's task, reporting any failure; shared by every command group. */
+export type Runner = (task: () => AsyncResult<void, CliError>) => Promise<void>;

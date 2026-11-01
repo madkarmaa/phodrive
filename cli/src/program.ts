@@ -1,15 +1,12 @@
 import { Command } from '@commander-js/extra-typings';
-import type { AsyncResult } from 'results-ts';
 import { version } from '../package.json';
 import { registerAccountCommands } from './commands/account';
 import { registerFileCommands } from './commands/file';
 import { registerHelpCommand } from './commands/help';
 import { registerSettingCommands } from './commands/setting';
 import { registerUpdateCommand } from './commands/update';
-import type { CliContext, CliError } from './context';
+import type { CliContext, CliError, Runner } from './context';
 import { reportError } from './output';
-
-export type Runner = (task: () => AsyncResult<void, CliError>) => Promise<void>;
 
 /** Build the command tree; failures are reported and passed to the caller for the exit code. */
 export function createProgram(context: CliContext, onError: (error: CliError) => void) {

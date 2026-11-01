@@ -1,9 +1,8 @@
 import type { Command } from '@commander-js/extra-typings';
 import { Ok, type AsyncResult } from 'results-ts';
 import { readConfig, updateConfig } from '../config';
-import type { CliContext, CliError } from '../context';
+import type { CliContext, CliError, Runner } from '../context';
 import { printJson, printTable, status } from '../output';
-import type { Runner } from '../program';
 import {
     parseSettingKey,
     resetSetting,
