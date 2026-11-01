@@ -261,6 +261,10 @@
             "@madkarmaa/phodrive-core": "./src/server/upload/stream.ts",
             "default": "./dist/server/upload/stream.js"
         },
+        "./server/upload/verified-stream": {
+            "@madkarmaa/phodrive-core": "./src/server/upload/verified-stream.ts",
+            "default": "./dist/server/upload/verified-stream.js"
+        },
         "./server/workers": {
             "@madkarmaa/phodrive-core": "./src/server/workers.ts",
             "default": "./dist/server/workers.js"
@@ -363,6 +367,7 @@
             "./server/upload/multipart-streams": "./dist/server/upload/multipart-streams.js",
             "./server/upload/spool": "./dist/server/upload/spool.js",
             "./server/upload/stream": "./dist/server/upload/stream.js",
+            "./server/upload/verified-stream": "./dist/server/upload/verified-stream.js",
             "./server/workers": "./dist/server/workers.js",
             "./upload": "./dist/upload.js",
             "./validation": "./dist/validation.js",
