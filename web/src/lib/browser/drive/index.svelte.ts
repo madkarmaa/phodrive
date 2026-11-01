@@ -7,35 +7,18 @@ import {
     type PreferencesDefaults
 } from '@madkarmaa/phodrive-core/models';
 import { fileKey, type FileAction, type FileGroup } from '@madkarmaa/phodrive-core/files';
-import { invalidateAll } from '$app/navigation';
 import { useAutomaticRefresh } from '#browser/drive/refresh.svelte';
-import { replaceGoogleToken, signOut } from '#browser/auth';
+import { DriveAccount } from '#browser/drive/account.svelte';
 import { createBrowserPreferences, type BrowserPreferences } from '#browser/storage';
-import {
-    createUploadJobs,
-    uploadFiles,
-    downloadFile,
-    saveDownloadedFile,
-    deleteFile,
-    type UploadJob
-} from '#browser/files';
+import { createUploadJobs, type UploadJob } from '#browser/files';
+import { downloadAndSave, trashFile, uploadBatch } from '#browser/drive/actions';
 import { DriveLibrary } from '#browser/drive/library.svelte';
 import { DriveSettings } from '#browser/drive/settings.svelte';
-import {
-    failUnfinishedJobs,
-    holdUploadedChunks,
-    replaceJob,
-    unchangedFile,
-    withChunks,
-    withoutChunk
-} from '#browser/drive/chunks';
+import { failUnfinishedJobs, replaceJob, unchangedFile } from '#browser/drive/chunks';
 
 /** The signed-in user's drive; their Google account and token stay on the server. */
 export class DriveController {
     private preferences = $state.raw<BrowserPreferences | null>(null);
-
-    replacingToken = $state(false);
-    signingOut = $state(false);
 
     ready = $state(false);
     busy = $state(false);
@@ -51,6 +34,7 @@ export class DriveController {
 
     readonly library: DriveLibrary;
     readonly settings: DriveSettings;
+    readonly account: DriveAccount;
 
     constructor(
         readonly email: string,
@@ -64,16 +48,23 @@ export class DriveController {
         this.settings = new DriveSettings(() => this.preferences, defaults, feedback);
         this.library = new DriveLibrary(
             email,
-            () => this.busy || !!this.fileAction,
+            () => this.working,
             () => this.settings.fileSort,
             feedback
         );
 
+        this.account = new DriveAccount(this.library, () => !this.working, feedback);
+
         useAutomaticRefresh(
             () => this.settings.refreshIntervalSeconds,
-            () => this.ready && !this.busy && !this.fileAction && !this.library.loading,
+            () => this.ready && !this.working && !this.library.loading,
             () => this.library.refresh()
         );
+    }
+
+    /** An upload or a file action is running. */
+    private get working(): boolean {
+        return this.busy || this.fileAction !== null;
     }
 
     initialize() {
@@ -90,49 +81,6 @@ export class DriveController {
         });
 
         this.ready = true;
-    }
-
-    /** Validate a new Google token on the server, then reload files with it. */
-    async replaceToken(token: string): Promise<boolean> {
-        if (this.replacingToken || this.busy || this.fileAction) return false;
-
-        this.replacingToken = true;
-        this.feedbackMessage = '';
-
-        const replaced = await replaceGoogleToken(token);
-
-        this.replacingToken = false;
-
-        return replaced.match({
-            Ok: () => {
-                this.library.reset();
-                void this.library.load();
-
-                return true;
-            },
-            Err: (error) => {
-                this.feedbackMessage = error.message;
-
-                return false;
-            }
-        });
-    }
-
-    async signOut() {
-        if (this.signingOut || this.busy || this.fileAction) return;
-
-        this.signingOut = true;
-
-        const signedOut = await signOut();
-
-        this.signingOut = false;
-
-        await signedOut.match({
-            Ok: () => invalidateAll(),
-            Err: async (error) => {
-                this.feedbackMessage = error.message;
-            }
-        });
     }
 
     confirmAction() {
@@ -152,43 +100,26 @@ export class DriveController {
     }
 
     async actOnFile(item: FileGroup, action: FileActionKind) {
-        if (this.busy || this.fileAction || this.library.loading) return;
+        if (this.working || this.library.loading) return;
 
         this.fileAction = { fileId: item.fileId, kind: action };
         this.feedbackMessage = '';
 
-        if (action === FileActionKind.Delete) {
-            const deleted = await deleteFile(
-                item,
-                (chunk) => {
-                    this.library.chunks = withoutChunk(this.library.chunks, item, chunk);
-                },
-                this.settings.concurrentWorkers
-            );
+        const deleting = action === FileActionKind.Delete;
+        const done = deleting
+            ? await trashFile(this.library, item, this.settings.concurrentWorkers)
+            : await downloadAndSave(item, this.processing);
 
-            deleted.inspectErr((error) => {
-                this.feedbackMessage = error.message;
-            });
+        done.inspectErr((error) => {
+            this.feedbackMessage = error.message;
+        });
 
-            this.uploadPanelOpen = false;
-            this.fileAction = null;
-
-            return;
-        }
-
-        const downloaded = await downloadFile(item, this.processing);
-
-        downloaded
-            .andThen((file) => saveDownloadedFile(file, item.name))
-            .inspectErr((error) => {
-                this.feedbackMessage = error.message;
-            });
-
+        if (deleting) this.uploadPanelOpen = false;
         this.fileAction = null;
     }
 
     async upload(files: readonly File[]) {
-        if (this.busy || this.fileAction || files.length === 0) return;
+        if (this.working || files.length === 0) return;
 
         if (this.library.loading) {
             this.feedbackMessage =
@@ -203,7 +134,7 @@ export class DriveController {
     }
 
     async retryUpload(id: number) {
-        if (this.busy || this.fileAction || this.library.loading) return;
+        if (this.working || this.library.loading) return;
 
         const job = this.uploadJobs.find((current) => current.id === id);
         const file = this.uploadSources[id];
@@ -219,22 +150,18 @@ export class DriveController {
         this.feedbackMessage = '';
         this.busy = true;
 
-        const uploadedChunks = holdUploadedChunks((saved) => {
-            this.library.chunks = withChunks(this.library.chunks, saved);
-        });
-        const uploaded = await uploadFiles(
+        const uploaded = await uploadBatch({
             files,
-            this.email,
-            this.settings.concurrentWorkers,
-            (job) => {
-                this.uploadJobs = replaceJob(this.uploadJobs, retryId ?? job.id, job);
-                uploadedChunks.settle(job);
+            email: this.email,
+            workers: this.settings.concurrentWorkers,
+            processing: this.processing,
+            library: this.library,
+            retryId,
+            onJob: (job, id) => {
+                this.uploadJobs = replaceJob(this.uploadJobs, id, job);
                 if (job.status === UploadJobStatus.Error) this.feedbackMessage = job.message;
-            },
-            uploadedChunks.hold,
-            this.processing
-        );
-        uploadedChunks.releaseAll();
+            }
+        });
 
         uploaded.inspectErr((error) => {
             this.feedbackMessage = error.message;

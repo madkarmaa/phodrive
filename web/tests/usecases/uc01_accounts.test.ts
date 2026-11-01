@@ -164,11 +164,11 @@ test('a rejected replacement token keeps the library and shows a safe error', as
     );
     const drive = createDrive();
 
-    const replaced = await drive.replaceToken('oauth2_4/fake');
+    const replaced = await drive.account.replaceToken('oauth2_4/fake');
 
     expect(replaced).toBe(false);
     expect(drive.feedbackMessage).toBe('AAS authentication failed');
-    expect(drive.replacingToken).toBe(false);
+    expect(drive.account.replacingToken).toBe(false);
     expect(drive.library.load).not.toHaveBeenCalled();
 });
 
@@ -185,12 +185,12 @@ test('a second replacement while one is pending does not issue another request',
     );
     const drive = createDrive();
 
-    const first = drive.replaceToken('oauth2_4/fake');
-    const second = await drive.replaceToken('oauth2_4/other');
+    const first = drive.account.replaceToken('oauth2_4/fake');
+    const second = await drive.account.replaceToken('oauth2_4/other');
 
     expect(second).toBe(false);
     expect(replaceGoogleToken).toHaveBeenCalledTimes(1);
-    expect(drive.replacingToken).toBe(true);
+    expect(drive.account.replacingToken).toBe(true);
 
     resolveReplacement?.(Ok(undefined));
 
@@ -202,7 +202,7 @@ test('signing out reloads the session, and a failed sign out keeps the drive wit
     vi.mocked(signOut).mockReturnValueOnce(Ok(undefined).andThenAsync(async () => Ok(undefined)));
     const drive = createDrive();
 
-    await drive.signOut();
+    await drive.account.signOut();
 
     expect(invalidateAll).toHaveBeenCalledOnce();
 
@@ -212,18 +212,18 @@ test('signing out reloads the session, and a failed sign out keeps the drive wit
         )
     );
 
-    await drive.signOut();
+    await drive.account.signOut();
 
     expect(invalidateAll).toHaveBeenCalledOnce();
     expect(drive.feedbackMessage).toBe('Could not sign out. Try again.');
-    expect(drive.signingOut).toBe(false);
+    expect(drive.account.signingOut).toBe(false);
 });
 
 test('sign out waits for active transfers', async () => {
     const drive = createDrive();
     drive.busy = true;
 
-    await drive.signOut();
+    await drive.account.signOut();
 
     expect(signOut).not.toHaveBeenCalled();
 });

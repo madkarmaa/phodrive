@@ -85,9 +85,9 @@
         anchor={accountButton}
         email={drive.email}
         disabled={actionsDisabled}
-        signingOut={drive.signingOut}
+        signingOut={drive.account.signingOut}
         onsignout={() => {
-            void drive.signOut();
+            void drive.account.signOut();
         }}
     />
 
@@ -106,8 +106,8 @@
             <SettingsPanel
                 email={drive.email}
                 processing={drive.processing}
-                replacingToken={drive.replacingToken}
-                onreplacetoken={(token) => drive.replaceToken(token)}
+                replacingToken={drive.account.replacingToken}
+                onreplacetoken={(token) => drive.account.replaceToken(token)}
                 defaults={preferencesDefaults}
                 refreshIntervalSeconds={drive.settings.refreshIntervalSeconds}
                 concurrentWorkers={drive.settings.concurrentWorkers}
