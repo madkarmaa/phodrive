@@ -6,12 +6,7 @@ import {
     ThemeSchema,
     type PreferencesDefaults
 } from '@madkarmaa/phodrive-core/models';
-import {
-    fileKey,
-    type FileAction,
-    type FileGroup,
-    type UploadedChunk
-} from '@madkarmaa/phodrive-core/files';
+import { fileKey, type FileAction, type FileGroup } from '@madkarmaa/phodrive-core/files';
 import { invalidateAll } from '$app/navigation';
 import { useAutomaticRefresh } from '#browser/drive/refresh.svelte';
 import { replaceGoogleToken, signOut } from '#browser/auth';
@@ -26,6 +21,14 @@ import {
 } from '#browser/files';
 import { DriveLibrary } from '#browser/drive/library.svelte';
 import { DriveSettings } from '#browser/drive/settings.svelte';
+import {
+    failUnfinishedJobs,
+    holdUploadedChunks,
+    replaceJob,
+    unchangedFile,
+    withChunks,
+    withoutChunk
+} from '#browser/drive/chunks';
 
 /** The signed-in user's drive; their Google account and token stay on the server. */
 export class DriveController {
@@ -139,20 +142,7 @@ export class DriveController {
         if (!item) return;
 
         const current = this.library.files.find((file) => fileKey(file) === fileKey(item));
-        if (
-            !current ||
-            current.name !== item.name ||
-            current.chunks.length !== item.chunks.length ||
-            current.chunks.some(
-                (chunk) =>
-                    !item.chunks.some(
-                        (saved) =>
-                            saved.mediaKey === chunk.mediaKey &&
-                            saved.sha1 === chunk.sha1 &&
-                            saved.chunkIndex === chunk.chunkIndex
-                    )
-            )
-        ) {
+        if (!unchangedFile(current, item)) {
             this.feedbackMessage = 'The file changed. Review its current chunks before deleting.';
 
             return;
@@ -171,12 +161,7 @@ export class DriveController {
             const deleted = await deleteFile(
                 item,
                 (chunk) => {
-                    this.library.chunks = this.library.chunks.filter(
-                        (saved) =>
-                            saved.email !== item.email ||
-                            saved.mediaKey !== chunk.mediaKey ||
-                            saved.sha1 !== chunk.sha1
-                    );
+                    this.library.chunks = withoutChunk(this.library.chunks, item, chunk);
                 },
                 this.settings.concurrentWorkers
             );
@@ -224,25 +209,9 @@ export class DriveController {
         const file = this.uploadSources[id];
         if (!job || job.status !== UploadJobStatus.Error || !file) return;
 
-        const fresh = createUploadJobs([file])[0];
-        this.uploadJobs = this.uploadJobs.map((current) =>
-            current.id === id ? { ...fresh, id } : current
-        );
+        this.uploadJobs = replaceJob(this.uploadJobs, id, createUploadJobs([file])[0]);
 
         await this.runUploads([file], id);
-    }
-
-    /** Add confirmed chunks, replacing any earlier copy of the same chunk. */
-    private addChunks(saved: readonly UploadedChunk[]) {
-        if (!saved.length) return;
-
-        const added = new Set(saved.map((chunk) => `${fileKey(chunk)}:${chunk.chunkIndex}`));
-        this.library.chunks = [
-            ...saved,
-            ...this.library.chunks.filter(
-                (item) => !added.has(`${fileKey(item)}:${item.chunkIndex}`)
-            )
-        ];
     }
 
     private async runUploads(files: readonly File[], retryId?: number) {
@@ -250,48 +219,26 @@ export class DriveController {
         this.feedbackMessage = '';
         this.busy = true;
 
-        // A file appears once its upload ends, so an unfinished file is never offered for download.
-        // A failed upload still shows its confirmed chunks, so they can be found and deleted.
-        const pending = new Map<number, UploadedChunk[]>();
-        const release = (jobId: number) => {
-            this.addChunks(pending.get(jobId) ?? []);
-            pending.delete(jobId);
-        };
-
+        const uploadedChunks = holdUploadedChunks((saved) => {
+            this.library.chunks = withChunks(this.library.chunks, saved);
+        });
         const uploaded = await uploadFiles(
             files,
             this.email,
             this.settings.concurrentWorkers,
             (job) => {
-                const id = retryId ?? job.id;
-                this.uploadJobs = this.uploadJobs.map((current) =>
-                    current.id === id ? { ...job, id } : current
-                );
-
-                if (job.status === UploadJobStatus.Complete || job.status === UploadJobStatus.Error)
-                    release(job.id);
-
-                if (job.status === UploadJobStatus.Error) {
-                    this.feedbackMessage = job.message;
-                }
+                this.uploadJobs = replaceJob(this.uploadJobs, retryId ?? job.id, job);
+                uploadedChunks.settle(job);
+                if (job.status === UploadJobStatus.Error) this.feedbackMessage = job.message;
             },
-            (saved, jobId) => {
-                pending.set(jobId, [...(pending.get(jobId) ?? []), saved]);
-            },
+            uploadedChunks.hold,
             this.processing
         );
-
-        for (const jobId of [...pending.keys()]) release(jobId);
+        uploadedChunks.releaseAll();
 
         uploaded.inspectErr((error) => {
             this.feedbackMessage = error.message;
-            this.uploadJobs = this.uploadJobs.map((job) =>
-                (retryId !== undefined && job.id !== retryId) ||
-                job.status === UploadJobStatus.Complete ||
-                job.status === UploadJobStatus.Error
-                    ? job
-                    : { ...job, status: UploadJobStatus.Error, message: error.message }
-            );
+            this.uploadJobs = failUnfinishedJobs(this.uploadJobs, error.message, retryId);
         });
 
         this.busy = false;
