@@ -1,95 +1,14 @@
 import type { Command } from '@commander-js/extra-typings';
-import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
-import { filterFiles, sortFiles, type FileGroup } from '@madkarmaa/phodrive-core/files';
-import type { FileSort } from '@madkarmaa/phodrive-core/models';
+import type { AsyncResult } from 'results-ts';
+import type { FileGroup } from '@madkarmaa/phodrive-core/files';
 import { openSession, type Session } from '../accounts';
 import type { CliContext, CliError, Runner } from '../context';
 import { planDownloads, saveFiles } from '../downloads';
-import { deleteFiles, findFiles, loadFiles } from '../library';
-import {
-    FILE_TABLE_HEAD,
-    fileJson,
-    fileRow,
-    jsonContext,
-    printJson,
-    printTable,
-    status
-} from '../output';
+import { deleteFiles, findFiles } from '../library';
+import { listFiles } from '../listing';
 import { askConfirmation, canConfirm } from '../prompts';
-import { chooseSort, chooseWorkers } from '../settings';
+import { chooseWorkers } from '../settings';
 import { openUploads, sendFiles } from '../uploads';
-
-const DAYS_PATTERN = /^[1-9]\d*$/;
-
-type ListOptions = { type?: string; days?: string; sort?: string; json?: boolean };
-type Filters = { query: string; type: string; days: string; order: FileSort };
-
-function parseDays(option?: string): Result<string, CliError> {
-    if (option === undefined) return Ok('');
-
-    const days = option.trim();
-    if (DAYS_PATTERN.test(days)) return Ok(days);
-
-    return Err({
-        code: 'INVALID_OPTION',
-        message: 'Invalid days. Use a whole number of days greater than 0.'
-    } as const);
-}
-
-function parseFilters(
-    context: CliContext,
-    session: Session,
-    query: string | undefined,
-    options: ListOptions
-): Result<Filters, CliError> {
-    return parseDays(options.days).andThen((days) =>
-        chooseSort(session.config, context.environment, options.sort).map((order) => ({
-            query: query ?? '',
-            type: options.type?.trim().toUpperCase() ?? '',
-            days,
-            order
-        }))
-    );
-}
-
-function showFiles(
-    context: CliContext,
-    files: readonly FileGroup[],
-    filters: Filters,
-    json = false
-): void {
-    const filtered = filterFiles(files, filters.query, filters.type, filters.days);
-    const shown = sortFiles(filtered, filters.order);
-
-    if (json) {
-        printJson(context, shown.map(fileJson));
-
-        return;
-    }
-    if (!shown.length) {
-        status(context).info('No files found.');
-
-        return;
-    }
-
-    printTable(context, FILE_TABLE_HEAD, shown.map(fileRow));
-}
-
-function listFiles(
-    context: CliContext,
-    query: string | undefined,
-    options: ListOptions & { account?: string }
-): AsyncResult<void, CliError> {
-    const output = jsonContext(context, options.json);
-
-    return openSession(output, options.account).andThenAsync((session) =>
-        parseFilters(output, session, query, options).andThenAsync((filters) =>
-            loadFiles(output, session).map((files) =>
-                showFiles(output, files, filters, options.json)
-            )
-        )
-    );
-}
 
 function upload(
     context: CliContext,
@@ -151,6 +70,9 @@ function remove(
         );
 }
 
+const ACCOUNT_FLAGS = '-a, --account <email>';
+const ACCOUNT_HELP = 'use this account instead of the active one';
+
 export function registerFileCommands(program: Command, context: CliContext, run: Runner) {
     const file = program.command('file').description('List, upload, download, and delete files');
 
@@ -161,14 +83,14 @@ export function registerFileCommands(program: Command, context: CliContext, run:
         .option('--days <days>', 'show files modified in the last number of days')
         .option('--sort <order>', 'modified-desc, modified-asc, name-asc, or name-desc')
         .option('--json', 'print JSON')
-        .option('-a, --account <email>', 'use this account instead of the active one')
+        .option(ACCOUNT_FLAGS, ACCOUNT_HELP)
         .action((search, options) => run(() => listFiles(context, search, options)));
 
     file.command('upload')
         .description('Upload files, and every file inside folders')
         .argument('<paths...>', 'files or folders')
         .option('-w, --workers <count>', 'concurrent transfers')
-        .option('-a, --account <email>', 'use this account instead of the active one')
+        .option(ACCOUNT_FLAGS, ACCOUNT_HELP)
         .action((paths, options) => run(() => upload(context, paths, options)));
 
     file.command('download')
@@ -176,7 +98,7 @@ export function registerFileCommands(program: Command, context: CliContext, run:
         .argument('<files...>', 'file names or IDs from `phodrive file list`')
         .option('-o, --output <path>', 'destination folder, or file path for one file')
         .option('-f, --force', 'replace existing local files')
-        .option('-a, --account <email>', 'use this account instead of the active one')
+        .option(ACCOUNT_FLAGS, ACCOUNT_HELP)
         .action((targets, options) => run(() => download(context, targets, options)));
 
     file.command('delete')
@@ -184,6 +106,6 @@ export function registerFileCommands(program: Command, context: CliContext, run:
         .argument('<files...>', 'file names or IDs from `phodrive file list`')
         .option('-y, --yes', 'skip the confirmation')
         .option('-w, --workers <count>', 'concurrent requests')
-        .option('-a, --account <email>', 'use this account instead of the active one')
+        .option(ACCOUNT_FLAGS, ACCOUNT_HELP)
         .action((targets, options) => run(() => remove(context, targets, options)));
 }
