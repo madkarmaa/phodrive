@@ -14,7 +14,6 @@ const { storage } = await vi.hoisted(async () => {
 
 const FIRST = 'first@example.com';
 const HASH_A = 'a'.repeat(64);
-const HASH_B = 'b'.repeat(64);
 const SHA1 = 'c'.repeat(40);
 
 function chunk(
