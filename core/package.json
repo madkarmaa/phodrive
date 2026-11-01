@@ -245,6 +245,10 @@
             "@madkarmaa/phodrive-core": "./src/server/upload/multipart.ts",
             "default": "./dist/server/upload/multipart.js"
         },
+        "./server/upload/multipart-streams": {
+            "@madkarmaa/phodrive-core": "./src/server/upload/multipart-streams.ts",
+            "default": "./dist/server/upload/multipart-streams.js"
+        },
         "./server/upload/stream": {
             "@madkarmaa/phodrive-core": "./src/server/upload/stream.ts",
             "default": "./dist/server/upload/stream.js"
@@ -347,6 +351,7 @@
             "./server/upload/file": "./dist/server/upload/file.js",
             "./server/upload/input": "./dist/server/upload/input.js",
             "./server/upload/multipart": "./dist/server/upload/multipart.js",
+            "./server/upload/multipart-streams": "./dist/server/upload/multipart-streams.js",
             "./server/upload/stream": "./dist/server/upload/stream.js",
             "./server/workers": "./dist/server/workers.js",
             "./upload": "./dist/upload.js",
