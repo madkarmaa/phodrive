@@ -121,6 +121,10 @@
             "@madkarmaa/phodrive-core": "./src/node/local-files.ts",
             "default": "./dist/node/local-files.js"
         },
+        "./node/save": {
+            "@madkarmaa/phodrive-core": "./src/node/save.ts",
+            "default": "./dist/node/save.js"
+        },
         "./node/upload": {
             "@madkarmaa/phodrive-core": "./src/node/upload.ts",
             "default": "./dist/node/upload.js"
@@ -336,6 +340,7 @@
             "./node/files": "./dist/node/files.js",
             "./node/library": "./dist/node/library.js",
             "./node/local-files": "./dist/node/local-files.js",
+            "./node/save": "./dist/node/save.js",
             "./node/upload": "./dist/node/upload.js",
             "./preferences": "./dist/preferences.js",
             "./server": "./dist/server/index.js",
