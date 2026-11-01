@@ -1,5 +1,5 @@
 import { createSHA1, createSHA256, sha256, type IHasher } from 'hash-wasm';
-import { Err, Ok, type AsyncResult, type Result } from 'results-ts';
+import { Err, Ok, type AsyncResult } from 'results-ts';
 import type { ApplicationError } from '../../errors';
 import type { SplitHeader } from '../../models';
 import { encodeSplitPrefix, MAX_CHUNK_PAYLOAD_BYTES } from '../../bmp/format';
